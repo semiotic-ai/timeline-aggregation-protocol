@@ -1,22 +1,36 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Module containing Receipt type used for providing and verifying a payment
+//!
+//! Receipts are used as single transaction promise of payment. A payment sender
+//! creates a receipt and ECDSA signs it, then sends it to a payment receiver.
+//! The payment receiver would verify the received receipt and store it to be
+//! accumulated with other received receipts in the future.
+
 use ethereum_types::Address;
 use k256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
 
 use crate::{Error, Result};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+/// Holds information needed for promise of payment signed with ECDSA
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Receipt {
+    /// Unique allocation id this receipt belongs to
     allocation_id: Address,
-    timestamp_ns: u64,
-    nonce: u64,
+    /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
+    pub timestamp_ns: u64,
+    /// Random value used to avoid collisions from multiple receipts with one timestamp
+    pub nonce: u64,
+    /// Payment value for transaction
     value: u64,
+    /// ECDSA Signature of all other values in receipt
     signature: Signature,
 }
 
 impl Receipt {
+    /// Returns a receipt with provided values signed with `signing_key`
     pub fn new(
         allocation_id: Address,
         timestamp_ns: u64,
@@ -28,7 +42,7 @@ impl Receipt {
         Receipt {
             allocation_id,
             timestamp_ns,
-            nonce,
+            nonce, // Decide what RNG should be used (prioritize cheap compute)
             value,
             signature: signing_key.sign(&Self::get_message_bytes(
                 allocation_id,
@@ -38,7 +52,18 @@ impl Receipt {
             )),
         }
     }
-
+    /// Verifies given values match values on receipt and that receipts signature is valid for given verifying key, returns `Ok` if valid or an `Error` indicate what was found to be invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidAllocationID`] if the allocation ID on the receipt does not exist in provided `allocation_ids`
+    ///
+    /// Returns [`Error::InvalidTimestamp`] if the receipt timestamp is not within the half-open range [`timestamp_min`, `timestamp_max`)
+    ///
+    /// Returns [`Error::InvalidValue`] if `Some` `expected_value` is provided but does not match receipts value
+    ///
+    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
+    ///
     pub fn is_valid(
         self: &Self,
         verifying_key: VerifyingKey, //TODO: with multiple gateway operators how is this value known
@@ -73,6 +98,12 @@ impl Receipt {
         self.is_valid_signature(verifying_key)
     }
 
+    /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
+    ///
     pub fn is_valid_signature(self: &Self, verifying_key: VerifyingKey) -> Result<()> {
         verifying_key.verify(
             &Self::get_message_bytes(

@@ -1,6 +1,11 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! The Timeline Aggregation Protocol (TAP) is a micro-trust
+//! state channel payment solution allowing one-way payments
+//! from a payment sender to be aggregated then cheaply
+//! verified on-chain by a payment receiver.
+
 use ethereum_types::Address;
 use thiserror::Error;
 
@@ -23,10 +28,12 @@ pub enum Error {
         timestamp_max: u64,
     },
     #[error("Invalid Value: {received_value} (expected {expected_value})")]
-    InvalidValue {
+    InvalidValue{
         received_value: u64,
         expected_value: u64,
     },
+    #[error("Aggregating receipt results in overflow")]
+    AggregateOverflow,
 }
 type Result<T> = std::result::Result<T, Error>;
 
@@ -60,13 +67,7 @@ mod tests {
         let test_receipt = Receipt::new(allocation_id, timestamp_ns + 9, value, &signing_key);
 
         assert!(test_receipt
-            .is_valid(
-                VerifyingKey::from(signing_key),
-                &[allocation_id],
-                timestamp_ns - 10,
-                timestamp_ns + 10,
-                None
-            )
+            .is_valid(VerifyingKey::from(signing_key), &[allocation_id], timestamp_ns-10, timestamp_ns+10, None)
             .is_ok())
     }
 
@@ -118,11 +119,21 @@ mod tests {
         let verifying_key = VerifyingKey::from(&signing_key);
 
         for value in values {
-            receipts.push(Receipt::new(allocation_id, value, value, &signing_key));
+            receipts.push(Receipt::new(
+                allocation_id,
+                value,
+                value,
+                &signing_key,
+            ));
         }
 
         // Add receipt with invalid allocation id
-        receipts.push(Receipt::new(false_allocation_id, 0u64, 0u64, &signing_key));
+        receipts.push(Receipt::new(
+                false_allocation_id,
+                0u64,
+                0u64,
+                &signing_key,
+        ));
 
         let false_rav = ReceiptAggregateVoucher::aggregate_receipt(
             &receipts,
@@ -134,3 +145,8 @@ mod tests {
         assert!(matches!(false_rav, Error::InvalidAllocationID { .. }));
     }
 }
+
+
+// TODO: create test/documentation to ensure exclusivity in receipt validity check
+
+// TODO: Add test for timestamp "overlap" range, requestiing multiple RAVs and sending receipts that either should or shouldn't be accepted

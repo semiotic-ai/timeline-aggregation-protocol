@@ -1,6 +1,13 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Module containing Receipt Aggregation Voucher (RAV) type used as a signed aggregate of receipt batches
+//!
+//! Receipt Aggregate Vouchers are used to aggregate batches of ordered receipts
+//! into a single signed voucher. In the [`TAP`](crate) protocol a RAV can be requested
+//! at any time by providing the batch of receipts to be aggragated and optionally the
+//! most recent previous RAV received.
+
 use std::{cmp, u64::MAX};
 
 use crate::{receipt::Receipt, Error, Result};
@@ -18,6 +25,16 @@ pub struct ReceiptAggregateVoucher {
 }
 
 impl ReceiptAggregateVoucher {
+    /// Aggregates a batch of receipts with optional previous RAV, returning a new signed RAV if all provided items are valid or an error if not.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidAllocationID`] if any receipt has a allocation ID that does match other `receipts` or `previous_rav`
+    ///
+    /// Returns [`Error::InvalidTimestamp`] if any receipt has a timestamp that is not *greater than* timestamp on `previous_rav` (if no `previous_rav` is provided there is no timestamp requirement)
+    ///
+    /// Returns [`Error::InvalidSignature`] if the signature on `previous_rav` or one or more `receipts` is not valid with provided `verifying_key`
+    ///
     pub fn aggregate_receipt(
         receipts: &[Receipt],
         verifying_key: VerifyingKey,
@@ -52,6 +69,14 @@ impl ReceiptAggregateVoucher {
         })
     }
 
+    /// Verifies RAV has matching allocation ID and signature is valid with `verifying_key`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidAllocationID`] if the allocation ID on the RAV does not match `allocation_id`
+    ///
+    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
+    ///
     pub fn is_valid(
         self: &Self,
         verifying_key: VerifyingKey,
@@ -66,6 +91,12 @@ impl ReceiptAggregateVoucher {
         self.is_valid_signature(verifying_key)
     }
 
+    /// Checks that RAV signature is valid for given verifying key, returns `Ok` if it is valid.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
+    ///
     pub fn is_valid_signature(self: &Self, verifying_key: VerifyingKey) -> Result<()> {
         Ok(verifying_key.verify(
             &Self::get_message_bytes(self.allocation_id, self.timestamp, self.value_aggregate),
@@ -73,6 +104,9 @@ impl ReceiptAggregateVoucher {
         )?)
     }
 
+    /// If a previous RAV is provided verify it and get the correct
+    /// corresponding initial values otherwise get the default initial
+    /// values.
     fn check_rav_and_get_initial_values(
         verifying_key: VerifyingKey,
         previous_rav: Option<Self>,
@@ -95,9 +129,9 @@ impl ReceiptAggregateVoucher {
         return Ok((0u64, 0u64, receipts[0].get_allocation_id()));
     }
 
-    /// Checks is a RAV received in a new RAV request is valid. This is different from
-    /// a full is_valid check because the RAV has no expected values except allocation ID,
-    /// if that is valid and the signature is correct then all other values can be used.
+    /// Checks if a RAV received in a new RAV request is valid. This is different from
+    /// a full is_valid check because the RAV has no expected values except allocation ID.
+    /// If that is valid and the signature is correct then all other values can be used.
     fn is_valid_for_rav_request(
         self: &Self,
         verifying_key: VerifyingKey,
