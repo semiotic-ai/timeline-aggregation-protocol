@@ -28,7 +28,7 @@ pub enum Error {
         timestamp_max: u64,
     },
     #[error("Invalid Value: {received_value} (expected {expected_value})")]
-    InvalidValue{
+    InvalidValue {
         received_value: u64,
         expected_value: u64,
     },
@@ -67,7 +67,13 @@ mod tests {
         let test_receipt = Receipt::new(allocation_id, timestamp_ns + 9, value, &signing_key);
 
         assert!(test_receipt
-            .is_valid(VerifyingKey::from(signing_key), &[allocation_id], timestamp_ns-10, timestamp_ns+10, None)
+            .is_valid(
+                VerifyingKey::from(signing_key),
+                &[allocation_id],
+                timestamp_ns - 10,
+                timestamp_ns + 10,
+                None
+            )
             .is_ok())
     }
 
@@ -119,21 +125,11 @@ mod tests {
         let verifying_key = VerifyingKey::from(&signing_key);
 
         for value in values {
-            receipts.push(Receipt::new(
-                allocation_id,
-                value,
-                value,
-                &signing_key,
-            ));
+            receipts.push(Receipt::new(allocation_id, value, value, &signing_key));
         }
 
         // Add receipt with invalid allocation id
-        receipts.push(Receipt::new(
-                false_allocation_id,
-                0u64,
-                0u64,
-                &signing_key,
-        ));
+        receipts.push(Receipt::new(false_allocation_id, 0u64, 0u64, &signing_key));
 
         let false_rav = ReceiptAggregateVoucher::aggregate_receipt(
             &receipts,
@@ -145,7 +141,6 @@ mod tests {
         assert!(matches!(false_rav, Error::InvalidAllocationID { .. }));
     }
 }
-
 
 // TODO: create test/documentation to ensure exclusivity in receipt validity check
 

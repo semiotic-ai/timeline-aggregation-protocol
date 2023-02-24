@@ -18,10 +18,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReceiptAggregateVoucher {
-    allocation_id: Address,
-    timestamp: u64,
-    value_aggregate: u64,
-    signature: Signature,
+    /// Unique allocation id this RAV belongs to
+    pub allocation_id: Address,
+    /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
+    /// corresponding to max timestamp from receipt batch aggregated
+    pub timestamp: u64,
+    /// Aggregated value from receipt batch and any previous RAV provided
+    pub value_aggregate: u64,
+    /// ECDSA Signature of all other values in RAV
+    pub signature: Signature,
 }
 
 impl ReceiptAggregateVoucher {
@@ -54,8 +59,8 @@ impl ReceiptAggregateVoucher {
                 None,
             )?;
 
-            value_aggregate += receipt.get_value();
-            timestamp_max = cmp::max(timestamp_max, receipt.get_timestamp_ns())
+            value_aggregate += receipt.value;
+            timestamp_max = cmp::max(timestamp_max, receipt.timestamp_ns)
         }
         Ok(ReceiptAggregateVoucher {
             allocation_id: allocation_id,
@@ -115,7 +120,7 @@ impl ReceiptAggregateVoucher {
         // All allocation IDs need to match, so initial allocation ID is set to ID
         // from an arbitry given receipt. This must then be compared against all
         // other receipts/RAV allocation IDs.
-        let allocation_id = receipts[0].get_allocation_id();
+        let allocation_id = receipts[0].allocation_id;
 
         if let Some(prev_rav) = previous_rav {
             prev_rav.is_valid_for_rav_request(verifying_key, allocation_id)?;
@@ -126,7 +131,7 @@ impl ReceiptAggregateVoucher {
             return Ok((timestamp, prev_rav.value_aggregate, allocation_id));
         }
         // If no RAV is provided then timestamp and value aggregate can be set to zero
-        return Ok((0u64, 0u64, receipts[0].get_allocation_id()));
+        return Ok((0u64, 0u64, receipts[0].allocation_id));
     }
 
     /// Checks if a RAV received in a new RAV request is valid. This is different from

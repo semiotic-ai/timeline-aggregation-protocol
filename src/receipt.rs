@@ -18,15 +18,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Receipt {
     /// Unique allocation id this receipt belongs to
-    allocation_id: Address,
+    pub allocation_id: Address,
     /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
     pub timestamp_ns: u64,
     /// Random value used to avoid collisions from multiple receipts with one timestamp
     pub nonce: u64,
     /// Payment value for transaction
-    value: u64,
+    pub value: u64,
     /// ECDSA Signature of all other values in receipt
-    signature: Signature,
+    pub signature: Signature,
 }
 
 impl Receipt {
@@ -115,18 +115,6 @@ impl Receipt {
             &self.signature,
         )?;
         Ok(())
-    }
-
-    pub fn get_value(self: &Self) -> u64 {
-        self.value
-    }
-
-    pub fn get_allocation_id(self: &Self) -> Address {
-        self.allocation_id
-    }
-
-    pub fn get_timestamp_ns(self: &Self) -> u64 {
-        self.timestamp_ns
     }
 
     fn get_message_bytes(
