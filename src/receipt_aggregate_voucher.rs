@@ -59,7 +59,10 @@ impl ReceiptAggregateVoucher {
                 None,
             )?;
 
-            value_aggregate += receipt.value;
+            value_aggregate = value_aggregate
+                .checked_add(receipt.value)
+                .ok_or(Error::AggregateOverflow)?;
+
             timestamp_max = cmp::max(timestamp_max, receipt.timestamp_ns)
         }
         Ok(ReceiptAggregateVoucher {
