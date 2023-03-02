@@ -154,6 +154,8 @@ impl ReceiptAggregateVoucher {
         self.is_valid_signature(verifying_key)
     }
 
+    /// Creates a byte vector of the receipt aggregate vouchers message for signing
+    ///
     fn get_message_bytes(allocation_id: Address, timestamp: u64, value: u64) -> Vec<u8> {
         allocation_id
             .as_bytes()

@@ -117,6 +117,8 @@ impl Receipt {
         Ok(())
     }
 
+    /// Creates a byte vector of the receipts message for signing
+    ///
     fn get_message_bytes(
         allocation_id: Address,
         timestamp_ns: u64,
