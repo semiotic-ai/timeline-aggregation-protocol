@@ -29,8 +29,8 @@ pub enum Error {
     },
     #[error("Invalid Value: {received_value} (expected {expected_value})")]
     InvalidValue {
-        received_value: u64,
-        expected_value: u64,
+        received_value: u128,
+        expected_value: u128,
     },
     #[error("Aggregating receipt results in overflow")]
     AggregateOverflow,
@@ -70,8 +70,8 @@ mod tests {
     #[case::closest_valid_min_max_timestamp(30, 30, 31, 100)]
     #[case::timestamp_at_min(u64::MIN, u64::MIN, 31, 100)]
     #[case::timestamp_at_max(u64::MAX-1, u64::MAX-1, u64::MAX, 100)]
-    #[case::min_value_amount(30, 20, 40, u64::MIN)]
-    #[case::min_value_amount(30, 20, 40, u64::MAX)]
+    #[case::min_value_amount(30, 20, 40, u128::MIN)]
+    #[case::min_value_amount(30, 20, 40, u128::MAX)]
 
     fn receipt_is_valid(
         keys: (SigningKey, VerifyingKey),
@@ -79,7 +79,7 @@ mod tests {
         #[case] timestamp: u64,
         #[case] timestamp_min: u64,
         #[case] timestamp_max: u64,
-        #[case] value: u64,
+        #[case] value: u128,
     ) {
         let test_receipt = Receipt::new(allocation_ids[0], timestamp, value, &keys.0);
 
@@ -102,7 +102,7 @@ mod tests {
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
         #[case] timestamps: Vec<u64>,
-        #[case] values: Vec<u64>,
+        #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
@@ -123,7 +123,7 @@ mod tests {
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
         #[case] timestamps: Vec<u64>,
-        #[case] values: Vec<u64>,
+        #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
@@ -159,7 +159,7 @@ mod tests {
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
         #[case] timestamps: Vec<u64>,
-        #[case] values: Vec<u64>,
+        #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();

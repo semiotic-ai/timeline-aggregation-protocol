@@ -24,7 +24,7 @@ pub struct ReceiptAggregateVoucher {
     /// corresponding to max timestamp from receipt batch aggregated
     pub timestamp: u64,
     /// Aggregated value from receipt batch and any previous RAV provided
-    pub value_aggregate: u64,
+    pub value_aggregate: u128,
     /// ECDSA Signature of all other values in RAV
     pub signature: Signature,
 }
@@ -119,7 +119,7 @@ impl ReceiptAggregateVoucher {
         verifying_key: VerifyingKey,
         previous_rav: Option<Self>,
         receipts: &[Receipt],
-    ) -> Result<(u64, u64, Address)> {
+    ) -> Result<(u64, u128, Address)> {
         // All allocation IDs need to match, so initial allocation ID is set to ID
         // from an arbitry given receipt. This must then be compared against all
         // other receipts/RAV allocation IDs.
@@ -134,7 +134,7 @@ impl ReceiptAggregateVoucher {
             return Ok((timestamp, prev_rav.value_aggregate, allocation_id));
         }
         // If no RAV is provided then timestamp and value aggregate can be set to zero
-        return Ok((0u64, 0u64, receipts[0].allocation_id));
+        return Ok((0u64, 0u128, receipts[0].allocation_id));
     }
 
     /// Checks if a RAV received in a new RAV request is valid. This is different from
@@ -156,7 +156,7 @@ impl ReceiptAggregateVoucher {
 
     /// Creates a byte vector of the receipt aggregate vouchers message for signing
     ///
-    fn get_message_bytes(allocation_id: Address, timestamp: u64, value: u64) -> Vec<u8> {
+    fn get_message_bytes(allocation_id: Address, timestamp: u64, value: u128) -> Vec<u8> {
         allocation_id
             .as_bytes()
             .iter()

@@ -24,7 +24,7 @@ pub struct Receipt {
     /// Random value used to avoid collisions from multiple receipts with one timestamp
     pub nonce: u64,
     /// Payment value for transaction
-    pub value: u64,
+    pub value: u128,
     /// ECDSA Signature of all other values in receipt
     pub signature: Signature,
 }
@@ -34,7 +34,7 @@ impl Receipt {
     pub fn new(
         allocation_id: Address,
         timestamp_ns: u64,
-        value: u64,
+        value: u128,
         signing_key: &SigningKey,
     ) -> Receipt {
         // TODO: Should we generate timestamp in library?
@@ -70,7 +70,7 @@ impl Receipt {
         allocation_ids: &[Address],
         timestamp_min: u64,
         timestamp_max: u64,
-        expected_value: Option<u64>,
+        expected_value: Option<u128>,
     ) -> Result<()> {
         // TODO: update to return the public key found with ECRECOVER
         let timestamp_range = timestamp_min..timestamp_max;
@@ -123,7 +123,7 @@ impl Receipt {
         allocation_id: Address,
         timestamp_ns: u64,
         nonce: u64,
-        value: u64,
+        value: u128,
     ) -> Vec<u8> {
         allocation_id
             .as_bytes()
