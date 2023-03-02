@@ -23,7 +23,7 @@ pub struct ReceiptAggregateVoucher {
     /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
     /// corresponding to max timestamp from receipt batch aggregated
     pub timestamp: u64,
-    /// Aggregated value from receipt batch and any previous RAV provided
+    /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
     pub value_aggregate: u128,
     /// ECDSA Signature of all other values in RAV
     pub signature: Signature,

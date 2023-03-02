@@ -23,7 +23,7 @@ pub struct Receipt {
     pub timestamp_ns: u64,
     /// Random value used to avoid collisions from multiple receipts with one timestamp
     pub nonce: u64,
-    /// Payment value for transaction
+    /// GRT value for transaction (truncate to lower bits)
     pub value: u128,
     /// ECDSA Signature of all other values in receipt
     pub signature: Signature,
