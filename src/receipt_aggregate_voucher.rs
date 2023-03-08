@@ -66,9 +66,9 @@ impl ReceiptAggregateVoucher {
             timestamp_max = cmp::max(timestamp_max, receipt.timestamp_ns)
         }
         Ok(ReceiptAggregateVoucher {
-            allocation_id: allocation_id,
+            allocation_id,
             timestamp: timestamp_max,
-            value_aggregate: value_aggregate,
+            value_aggregate,
             signature: signing_key.sign(&Self::get_message_bytes(
                 allocation_id,
                 timestamp_max,
@@ -85,11 +85,7 @@ impl ReceiptAggregateVoucher {
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn is_valid(
-        self: &Self,
-        verifying_key: VerifyingKey,
-        allocation_id: Address,
-    ) -> Result<()> {
+    pub fn is_valid(&self, verifying_key: VerifyingKey, allocation_id: Address) -> Result<()> {
         if self.allocation_id != allocation_id {
             return Err(Error::InvalidAllocationID {
                 received_allocation_id: self.allocation_id,
@@ -105,7 +101,7 @@ impl ReceiptAggregateVoucher {
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn is_valid_signature(self: &Self, verifying_key: VerifyingKey) -> Result<()> {
+    pub fn is_valid_signature(&self, verifying_key: VerifyingKey) -> Result<()> {
         Ok(verifying_key.verify(
             &Self::get_message_bytes(self.allocation_id, self.timestamp, self.value_aggregate),
             &self.signature,
@@ -134,14 +130,14 @@ impl ReceiptAggregateVoucher {
             return Ok((timestamp, prev_rav.value_aggregate, allocation_id));
         }
         // If no RAV is provided then timestamp and value aggregate can be set to zero
-        return Ok((0u64, 0u128, receipts[0].allocation_id));
+        Ok((0u64, 0u128, receipts[0].allocation_id))
     }
 
     /// Checks if a RAV received in a new RAV request is valid. This is different from
     /// a full is_valid check because the RAV has no expected values except allocation ID.
     /// If that is valid and the signature is correct then all other values can be used.
     fn is_valid_for_rav_request(
-        self: &Self,
+        &self,
         verifying_key: VerifyingKey,
         allocation_id: Address,
     ) -> Result<()> {

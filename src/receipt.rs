@@ -65,7 +65,7 @@ impl Receipt {
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
     pub fn is_valid(
-        self: &Self,
+        &self,
         verifying_key: VerifyingKey, //TODO: with multiple gateway operators how is this value known
         allocation_ids: &[Address],
         timestamp_min: u64,
@@ -104,7 +104,7 @@ impl Receipt {
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn is_valid_signature(self: &Self, verifying_key: VerifyingKey) -> Result<()> {
+    pub fn is_valid_signature(&self, verifying_key: VerifyingKey) -> Result<()> {
         verifying_key.verify(
             &Self::get_message_bytes(
                 self.allocation_id,
