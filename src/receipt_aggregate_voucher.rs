@@ -1,22 +1,31 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Module containing Receipt Aggregation Voucher (RAV) type used as a signed aggregate of receipt batches
+//! Module containing Receipt type used for providing and verifying a payment
 //!
-//! Receipt Aggregate Vouchers are used to aggregate batches of ordered receipts
-//! into a single signed voucher. In the [`TAP`](crate) protocol a RAV can be requested
-//! at any time by providing the batch of receipts to be aggragated and optionally the
-//! most recent previous RAV received.
+//! Receipts are used as single transaction promise of payment. A payment sender
+//! creates a receipt and ECDSA signs it, then sends it to a payment receiver.
+//! The payment receiver would verify the received receipt and store it to be
+//! accumulated with other received receipts in the future.
 
-use std::{cmp, u64::MAX};
-
-use crate::{receipt::Receipt, Error, Result};
+use crate::Error;
+use crate::{eip_712_signed_message::EIP712SignedMessage, receipt::Receipt};
 use ethereum_types::Address;
-use k256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
-
+use ethers_contract::EthAbiType;
+use ethers_core::types::transaction::eip712::Eip712;
+use ethers_derive_eip712::*;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// Holds information needed for promise of payment signed with ECDSA
+#[derive(Debug, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
+#[eip712(
+    //TODO: Update this info, or make it user defined?
+    name = "tap",
+    version = "1",
+    chain_id = 1,
+    verifying_contract = "0x0000000000000000000000000000000000000000"
+)]
 pub struct ReceiptAggregateVoucher {
     /// Unique allocation id this RAV belongs to
     pub allocation_id: Address,
@@ -25,140 +34,42 @@ pub struct ReceiptAggregateVoucher {
     pub timestamp: u64,
     /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
     pub value_aggregate: u128,
-    /// ECDSA Signature of all other values in RAV
-    pub signature: Signature,
 }
 
 impl ReceiptAggregateVoucher {
-    /// Aggregates a batch of receipts with optional previous RAV, returning a new signed RAV if all provided items are valid or an error if not.
+    /// Aggregates a batch of validated receipts with optional validated previous RAV, returning a new signed RAV if all provided items are valid or an error if not.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidAllocationID`] if any receipt has a allocation ID that does match other `receipts` or `previous_rav`
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow
     ///
-    /// Returns [`Error::InvalidTimestamp`] if any receipt has a timestamp that is not *greater than* timestamp on `previous_rav` (if no `previous_rav` is provided there is no timestamp requirement)
-    ///
-    /// Returns [`Error::InvalidSignature`] if the signature on `previous_rav` or one or more `receipts` is not valid with provided `verifying_key`
-    ///
-    pub fn aggregate_receipt(
-        receipts: &[Receipt],
-        verifying_key: VerifyingKey,
-        signing_key: &SigningKey,
-        previous_rav: Option<Self>,
-    ) -> Result<ReceiptAggregateVoucher> {
-        let (timestamp_min, mut value_aggregate, allocation_id) =
-            Self::check_rav_and_get_initial_values(verifying_key, previous_rav, receipts)?;
-        let mut timestamp_max = timestamp_min;
+    pub fn aggregate_receipts(
+        allocation_id: Address,
+        receipts: &[EIP712SignedMessage<Receipt>],
+        previous_rav: Option<EIP712SignedMessage<Self>>,
+    ) -> crate::Result<Self> {
+        //TODO(#29): When receipts in flight struct in created check that the state of every receipt is OK with all checks complete (relies on #28)
+        // If there is a previous RAV get initalize values from it, otherwise get default values
+        let mut timestamp_max = 0u64;
+        let mut value_aggregate = 0u128;
+
+        if let Some(prev_rav) = previous_rav {
+            timestamp_max = prev_rav.message.timestamp;
+            value_aggregate = prev_rav.message.value_aggregate;
+        }
 
         for receipt in receipts {
-            receipt.is_valid(
-                verifying_key,
-                &[allocation_id],
-                timestamp_min,
-                MAX, // TODO: What should the timestamp max be during RAV_REQ? User (gateway) Defined?
-                None,
-            )?;
-
             value_aggregate = value_aggregate
-                .checked_add(receipt.value)
+                .checked_add(receipt.message.value)
                 .ok_or(Error::AggregateOverflow)?;
 
-            timestamp_max = cmp::max(timestamp_max, receipt.timestamp_ns)
+            timestamp_max = cmp::max(timestamp_max, receipt.message.timestamp_ns)
         }
-        Ok(ReceiptAggregateVoucher {
+
+        Ok(Self {
             allocation_id,
             timestamp: timestamp_max,
             value_aggregate,
-            signature: signing_key.sign(&Self::get_message_bytes(
-                allocation_id,
-                timestamp_max,
-                value_aggregate,
-            )),
         })
-    }
-
-    /// Verifies RAV has matching allocation ID and signature is valid with `verifying_key`
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidAllocationID`] if the allocation ID on the RAV does not match `allocation_id`
-    ///
-    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
-    ///
-    pub fn is_valid(&self, verifying_key: VerifyingKey, allocation_id: Address) -> Result<()> {
-        if self.allocation_id != allocation_id {
-            return Err(Error::InvalidAllocationID {
-                received_allocation_id: self.allocation_id,
-                expected_allocation_ids: format!("{:?}", allocation_id),
-            });
-        }
-        self.is_valid_signature(verifying_key)
-    }
-
-    /// Checks that RAV signature is valid for given verifying key, returns `Ok` if it is valid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
-    ///
-    pub fn is_valid_signature(&self, verifying_key: VerifyingKey) -> Result<()> {
-        Ok(verifying_key.verify(
-            &Self::get_message_bytes(self.allocation_id, self.timestamp, self.value_aggregate),
-            &self.signature,
-        )?)
-    }
-
-    /// If a previous RAV is provided verify it and get the correct
-    /// corresponding initial values otherwise get the default initial
-    /// values.
-    fn check_rav_and_get_initial_values(
-        verifying_key: VerifyingKey,
-        previous_rav: Option<Self>,
-        receipts: &[Receipt],
-    ) -> Result<(u64, u128, Address)> {
-        // All allocation IDs need to match, so initial allocation ID is set to ID
-        // from an arbitry given receipt. This must then be compared against all
-        // other receipts/RAV allocation IDs.
-        let allocation_id = receipts[0].allocation_id;
-
-        if let Some(prev_rav) = previous_rav {
-            prev_rav.is_valid_for_rav_request(verifying_key, allocation_id)?;
-
-            // Add one to timestamp because only timestamps *AFTER* previous RAV timestamps are valid
-            let timestamp = prev_rav.timestamp + 1;
-
-            return Ok((timestamp, prev_rav.value_aggregate, allocation_id));
-        }
-        // If no RAV is provided then timestamp and value aggregate can be set to zero
-        Ok((0u64, 0u128, receipts[0].allocation_id))
-    }
-
-    /// Checks if a RAV received in a new RAV request is valid. This is different from
-    /// a full is_valid check because the RAV has no expected values except allocation ID.
-    /// If that is valid and the signature is correct then all other values can be used.
-    fn is_valid_for_rav_request(
-        &self,
-        verifying_key: VerifyingKey,
-        allocation_id: Address,
-    ) -> Result<()> {
-        if self.allocation_id != allocation_id {
-            return Err(Error::InvalidAllocationID {
-                received_allocation_id: self.allocation_id,
-                expected_allocation_ids: format!("{:?}", allocation_id),
-            });
-        }
-        self.is_valid_signature(verifying_key)
-    }
-
-    /// Creates a byte vector of the receipt aggregate vouchers message for signing
-    ///
-    fn get_message_bytes(allocation_id: Address, timestamp: u64, value: u128) -> Vec<u8> {
-        allocation_id
-            .as_bytes()
-            .iter()
-            .copied()
-            .chain(timestamp.to_be_bytes())
-            .chain(value.to_be_bytes())
-            .collect()
     }
 }
