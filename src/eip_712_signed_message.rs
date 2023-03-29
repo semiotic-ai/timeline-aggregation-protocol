@@ -49,7 +49,7 @@ impl<M: eip712::Eip712> EIP712SignedMessage<M> {
         message
             .encode_eip712()
             .map_err(|e| Error::EIP712EncodeError {
-                source_error_message: e.to_string().clone(),
+                source_error_message: e.to_string(),
             })
     }
 }
