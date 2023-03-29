@@ -10,7 +10,7 @@ use ethereum_types::Address;
 use thiserror::Error;
 
 pub mod eip_712_signed_message;
-pub mod receipt;
+pub mod tap_receipt;
 pub mod receipt_aggregate_voucher;
 
 #[derive(Error, Debug)]
@@ -43,7 +43,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tap_tests {
     use crate::{
-        eip_712_signed_message::EIP712SignedMessage, receipt::Receipt,
+        eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt,
         receipt_aggregate_voucher::ReceiptAggregateVoucher,
     };
     use ethereum_types::Address;
@@ -100,7 +100,7 @@ mod tap_tests {
         for (value, timestamp) in values.iter().zip(timestamps) {
             receipts.push(
                 EIP712SignedMessage::new(
-                    crate::receipt::Receipt::new(allocation_ids[0], timestamp, *value),
+                    crate::tap_receipt::Receipt::new(allocation_ids[0], timestamp, *value),
                     &keys.0,
                 )
                 .unwrap(),
@@ -130,7 +130,7 @@ mod tap_tests {
         for (value, timestamp) in values.iter().zip(timestamps) {
             receipts.push(
                 EIP712SignedMessage::new(
-                    crate::receipt::Receipt::new(allocation_ids[0], timestamp, *value),
+                    crate::tap_receipt::Receipt::new(allocation_ids[0], timestamp, *value),
                     &keys.0,
                 )
                 .unwrap(),

@@ -14,7 +14,7 @@ use k256::ecdsa::{SigningKey, VerifyingKey};
 use rand_core::OsRng;
 use std::str::FromStr;
 use timeline_aggregation_protocol::{
-    eip_712_signed_message::EIP712SignedMessage, receipt::Receipt,
+    eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
 };
 

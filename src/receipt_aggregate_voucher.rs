@@ -9,7 +9,7 @@
 //! accumulated with other received receipts in the future.
 
 use crate::Error;
-use crate::{eip_712_signed_message::EIP712SignedMessage, receipt::Receipt};
+use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 use ethereum_types::Address;
 use ethers_contract::EthAbiType;
 use ethers_core::types::transaction::eip712::Eip712;
