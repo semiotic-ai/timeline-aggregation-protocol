@@ -41,6 +41,8 @@ pub enum Error {
     InvalidCheckError { check_string: String },
     #[error("Action not valid in current state: {state}")]
     InvalidStateForRequestedAction { state: String },
+    #[error("Failed to get current system time: {source_error_message} ")]
+    InvalidSystemTime { source_error_message: String },
 }
 type Result<T> = std::result::Result<T, Error>;
 
@@ -74,40 +76,35 @@ mod tap_tests {
     }
 
     #[rstest]
-    #[case::basic_receipt_test(30, 100)]
-    #[case::closest_valid_min_timestamp(30, 100)]
-    #[case::closest_valid_max_timestamp(30, 100)]
-    #[case::closest_valid_min_max_timestamp(30, 100)]
+    #[case::basic_receipt_test(100)]
+    #[case::closest_valid_min_timestamp(100)]
+    #[case::closest_valid_max_timestamp(100)]
+    #[case::closest_valid_min_max_timestamp(100)]
     fn signed_receipt_is_valid(
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
-        #[case] timestamp: u64,
         #[case] value: u128,
     ) {
-        let test_receipt = Receipt::new(allocation_ids[0], timestamp, value);
+        let test_receipt = Receipt::new(allocation_ids[0], value).unwrap();
         let signed_message = EIP712SignedMessage::new(test_receipt, &keys.0).unwrap();
         assert!(signed_message.check_signature(keys.1).is_ok())
     }
 
     #[rstest]
-    #[case::basic_rav_test(vec![1,2,3,4], vec![45,56,34,23])]
-    #[case::rav_from_zero_valued_receipts(vec![1,2,3,4], vec![0,0,0,0])]
-    #[case::rav_with_same_timestamped_receipts(vec![1,1,1,1], vec![45,56,34,23])]
+    #[case::basic_rav_test(vec![45,56,34,23])]
+    #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
+    #[case::rav_with_same_timestamped_receipts(vec![45,56,34,23])]
     fn signed_rav_is_valid_with_no_previous_rav(
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
-        #[case] timestamps: Vec<u64>,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
-        for (value, timestamp) in values.iter().zip(timestamps) {
+        for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
-                    crate::tap_receipt::Receipt::new(allocation_ids[0], timestamp, *value),
-                    &keys.0,
-                )
-                .unwrap(),
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .unwrap(),
             );
         }
 
@@ -120,24 +117,20 @@ mod tap_tests {
     }
 
     #[rstest]
-    #[case::basic_rav_test(vec![1,2,3,4], vec![45,56,34,23])]
-    #[case::rav_from_zero_valued_receipts(vec![1,2,3,4], vec![0,0,0,0])]
-    #[case::rav_with_same_timestamped_receipts(vec![1,1,2,2], vec![45,56,34,23])]
+    #[case::basic_rav_test(vec![45,56,34,23])]
+    #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
+    #[case::rav_with_same_timestamped_receipts(vec![45,56,34,23])]
     fn signed_rav_is_valid_with_previous_rav(
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
-        #[case] timestamps: Vec<u64>,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
-        for (value, timestamp) in values.iter().zip(timestamps) {
+        for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
-                    crate::tap_receipt::Receipt::new(allocation_ids[0], timestamp, *value),
-                    &keys.0,
-                )
-                .unwrap(),
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .unwrap(),
             );
         }
 
