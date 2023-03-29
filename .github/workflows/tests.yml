@@ -44,8 +44,8 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
            rustup component add clippy
            cargo clippy --all-features
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
