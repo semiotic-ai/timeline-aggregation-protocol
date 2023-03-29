@@ -11,59 +11,41 @@ jobs:
   check:
     name: cargo check
     runs-on: ubuntu-latest
+    container: 
+      image: rust:latest 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-
+      - run: cargo check
+        
   test:
     name: cargo test
     runs-on: ubuntu-latest
+    container: 
+      image: rust:latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-
+      - run: cargo test
+        
   fmt:
     name: cargo fmt
     runs-on: ubuntu-latest
+    container: 
+      image: rust:latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
+      - run: |
+          rustup component add rustfmt
+          cargo fmt --all -- --check
+          
   clippy:
     name: cargo clippy
     runs-on: ubuntu-latest
+    container: 
+      image: rust:latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - uses: actions-rs/clippy-check@v1.0.7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+      - run: |
+           rustup component add clippy
+           cargo clippy --all-features -- -D clippy::all
