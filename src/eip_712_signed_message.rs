@@ -35,7 +35,11 @@ impl<M: eip712::Eip712> EIP712SignedMessage<M> {
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
     pub fn check_signature(&self, verifying_key: VerifyingKey) -> Result<()> {
-        verifying_key.verify(&Self::get_eip712_encoding(&self.message)?, &self.signature)?;
+        verifying_key
+            .verify(&Self::get_eip712_encoding(&self.message)?, &self.signature)
+            .map_err(|err| crate::Error::InvalidSignature {
+                source_error_message: err.to_string(),
+            })?;
         Ok(())
     }
 

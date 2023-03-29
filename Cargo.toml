@@ -21,6 +21,9 @@ ethers-derive-eip712 = "2.0.0"
 ethers-core = "2.0.0"
 ethers-contract = "2.0.0"
 criterion = "0.4.0"
+strum = "0.24.1"
+strum_macros = "0.24.3"
+
 
 [[bench]]
 name = 'timeline_aggretion_protocol_benchmark'
