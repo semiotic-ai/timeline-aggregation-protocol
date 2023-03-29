@@ -48,4 +48,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
            rustup component add clippy
-           cargo clippy --all-features
+           cargo clippy --all-features -- -D clippy::all
