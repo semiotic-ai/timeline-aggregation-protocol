@@ -15,7 +15,7 @@ jobs:
       image: rust:latest 
     steps:
       - uses: actions/checkout@v2
-        run: cargo check
+      - run: cargo check
         
   test:
     name: cargo test
@@ -24,7 +24,7 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v2
-        run: cargo test
+      - run: cargo test
         
   fmt:
     name: cargo fmt
@@ -33,7 +33,7 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v2
-        run: |
+      - run: |
           rustup component add rustfmt
           cargo fmt --all -- --check
           
@@ -44,7 +44,7 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v2
-        run: |
+      - run: |
            rustup component add clippy
            cargo clippy --all-features
         with:
