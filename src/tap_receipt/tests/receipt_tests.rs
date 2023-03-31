@@ -1,11 +1,10 @@
 #[cfg(test)]
 mod receipt_unit_test {
     use crate::tap_receipt::Receipt;
-    use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
-    use rstest::*;
     use ethereum_types::Address;
+    use rstest::*;
     use std::str::FromStr;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
@@ -18,14 +17,12 @@ mod receipt_unit_test {
     }
 
     #[rstest]
-    fn test_new_receipt(
-        allocation_ids: Vec<Address>,
-    ) {
+    fn test_new_receipt(allocation_ids: Vec<Address>) {
         let value = 1234;
 
         let receipt = Receipt::new(allocation_ids[0].clone(), value).unwrap();
 
-        assert_eq!(receipt.allocation_id, allocation_id);
+        assert_eq!(receipt.allocation_id, allocation_ids[0]);
         assert_eq!(receipt.value, value);
 
         // Check that the timestamp is within a reasonable range
@@ -38,10 +35,7 @@ mod receipt_unit_test {
     }
 
     #[rstest]
-    fn test_unique_nonce_and_timestamp(
-        allocation_ids: Vec<Address>,
-    ) {
-        let allocation_id = Address::new(); // Replace this with the appropriate method to create an Address
+    fn test_unique_nonce_and_timestamp(allocation_ids: Vec<Address>) {
         let value = 1234;
 
         let receipt1 = Receipt::new(allocation_ids[0].clone(), value).unwrap();

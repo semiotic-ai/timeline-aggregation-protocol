@@ -90,13 +90,11 @@ impl ReceivedReceipt {
         check: ReceiptCheck,
         result: Option<crate::Result<()>>,
     ) -> crate::Result<()> {
-        assert!(self.checks.contains_key(&check));
         if !self.checks.contains_key(&check) {
             return Err(crate::Error::InvalidCheckError {
                 check_string: check.to_string(),
             });
         }
-        // TODO: return error if outside of valid states?
         if !(self.state == ReceiptState::Received || self.state == ReceiptState::Checking) {
             return Err(crate::Error::InvalidStateForRequestedAction {
                 state: self.state.to_string(),

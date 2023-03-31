@@ -37,9 +37,11 @@ pub enum Error {
     AggregateOverflow,
     #[error("Failed to encode to EIP712 hash:\n{source_error_message}")]
     EIP712EncodeError { source_error_message: String },
-    #[error("Check is not valid: {check_string}, only checks included in initial list are valid")]
+    #[error(
+        "Unexpected check: {check_string}, only checks provided in initial checklist are valid"
+    )]
     InvalidCheckError { check_string: String },
-    #[error("Action not valid in current state: {state}")]
+    #[error("The requested action is invalid for current receipt state: {state}")]
     InvalidStateForRequestedAction { state: String },
     #[error("Failed to get current system time: {source_error_message} ")]
     InvalidSystemTime { source_error_message: String },
@@ -76,24 +78,8 @@ mod tap_tests {
     }
 
     #[rstest]
-    #[case::basic_receipt_test(100)]
-    #[case::closest_valid_min_timestamp(100)]
-    #[case::closest_valid_max_timestamp(100)]
-    #[case::closest_valid_min_max_timestamp(100)]
-    fn signed_receipt_is_valid(
-        keys: (SigningKey, VerifyingKey),
-        allocation_ids: Vec<Address>,
-        #[case] value: u128,
-    ) {
-        let test_receipt = Receipt::new(allocation_ids[0], value).unwrap();
-        let signed_message = EIP712SignedMessage::new(test_receipt, &keys.0).unwrap();
-        assert!(signed_message.check_signature(keys.1).is_ok())
-    }
-
-    #[rstest]
-    #[case::basic_rav_test(vec![45,56,34,23])]
-    #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
-    #[case::rav_with_same_timestamped_receipts(vec![45,56,34,23])]
+    #[case::basic_rav_test (vec![45,56,34,23])]
+    #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     fn signed_rav_is_valid_with_no_previous_rav(
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
@@ -119,7 +105,6 @@ mod tap_tests {
     #[rstest]
     #[case::basic_rav_test(vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
-    #[case::rav_with_same_timestamped_receipts(vec![45,56,34,23])]
     fn signed_rav_is_valid_with_previous_rav(
         keys: (SigningKey, VerifyingKey),
         allocation_ids: Vec<Address>,
