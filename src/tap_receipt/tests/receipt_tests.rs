@@ -28,7 +28,7 @@ mod receipt_unit_test {
         // Check that the timestamp is within a reasonable range
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
+            .expect("Current system time should be greater than `UNIX_EPOCH`")
             .as_millis() as u64;
         assert!(receipt.timestamp_ns <= now);
         assert!(receipt.timestamp_ns >= now - 5000); // 5 second tolerance
@@ -42,7 +42,7 @@ mod receipt_unit_test {
         let receipt2 = Receipt::new(allocation_ids[0].clone(), value).unwrap();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
+            .expect("Current system time should be greater than `UNIX_EPOCH`")
             .as_millis() as u64;
 
         // Check that nonces are different
