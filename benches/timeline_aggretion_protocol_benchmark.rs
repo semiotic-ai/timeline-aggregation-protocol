@@ -14,21 +14,16 @@ use k256::ecdsa::{SigningKey, VerifyingKey};
 use rand_core::OsRng;
 use std::str::FromStr;
 use timeline_aggregation_protocol::{
-    eip_712_signed_message::EIP712SignedMessage, receipt::Receipt,
-    receipt_aggregate_voucher::ReceiptAggregateVoucher,
+    eip_712_signed_message::EIP712SignedMessage,
+    receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
 
 pub fn create_and_sign_receipt(
     allocation_id: Address,
-    timestamp_ns: u64,
     value: u128,
     signing_key: &SigningKey,
 ) -> EIP712SignedMessage<Receipt> {
-    EIP712SignedMessage::new(
-        Receipt::new(allocation_id, timestamp_ns, value),
-        signing_key,
-    )
-    .unwrap()
+    EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), signing_key).unwrap()
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -39,18 +34,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let allocation_id =
         black_box(Address::from_str("0xabababababababababababababababababababab").unwrap());
     let value = black_box(12345u128);
-    let timestamp_ns = black_box(12345u64);
 
     c.bench_function("Create Receipt", |b| {
-        b.iter(|| create_and_sign_receipt(allocation_id, timestamp_ns, value, &signing_key))
+        b.iter(|| create_and_sign_receipt(allocation_id, value, &signing_key))
     });
 
-    let receipt = black_box(create_and_sign_receipt(
-        allocation_id,
-        timestamp_ns,
-        value,
-        &signing_key,
-    ));
+    let receipt = black_box(create_and_sign_receipt(allocation_id, value, &signing_key));
 
     c.bench_function("Validate Receipt", |b| {
         b.iter(|| receipt.check_signature(verifying_key))
@@ -61,13 +50,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     for log_number_of_receipts in 10..30 {
         let receipts = black_box(
             (0..2 ^ log_number_of_receipts)
-                .map(|_| {
-                    EIP712SignedMessage::new(
-                        Receipt::new(allocation_id, timestamp_ns, value),
-                        &signing_key,
-                    )
-                    .unwrap()
-                })
+                .map(|_| create_and_sign_receipt(allocation_id, value, &signing_key))
                 .collect::<Vec<_>>(),
         );
 

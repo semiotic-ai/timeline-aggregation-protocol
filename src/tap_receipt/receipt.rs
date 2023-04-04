@@ -14,6 +14,7 @@ use ethers_core::types::transaction::eip712::Eip712;
 use ethers_derive_eip712::*;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Holds information needed for promise of payment signed with ECDSA
 #[derive(Debug, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
@@ -37,13 +38,19 @@ pub struct Receipt {
 
 impl Receipt {
     /// Returns a receipt with provided values signed with `signing_key`
-    pub fn new(allocation_id: Address, timestamp_ns: u64, value: u128) -> Self {
+    pub fn new(allocation_id: Address, value: u128) -> crate::Result<Self> {
+        let timestamp_ns = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|err| crate::Error::InvalidSystemTime {
+                source_error_message: err.to_string(),
+            })?
+            .as_millis() as u64;
         let nonce = thread_rng().gen::<u64>();
-        Self {
+        Ok(Self {
             allocation_id,
             timestamp_ns,
             nonce,
             value,
-        }
+        })
     }
 }
