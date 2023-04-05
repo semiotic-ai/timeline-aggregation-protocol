@@ -9,6 +9,7 @@
 use ethereum_types::Address;
 use thiserror::Error;
 
+pub mod adapters;
 pub mod eip_712_signed_message;
 pub mod receipt_aggregate_voucher;
 pub mod tap_receipt;
