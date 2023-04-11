@@ -9,6 +9,7 @@
 use ethereum_types::Address;
 use thiserror::Error;
 
+pub mod adapters;
 pub mod eip_712_signed_message;
 pub mod receipt_aggregate_voucher;
 pub mod tap_receipt;
@@ -48,11 +49,33 @@ pub enum Error {
 }
 type Result<T> = std::result::Result<T, Error>;
 
+// use k256::{ecdsa::VerifyingKey, PublicKey as K256PublicKey};
+use k256::{ecdsa::VerifyingKey, elliptic_curve::sec1::ToEncodedPoint, PublicKey as K256PublicKey};
+use tiny_keccak::{Hasher, Keccak};
+
+// TODO: https://github.com/semiotic-ai/timeline_aggregation_protocol/issues/37
+//       Remove this function when issue is resolved (library should use ether-rs directly)
+
+/// Translates from K256 ECDSA VerifyingKey to Ether Address
+pub fn verifying_key_to_address(verifying_key: &VerifyingKey) -> Address {
+    let public_key = K256PublicKey::from(verifying_key).to_encoded_point(false);
+    let public_key_bytes = public_key.as_bytes();
+
+    // Take the Keccak-256 hash of the serialized public key
+    let mut keccak = Keccak::v256();
+    let mut hash_output = [0u8; 32];
+    keccak.update(&public_key_bytes[1..]);
+    keccak.finalize(&mut hash_output);
+
+    Address::from_slice(&hash_output[12..])
+}
+
 #[cfg(test)]
 mod tap_tests {
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+        verifying_key_to_address,
     };
     use ethereum_types::Address;
     use k256::ecdsa::{SigningKey, VerifyingKey};
@@ -138,5 +161,22 @@ mod tap_tests {
         let signed_rav = EIP712SignedMessage::new(rav, &keys.0).unwrap();
 
         assert!(signed_rav.check_signature(keys.1).is_ok());
+    }
+
+    #[rstest]
+    fn verifying_key_to_address_test() {
+        // Randomly generated key with expected address
+        let signing_key_bytes = [
+            131u8, 5, 83, 10, 48, 91, 169, 43, 233, 200, 145, 129, 226, 44, 204, 71, 173, 186, 163,
+            54, 158, 165, 161, 61, 170, 144, 138, 40, 166, 213, 139, 142,
+        ];
+        let expected_address = [
+            82u8, 114, 93, 165, 3, 152, 20, 223, 240, 150, 135, 235, 90, 222, 107, 21, 180, 227,
+            60, 12,
+        ];
+        let signing_key = SigningKey::from_bytes(&signing_key_bytes.into()).unwrap();
+        let verifying_key = VerifyingKey::from(&signing_key);
+        let address = verifying_key_to_address(&verifying_key);
+        assert_eq!(expected_address.as_slice(), address.as_bytes())
     }
 }
