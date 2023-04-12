@@ -12,8 +12,7 @@ use crate::Error;
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 use ethereum_types::Address;
 use ethers_contract::EthAbiType;
-use ethers_core::types::transaction::eip712::Eip712;
-use ethers_derive_eip712::*;
+use ethers_contract_derive::Eip712;
 use serde::{Deserialize, Serialize};
 use std::cmp;
 
