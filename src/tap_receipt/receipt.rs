@@ -10,8 +10,7 @@
 
 use ethereum_types::Address;
 use ethers_contract::EthAbiType;
-use ethers_core::types::transaction::eip712::Eip712;
-use ethers_derive_eip712::*;
+use ethers_contract_derive::Eip712;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
