@@ -46,6 +46,7 @@ pub enum RAVStatus {
     IncludedInReceived,
 }
 
+#[derive(Debug, Clone)]
 /// Wrapper class for metadata and state of a received receipt
 pub struct ReceivedReceipt {
     /// An EIP712 signed receipt message

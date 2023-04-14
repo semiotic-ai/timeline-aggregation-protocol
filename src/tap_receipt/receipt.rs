@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Holds information needed for promise of payment signed with ECDSA
-#[derive(Debug, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Eip712, EthAbiType)]
 #[eip712(
     //TODO: Update this info, or make it user defined?
     name = "tap",
