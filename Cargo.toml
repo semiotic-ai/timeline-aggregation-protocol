@@ -1,31 +1,9 @@
-[package]
-name="timeline_aggregation_protocol"
+[workspace]
+members = [
+    "tap_core"
+]
+
+[workspace.package]
 version="0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-
-primitive-types={version="0.12.1", features=["serde"]}
-k256={version="0.13.0", features=["ecdsa", "serde"]}
-rand_core="0.6.4"
-serde={ version="1.0", features=["derive"] }
-rand="0.8.5"
-thiserror="1.0.38"
-ethereum-types={version="0.14.1"}
-rstest = "0.16.0"
-ethers = "2.0.0"
-ethers-core = "2.0.0"
-ethers-contract = "2.0.0"
-ethers-contract-derive = "2.0.0"
-criterion = "0.4.0"
-strum = "0.24.1"
-strum_macros = "0.24.3"
-tiny-keccak = { version = "2.0.2", default-features = false }
-
-
-[[bench]]
-name = 'timeline_aggretion_protocol_benchmark'
-harness = false
