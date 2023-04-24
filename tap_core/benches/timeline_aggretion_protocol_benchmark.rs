@@ -13,7 +13,7 @@ use ethereum_types::Address;
 use k256::ecdsa::{SigningKey, VerifyingKey};
 use rand_core::OsRng;
 use std::str::FromStr;
-use timeline_aggregation_protocol::{
+use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };

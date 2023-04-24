@@ -1,5 +1,5 @@
 [package]
-name="timeline_aggregation_protocol"
+name="tap_core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

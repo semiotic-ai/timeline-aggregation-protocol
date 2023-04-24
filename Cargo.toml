@@ -1,10 +1,9 @@
 [workspace]
 members = [
-    "lib"
+    "tap_core"
 ]
 
 [workspace.package]
-name="timeline_aggregation_protocol"
 version="0.1.0"
 edition = "2021"
 license = "Apache-2.0"
