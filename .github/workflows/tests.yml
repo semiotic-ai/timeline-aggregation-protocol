@@ -71,3 +71,17 @@ jobs:
         with:
           lcov-file: lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    container: 
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cargo Audit Plugin
+        run: cargo install cargo-audit
+      - name: Run Cargo Audit
+        run:  cargo audit --color always
