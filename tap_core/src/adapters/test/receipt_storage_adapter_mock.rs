@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{adapters::receipt_adapter::ReceiptAdapter, tap_receipt::ReceivedReceipt};
+use crate::{
+    adapters::receipt_storage_adapter::ReceiptStorageAdapter, tap_receipt::ReceivedReceipt,
+};
 
 #[derive(Default)]
 pub struct ReceiptAdapterMock {
@@ -17,18 +19,14 @@ impl ReceiptAdapterMock {
     }
 }
 
-impl ReceiptAdapter<&'static str> for ReceiptAdapterMock {
+impl ReceiptStorageAdapter<&'static str> for ReceiptAdapterMock {
     fn store_receipt(&mut self, receipt: ReceivedReceipt) -> Result<u64, &'static str> {
         let id = self.unique_id;
         self.receipt_storage.insert(id, receipt);
         self.unique_id += 1;
         Ok(id)
     }
-    fn is_unique(&self, receipt: ReceivedReceipt) -> bool {
-        self.receipt_storage.iter().all(|(_, stored_receipt)| {
-            stored_receipt.signed_receipt.message != receipt.signed_receipt.message
-        })
-    }
+
     fn retrieve_receipt_by_id(&self, receipt_id: u64) -> Result<ReceivedReceipt, &'static str> {
         self.receipt_storage
             .get(&receipt_id)
