@@ -49,3 +49,17 @@ jobs:
       - run: |
            rustup component add clippy
            cargo clippy --all-features -- -D clippy::all
+  
+  code-coverage:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Update Rust and Install LLVM Tools
+        run: | 
+            rustup update stable
+            rustup component add llvm-tools-preview
+            cargo install cargo-llvm-cov
+      - name: Generate Code Coverage
+        run: cargo llvm-cov --all-features --workspace
