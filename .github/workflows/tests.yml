@@ -75,13 +75,30 @@ jobs:
   audit:
     name: cargo audit
     runs-on: ubuntu-latest
-    container: 
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    container:
       image: rust:latest
     steps:
       - uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install Cargo Audit Plugin
-        run: cargo install cargo-audit
-      - name: Run Cargo Audit
-        run:  cargo audit --color always
+      - name: Install Cargo Audit
+        run: |
+              cargo install cargo-audit
+
+      - id: get-comment-body
+        run: | 
+           cargo audit | tee report.xml
+           body="$(cat report.xml)"
+           delimiter="$(openssl rand -hex 8)"
+           echo "body<<$delimiter" >> $GITHUB_OUTPUT
+           echo "$body" >> $GITHUB_OUTPUT
+           echo "$delimiter" >> $GITHUB_OUTPUT
+     
+      - name: Add Comment 
+        uses: peter-evans/commit-comment@v2
+        with:
+         body: ${{ steps.get-comment-body.outputs.body }}
