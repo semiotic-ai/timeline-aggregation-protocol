@@ -7,6 +7,7 @@
 //! verified on-chain by a payment receiver.
 
 use ethereum_types::Address;
+use ethers::{signers::WalletError, types::SignatureError};
 use thiserror::Error;
 
 pub mod adapters;
@@ -29,6 +30,10 @@ pub enum Error {
     InvalidStateForRequestedAction { state: String },
     #[error("Failed to get current system time: {source_error_message} ")]
     InvalidSystemTime { source_error_message: String },
+    #[error(transparent)]
+    WalletError(#[from] WalletError),
+    #[error(transparent)]
+    SignatureError(#[from] SignatureError),
 }
 type Result<T> = std::result::Result<T, Error>;
 
@@ -61,16 +66,19 @@ mod tap_tests {
         verifying_key_to_address,
     };
     use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use k256::ecdsa::{SigningKey, VerifyingKey};
-    use rand_core::OsRng;
     use rstest::*;
     use std::str::FromStr;
 
     #[fixture]
-    fn keys() -> (SigningKey, VerifyingKey) {
-        let signing_key = SigningKey::random(&mut OsRng);
-        let verifying_key = VerifyingKey::from(&signing_key);
-        (signing_key, verifying_key)
+    fn keys() -> (LocalWallet, Address) {
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+        let address = wallet.address();
+        (wallet, address)
     }
 
     #[fixture]
@@ -86,8 +94,8 @@ mod tap_tests {
     #[rstest]
     #[case::basic_rav_test (vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
-    fn signed_rav_is_valid_with_no_previous_rav(
-        keys: (SigningKey, VerifyingKey),
+    async fn signed_rav_is_valid_with_no_previous_rav(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
@@ -96,6 +104,7 @@ mod tap_tests {
         for value in values {
             receipts.push(
                 EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
                     .unwrap(),
             );
         }
@@ -104,15 +113,15 @@ mod tap_tests {
 
         let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
             .unwrap();
-        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).unwrap();
-        assert!(signed_rav.check_signature(keys.1).is_ok());
+        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).await.unwrap();
+        assert!(signed_rav.recover_signer().unwrap() == keys.1);
     }
 
     #[rstest]
     #[case::basic_rav_test(vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
-    fn signed_rav_is_valid_with_previous_rav(
-        keys: (SigningKey, VerifyingKey),
+    async fn signed_rav_is_valid_with_previous_rav(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
@@ -121,6 +130,7 @@ mod tap_tests {
         for value in values {
             receipts.push(
                 EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
                     .unwrap(),
             );
         }
@@ -132,7 +142,7 @@ mod tap_tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).unwrap();
+        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).await.unwrap();
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
@@ -141,9 +151,9 @@ mod tap_tests {
             Some(signed_prev_rav),
         )
         .unwrap();
-        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).unwrap();
+        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).await.unwrap();
 
-        assert!(signed_rav.check_signature(keys.1).is_ok());
+        assert!(signed_rav.recover_signer().unwrap() == keys.1);
     }
 
     #[rstest]

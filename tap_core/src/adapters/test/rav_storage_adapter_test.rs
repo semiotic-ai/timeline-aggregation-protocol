@@ -8,16 +8,19 @@ mod rav_storage_adapter_unit_test {
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
     };
     use ethereum_types::Address;
-    use k256::ecdsa::SigningKey;
-    use rand_core::OsRng;
+    use ethers::signers::coins_bip39::English;
+    use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
     use std::str::FromStr;
 
     #[rstest]
-    fn rav_storage_adapter_test() {
+    async fn rav_storage_adapter_test() {
         let mut rav_storage_adapter = RAVStorageAdapterMock::new();
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
 
         let allocation_id =
             Address::from_str("0xabababababababababababababababababababab").unwrap();
@@ -26,15 +29,17 @@ mod rav_storage_adapter_unit_test {
         let mut receipts = Vec::new();
         for value in 50..60 {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &signing_key)
+                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
+                    .await
                     .unwrap(),
             );
         }
 
         let signed_rav = EIP712SignedMessage::new(
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
-            &signing_key,
+            &wallet,
         )
+        .await
         .unwrap();
 
         let rav_id = rav_storage_adapter.store_rav(signed_rav).unwrap();

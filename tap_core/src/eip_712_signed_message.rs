@@ -5,27 +5,27 @@
 //!
 
 use crate::{Error, Result};
-use ethers_core::types::transaction::eip712;
-use k256::ecdsa::{signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey};
+use ethers::{
+    signers::{LocalWallet, Signer},
+    types::Signature,
+};
+use ethers_core::types::{transaction::eip712, Address};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct EIP712SignedMessage<M: eip712::Eip712> {
+pub struct EIP712SignedMessage<M: eip712::Eip712 + Send + Sync> {
     /// Message to be signed
     pub message: M,
     /// ECDSA Signature of eip712 hash of message
     pub signature: Signature,
 }
 
-impl<M: eip712::Eip712> EIP712SignedMessage<M> {
-    /// creates signed message with signed EIP712 hash of `message` using `signing_key`
-    pub fn new(message: M, signing_key: &SigningKey) -> Result<Self> {
-        let encoded_message = Self::get_eip712_encoding(&message)?;
+impl<M: eip712::Eip712 + Send + Sync> EIP712SignedMessage<M> {
+    /// creates signed message with signed EIP712 hash of `message` using `signing_wallet`
+    pub async fn new(message: M, signing_wallet: &LocalWallet) -> Result<Self> {
+        let signature = signing_wallet.sign_typed_data(&message).await?;
 
-        Ok(Self {
-            message,
-            signature: signing_key.sign(&encoded_message),
-        })
+        Ok(Self { message, signature })
     }
 
     /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
@@ -34,13 +34,10 @@ impl<M: eip712::Eip712> EIP712SignedMessage<M> {
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn check_signature(&self, verifying_key: VerifyingKey) -> Result<()> {
-        verifying_key
-            .verify(&Self::get_eip712_encoding(&self.message)?, &self.signature)
-            .map_err(|err| crate::Error::InvalidSignature {
-                source_error_message: err.to_string(),
-            })?;
-        Ok(())
+    pub fn recover_signer(&self) -> Result<Address> {
+        Ok(self
+            .signature
+            .recover(Self::get_eip712_encoding(&self.message)?)?)
     }
 
     /// Unable to cleanly typecast encode_eip712 associated error type to crate
