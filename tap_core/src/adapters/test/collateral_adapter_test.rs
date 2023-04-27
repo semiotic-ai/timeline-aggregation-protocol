@@ -3,21 +3,26 @@ mod collateral_adapter_unit_test {
     use crate::adapters::{
         collateral_adapter::CollateralAdapter, collateral_adapter_mock::CollateralAdapterMock,
     };
-    use k256::ecdsa::{SigningKey, VerifyingKey};
-    use rand_core::OsRng;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
     #[rstest]
     fn collateral_adapter_test() {
         let mut collateral_adapter = CollateralAdapterMock::new();
 
-        let signing_key = SigningKey::random(&mut OsRng);
-        let verifying_key = VerifyingKey::from(&signing_key);
-        let gateway_id = crate::verifying_key_to_address(&verifying_key);
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+        let gateway_id = wallet.address();
 
-        let invalid_signing_key = SigningKey::random(&mut OsRng);
-        let invalid_verifying_key = VerifyingKey::from(&invalid_signing_key);
-        let invalid_gateway_id = crate::verifying_key_to_address(&invalid_verifying_key);
+        let invalid_wallet: LocalWallet = MnemonicBuilder::<English>::default()
+            .phrase(
+                "wrong century settle satisfy market forest title connect ten push alley depend",
+            )
+            .build()
+            .unwrap();
+        let invalid_gateway_id = invalid_wallet.address();
 
         let initial_value = 500u128;
 
