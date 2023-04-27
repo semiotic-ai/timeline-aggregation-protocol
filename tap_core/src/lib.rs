@@ -14,26 +14,9 @@ pub mod eip_712_signed_message;
 pub mod receipt_aggregate_voucher;
 pub mod tap_receipt;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
+
 pub enum Error {
-    #[error("invalid allocation ID: {received_allocation_id} (valid {expected_allocation_ids})")]
-    InvalidAllocationID {
-        received_allocation_id: Address,
-        expected_allocation_ids: String,
-    },
-    #[error("Signature check failed:\n{source_error_message}")]
-    InvalidSignature { source_error_message: String },
-    #[error("invalid timestamp: {received_timestamp} (expected range [{timestamp_min}, {timestamp_max}) )")]
-    InvalidTimestamp {
-        received_timestamp: u64,
-        timestamp_min: u64,
-        timestamp_max: u64,
-    },
-    #[error("Invalid Value: {received_value} (expected {expected_value})")]
-    InvalidValue {
-        received_value: u128,
-        expected_value: u128,
-    },
     #[error("Aggregating receipt results in overflow")]
     AggregateOverflow,
     #[error("Failed to encode to EIP712 hash:\n{source_error_message}")]
