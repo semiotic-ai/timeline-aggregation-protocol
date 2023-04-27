@@ -25,6 +25,7 @@ criterion = "0.4.0"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 tiny-keccak = { version = "2.0.2", default-features = false }
+futures = "0.3.17"
 
 
 [[bench]]
