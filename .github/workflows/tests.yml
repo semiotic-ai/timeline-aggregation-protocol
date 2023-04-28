@@ -73,7 +73,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   audit:
-    name: cargo audit
+    name: Cargo Audit
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -88,17 +88,11 @@ jobs:
       - name: Install Cargo Audit
         run: |
               cargo install cargo-audit
-
-      - id: get-comment-body
+      - name: Generate Cargo Audit Report
         run: | 
            cargo audit | tee report.xml
-           body="$(cat report.xml)"
-           delimiter="$(openssl rand -hex 8)"
-           echo "body<<$delimiter" >> $GITHUB_OUTPUT
-           echo "$body" >> $GITHUB_OUTPUT
-           echo "$delimiter" >> $GITHUB_OUTPUT
-     
-      - name: Add Comment 
-        uses: peter-evans/commit-comment@v2
+      - name: Add Comment To PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: thollander/actions-comment-pull-request@v2
         with:
-         body: ${{ steps.get-comment-body.outputs.body }}
+          filePath: report.xml
