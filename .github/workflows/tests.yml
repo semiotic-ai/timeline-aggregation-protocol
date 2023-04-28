@@ -71,3 +71,35 @@ jobs:
         with:
           lcov-file: lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
+  
+  sbom:
+   name: Syft SBOM Generator
+   runs-on: ubuntu-20.04
+   env:
+    REPO_NAME: ${{ github.event.repository.name }}
+    REPORT_FOLDER: ${{ github.event.repository.name }}-sbom-report
+   steps:
+       - uses: actions/checkout@v2
+         with:
+           token: ${{ secrets.GITHUB_TOKEN }}
+       - run: |
+           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+           mkdir "${{ env.REPORT_FOLDER }}"
+           ./syft .  --scope all-layers -o cyclonedx-xml=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").xml
+           ./syft .  --scope all-layers -o cyclonedx-json=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").json
+           cp ${{ env.REPORT_FOLDER }}/*.xml sbom-report.xml      
+           curl -X 'POST' 'http://34.135.212.207:8081/api/v1/bom' \
+                        -H 'Content-Type: multipart/form-data' \
+                        -H 'X-API-Key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}' \
+                        -F 'autoCreate=true' \
+                        -F 'projectVersion=1.0' \
+                        -F "projectName=${{ env.REPO_NAME }}" \
+                        -F 'bom=@sbom-report.xml'
+       - uses: 'google-github-actions/auth@v1'
+         with:
+            credentials_json: '${{ secrets.GHA_SA_KEY }}'
+       - uses: 'google-github-actions/upload-cloud-storage@v1'
+         with:
+            process_gcloudignore: false
+            path: '${{ env.REPORT_FOLDER }}/'
+            destination: 'security-sbom'
