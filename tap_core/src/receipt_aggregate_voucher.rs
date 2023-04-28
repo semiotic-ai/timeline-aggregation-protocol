@@ -30,7 +30,7 @@ pub struct ReceiptAggregateVoucher {
     pub allocation_id: Address,
     /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
     /// corresponding to max timestamp from receipt batch aggregated
-    pub timestamp: u64,
+    pub timestamp_ns: u64,
     /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
     pub value_aggregate: u128,
 }
@@ -53,7 +53,7 @@ impl ReceiptAggregateVoucher {
         let mut value_aggregate = 0u128;
 
         if let Some(prev_rav) = previous_rav {
-            timestamp_max = prev_rav.message.timestamp;
+            timestamp_max = prev_rav.message.timestamp_ns;
             value_aggregate = prev_rav.message.value_aggregate;
         }
 
@@ -67,7 +67,7 @@ impl ReceiptAggregateVoucher {
 
         Ok(Self {
             allocation_id,
-            timestamp: timestamp_max,
+            timestamp_ns: timestamp_max,
             value_aggregate,
         })
     }
