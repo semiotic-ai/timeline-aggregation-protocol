@@ -20,6 +20,7 @@ k256 = { version = "0.13.1", features = ["ecdsa", "serde"] }
 ethers-signers = "2.0.3"
 coins-bip39 = { version = "0.8.6", default-features = false, features = ["english"] }
 clap = { version = "4.2.4", features = ["derive", "env"] }
+ethers-core = "2.0.3"
 
 [dev-dependencies]
 jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }

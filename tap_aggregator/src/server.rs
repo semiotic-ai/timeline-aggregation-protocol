@@ -1,9 +1,9 @@
 use crate::aggregator::check_and_aggregate_receipts;
 use anyhow::Result;
+use ethers_signers::LocalWallet;
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::server::ServerBuilder;
 use jsonrpsee::{core::async_trait, server::ServerHandle};
-use k256::ecdsa::{SigningKey, VerifyingKey};
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
@@ -23,8 +23,7 @@ pub trait Rpc {
 }
 
 struct RpcImpl {
-    signing_key: SigningKey,
-    verifying_key: VerifyingKey,
+    wallet: LocalWallet,
     api_version: String,
 }
 
@@ -39,12 +38,7 @@ impl RpcServer for RpcImpl {
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::types::ErrorObjectOwned>
     {
-        let res = check_and_aggregate_receipts(
-            &receipts,
-            previous_rav,
-            self.signing_key.clone(),
-            self.verifying_key,
-        );
+        let res = check_and_aggregate_receipts(&receipts, previous_rav, self.wallet.clone()).await;
         // handle error
         match res {
             Ok(res) => Ok(res),
@@ -59,7 +53,7 @@ impl RpcServer for RpcImpl {
 
 pub async fn run_server(
     port: u16,
-    signing_key: SigningKey,
+    wallet: LocalWallet,
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     println!("Starting server...");
@@ -69,8 +63,7 @@ pub async fn run_server(
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
     let rpc_impl = RpcImpl {
-        signing_key: signing_key.clone(),
-        verifying_key: VerifyingKey::from(&signing_key),
+        wallet: wallet.clone(),
         api_version: "🤷".into(),
     };
     let handle = server.start(rpc_impl.into_rpc())?;
@@ -80,12 +73,14 @@ pub async fn run_server(
 #[cfg(test)]
 mod tests {
     use crate::server;
+    use coins_bip39::English;
     use ethereum_types::Address;
+    use ethers_signers::LocalWallet;
+    use ethers_signers::MnemonicBuilder;
+    use ethers_signers::Signer;
     use jsonrpsee::core::client::ClientT;
     use jsonrpsee::http_client::HttpClientBuilder;
     use jsonrpsee::rpc_params;
-    use k256::ecdsa::{SigningKey, VerifyingKey};
-    use rand_core::OsRng;
     use rstest::*;
     use std::str::FromStr;
     use tap_core::{
@@ -94,10 +89,13 @@ mod tests {
     };
 
     #[fixture]
-    fn keys() -> (SigningKey, VerifyingKey) {
-        let signing_key = SigningKey::random(&mut OsRng);
-        let verifying_key = VerifyingKey::from(&signing_key);
-        (signing_key, verifying_key)
+    fn keys() -> (LocalWallet, Address) {
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+        let address = wallet.address();
+        (wallet, address)
     }
 
     #[fixture]
@@ -112,7 +110,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn protocol_version(keys: (SigningKey, VerifyingKey)) {
+    async fn protocol_version(keys: (LocalWallet, Address)) {
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(0, keys.0).await.unwrap();
 
@@ -137,7 +135,7 @@ mod tests {
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
-        keys: (SigningKey, VerifyingKey),
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
@@ -154,6 +152,7 @@ mod tests {
         for value in values {
             receipts.push(
                 EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
                     .unwrap(),
             );
         }
@@ -170,10 +169,10 @@ mod tests {
                 .unwrap();
 
         assert!(remote_rav.message.allocation_id == local_rav.allocation_id);
-        assert!(remote_rav.message.timestamp == local_rav.timestamp);
+        assert!(remote_rav.message.timestamp_ns == local_rav.timestamp_ns);
         assert!(remote_rav.message.value_aggregate == local_rav.value_aggregate);
 
-        assert!(remote_rav.check_signature(keys.1).is_ok());
+        assert!(remote_rav.recover_signer().unwrap() == keys.1);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -184,7 +183,7 @@ mod tests {
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
-        keys: (SigningKey, VerifyingKey),
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
@@ -192,18 +191,16 @@ mod tests {
         let (handle, local_addr) = server::run_server(0, keys.0.clone()).await.unwrap();
 
         // Start the JSON-RPC client.
-        // let client = HttpClientBuilder::default()
-        //     .build(format!("http://127.0.0.1:{}", local_addr.port()))
-        //     .unwrap();
-
         let client = HttpClientBuilder::default()
-            .build("http://127.0.0.1:8080").unwrap();
+            .build(format!("http://127.0.0.1:{}", local_addr.port()))
+            .unwrap();
 
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
                 EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
                     .unwrap(),
             );
         }
@@ -215,7 +212,7 @@ mod tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).unwrap();
+        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).await.unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
         let rav: EIP712SignedMessage<ReceiptAggregateVoucher> = client
@@ -229,7 +226,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(rav.check_signature(keys.1).is_ok());
+        assert!(rav.recover_signer().unwrap() == keys.1);
 
         handle.stop().unwrap();
         handle.stopped().await;

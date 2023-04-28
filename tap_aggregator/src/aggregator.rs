@@ -1,29 +1,38 @@
 use anyhow::{Ok, Result};
-use ethereum_types::Address;
-use k256::ecdsa::{SigningKey, VerifyingKey};
+use ethers_core::types::{Address, Signature};
+use ethers_signers::{LocalWallet, Signer};
 use std::collections::hash_set;
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
 
-pub fn check_and_aggregate_receipts(
+pub async fn check_and_aggregate_receipts(
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    signing_key: SigningKey,
-    verifying_key: VerifyingKey,
+    wallet: LocalWallet,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
     // Check that the receipts are unique
     check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by ourselves
     for receipt in receipts.iter() {
-        receipt.check_signature(verifying_key)?;
+        if receipt.recover_signer()? != wallet.address() {
+            return Err(tap_core::Error::InvalidCheckError {
+                check_string: "Receipt is not signed by ourselves".into(),
+            }
+            .into());
+        };
     }
 
     // Check that the previous rav is signed by ourselves
     if let Some(previous_rav) = previous_rav.clone() {
-        previous_rav.check_signature(verifying_key)?;
+        if previous_rav.recover_signer()? != wallet.address() {
+            return Err(tap_core::Error::InvalidCheckError {
+                check_string: "Previous rav is not signed by ourselves".into(),
+            }
+            .into());
+        };
     }
 
     // Check that the receipts timestamp is greater then the previous rav
@@ -58,7 +67,7 @@ pub fn check_and_aggregate_receipts(
     let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
 
     // Sign the rav and return
-    Ok(EIP712SignedMessage::new(rav, &signing_key)?)
+    Ok(EIP712SignedMessage::new(rav, &wallet).await?)
 }
 
 fn check_allocation_id(
@@ -78,16 +87,16 @@ fn check_allocation_id(
 }
 
 fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<()> {
-    let mut receipt_signatures: hash_set::HashSet<[u8; 64]> = hash_set::HashSet::new();
+    let mut receipt_signatures: hash_set::HashSet<Signature> = hash_set::HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.signature.to_bytes();
-        if receipt_signatures.contains(signature.as_slice()) {
+        let signature = receipt.signature;
+        if receipt_signatures.contains(&signature) {
             return Err(tap_core::Error::InvalidCheckError {
                 check_string: "Duplicate receipt signature".into(),
             }
             .into());
         }
-        receipt_signatures.insert(signature.into());
+        receipt_signatures.insert(signature);
     }
     Ok(())
 }
@@ -100,7 +109,7 @@ fn check_receipt_timestamps(
         let previous_rav = previous_rav.message;
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
-            if previous_rav.timestamp > receipt.timestamp_ns {
+            if previous_rav.timestamp_ns > receipt.timestamp_ns {
                 return Err(tap_core::Error::InvalidCheckError {
                     check_string: "Receipt timestamp is less or equal then previous rav timestamp"
                         .into(),
@@ -116,19 +125,24 @@ fn check_receipt_timestamps(
 #[cfg(test)]
 mod tests {
     use crate::aggregator;
-    use ethereum_types::Address;
-    use k256::ecdsa::{SigningKey, VerifyingKey};
-    use rand_core::OsRng;
+    use coins_bip39::English;
+    use ethers_core::types::Address;
+    use ethers_signers::LocalWallet;
+    use ethers_signers::MnemonicBuilder;
+    use ethers_signers::Signer;
     use rstest::*;
     use std::time::UNIX_EPOCH;
     use std::{str::FromStr, time::SystemTime};
     use tap_core::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
     #[fixture]
-    fn keys() -> (SigningKey, VerifyingKey) {
-        let signing_key = SigningKey::random(&mut OsRng);
-        let verifying_key = VerifyingKey::from(&signing_key);
-        (signing_key, verifying_key)
+    fn keys() -> (LocalWallet, Address) {
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+        let address = wallet.address();
+        (wallet, address)
     }
 
     #[fixture]
@@ -142,14 +156,16 @@ mod tests {
     }
 
     #[rstest]
-    fn check_signatures_unique_fail(
-        keys: (SigningKey, VerifyingKey),
+    #[tokio::test]
+    async fn check_signatures_unique_fail(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         // Create the same receipt twice (replay attack)
         let mut receipts = Vec::new();
         let receipt =
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap();
         receipts.push(receipt.clone());
         receipts.push(receipt.clone());
@@ -159,15 +175,21 @@ mod tests {
     }
 
     #[rstest]
-    fn check_signatures_unique_ok(keys: (SigningKey, VerifyingKey), allocation_ids: Vec<Address>) {
+    #[tokio::test]
+    async fn check_signatures_unique_ok(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+    ) {
         // Create 2 different receipts
         let mut receipts = Vec::new();
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
 
@@ -176,8 +198,12 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
-    fn check_receipt_timestamps_ok(keys: (SigningKey, VerifyingKey), allocation_ids: Vec<Address>) {
+    async fn check_receipt_timestamps_ok(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+    ) {
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -187,16 +213,18 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp: time,
+                timestamp_ns: time,
                 value_aggregate: 42,
             },
             &keys.0,
         )
+        .await
         .unwrap();
 
         let mut receipts = Vec::new();
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
 
@@ -204,14 +232,16 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
     /// Test that a receipt with a timestamp less then the rav timestamp fails
-    fn check_receipt_timestamps_fail(
-        keys: (SigningKey, VerifyingKey),
+    async fn check_receipt_timestamps_fail(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         let mut receipts = Vec::new();
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
 
@@ -224,11 +254,12 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp: time,
+                timestamp_ns: time,
                 value_aggregate: 42,
             },
             &keys.0,
         )
+        .await
         .unwrap();
 
         let res = aggregator::check_receipt_timestamps(&receipts, Some(rav));
@@ -237,20 +268,24 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
     /// Test check_allocation_id with 2 receipts that have the correct allocation id
     /// and 1 receipt that has the wrong allocation id
-    fn check_allocation_id_fail(keys: (SigningKey, VerifyingKey), allocation_ids: Vec<Address>) {
+    async fn check_allocation_id_fail(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
         let mut receipts = Vec::new();
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[1], 44).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
 
@@ -260,19 +295,23 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
     /// Test check_allocation_id with 3 receipts that have the correct allocation id
-    fn check_allocation_id_ok(keys: (SigningKey, VerifyingKey), allocation_ids: Vec<Address>) {
+    async fn check_allocation_id_ok(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
         let mut receipts = Vec::new();
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
         receipts.push(
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 44).unwrap(), &keys.0)
+                .await
                 .unwrap(),
         );
 

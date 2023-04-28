@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
         .build()?;
 
     // Start the JSON-RPC server.
-    let (handle, _) = server::run_server(args.port, wallet.signer().clone()).await?;
+    let (handle, _) = server::run_server(args.port, wallet.clone()).await?;
 
     // Have tokio wait for SIGTERM or SIGINT.
     let mut signal_sigint = signal(SignalKind::interrupt())?;
