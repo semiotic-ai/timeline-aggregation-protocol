@@ -9,8 +9,8 @@ mod receipt_checks_adapter_unit_test {
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
     use ethereum_types::Address;
-    use k256::ecdsa::SigningKey;
-    use rand_core::OsRng;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
+    use futures::{stream, StreamExt};
     use rstest::*;
     use std::{
         collections::{HashMap, HashSet},
@@ -18,7 +18,7 @@ mod receipt_checks_adapter_unit_test {
     };
 
     #[rstest]
-    fn receipt_checks_adapter_test() {
+    async fn receipt_checks_adapter_test() {
         let gateway_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
@@ -33,26 +33,33 @@ mod receipt_checks_adapter_unit_test {
         ];
         let allocation_ids_set = HashSet::from(allocation_ids);
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
         let value = 100u128;
 
-        let receipt_storage = (0..10)
-            .into_iter()
-            .map(|id| {
-                (
-                    id,
-                    ReceivedReceipt::new(
-                        EIP712SignedMessage::new(
-                            Receipt::new(allocation_ids[0], value).unwrap(),
-                            &signing_key,
-                        )
-                        .unwrap(),
+        let receipt_storage: HashMap<u64, ReceivedReceipt> = stream::iter(0..10)
+            .then(|id| {
+                let wallet = wallet.clone();
+                async move {
+                    (
                         id,
-                        get_full_list_of_checks(),
-                    ),
-                )
+                        ReceivedReceipt::new(
+                            EIP712SignedMessage::new(
+                                Receipt::new(allocation_ids[0], value).unwrap(),
+                                &wallet,
+                            )
+                            .await
+                            .unwrap(),
+                            id,
+                            get_full_list_of_checks(),
+                        ),
+                    )
+                }
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<HashMap<_, _>>()
+            .await;
 
         let query_appraisals = (0..11)
             .into_iter()
@@ -69,11 +76,9 @@ mod receipt_checks_adapter_unit_test {
         let new_receipt = (
             10u64,
             ReceivedReceipt::new(
-                EIP712SignedMessage::new(
-                    Receipt::new(allocation_ids[0], value).unwrap(),
-                    &signing_key,
-                )
-                .unwrap(),
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &wallet)
+                    .await
+                    .unwrap(),
                 10u64,
                 get_full_list_of_checks(),
             ),

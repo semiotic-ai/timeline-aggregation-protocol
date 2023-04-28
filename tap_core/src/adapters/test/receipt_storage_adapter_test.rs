@@ -9,16 +9,19 @@ mod receipt_storage_adapter_unit_test {
         tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
     };
     use ethereum_types::Address;
-    use k256::ecdsa::SigningKey;
-    use rand_core::OsRng;
+    use ethers::signers::coins_bip39::English;
+    use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
     use std::str::FromStr;
 
     #[rstest]
-    fn receipt_adapter_test() {
+    async fn receipt_adapter_test() {
         let mut receipt_adapter = ReceiptAdapterMock::new();
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
 
         let allocation_id =
             Address::from_str("0xabababababababababababababababababababab").unwrap();
@@ -27,7 +30,8 @@ mod receipt_storage_adapter_unit_test {
         let query_id = 10u64;
         let value = 100u128;
         let received_receipt = ReceivedReceipt::new(
-            EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &signing_key)
+            EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
+                .await
                 .unwrap(),
             query_id,
             get_full_list_of_checks(),
@@ -55,10 +59,13 @@ mod receipt_storage_adapter_unit_test {
     }
 
     #[rstest]
-    fn multi_receipt_adapter_test() {
+    async fn multi_receipt_adapter_test() {
         let mut receipt_adapter = ReceiptAdapterMock::new();
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
 
         let allocation_id =
             Address::from_str("0xabababababababababababababababababababab").unwrap();
@@ -67,7 +74,8 @@ mod receipt_storage_adapter_unit_test {
         let mut received_receipts = Vec::new();
         for (query_id, value) in (50..60).enumerate() {
             received_receipts.push(ReceivedReceipt::new(
-                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &signing_key)
+                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
+                    .await
                     .unwrap(),
                 query_id as u64,
                 get_full_list_of_checks(),

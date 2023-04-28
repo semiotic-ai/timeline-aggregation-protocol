@@ -89,7 +89,7 @@ impl ReceivedReceipt {
     pub fn update_check(
         &mut self,
         check: ReceiptCheck,
-        result: Option<crate::Result<()>>,
+        result: Option<super::ReceiptResult<()>>,
     ) -> crate::Result<()> {
         if !self.checks.contains_key(&check) {
             return Err(crate::Error::InvalidCheckError {
