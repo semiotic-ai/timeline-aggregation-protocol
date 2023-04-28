@@ -1,8 +1,7 @@
 use crate::tap_receipt::ReceivedReceipt;
 
-pub trait ReceiptAdapter<T> {
+pub trait ReceiptStorageAdapter<T> {
     fn store_receipt(&mut self, receipt: ReceivedReceipt) -> Result<u64, T>;
-    fn is_unique(&self, receipt: ReceivedReceipt) -> bool;
     fn retrieve_receipt_by_id(&self, receipt_id: u64) -> Result<ReceivedReceipt, T>;
     fn retrieve_receipts_by_timestamp(
         &self,

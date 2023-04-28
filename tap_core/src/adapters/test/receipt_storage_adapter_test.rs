@@ -1,7 +1,8 @@
 #[cfg(test)]
-mod receipt_adapter_unit_test {
+mod receipt_storage_adapter_unit_test {
     use crate::adapters::{
-        receipt_adapter::ReceiptAdapter, receipt_adapter_mock::ReceiptAdapterMock,
+        receipt_storage_adapter::ReceiptStorageAdapter,
+        receipt_storage_adapter_mock::ReceiptAdapterMock,
     };
     use crate::{
         eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
@@ -32,17 +33,6 @@ mod receipt_adapter_unit_test {
             get_full_list_of_checks(),
         );
 
-        let unique_value = 34u128;
-        let unique_receipt = ReceivedReceipt::new(
-            EIP712SignedMessage::new(
-                Receipt::new(allocation_id, unique_value).unwrap(),
-                &signing_key,
-            )
-            .unwrap(),
-            query_id,
-            get_full_list_of_checks(),
-        );
-
         let receipt_store_result = receipt_adapter.store_receipt(received_receipt.clone());
         assert!(receipt_store_result.is_ok());
         let receipt_id = receipt_store_result.unwrap();
@@ -51,11 +41,6 @@ mod receipt_adapter_unit_test {
         assert!(receipt_adapter.retrieve_receipt_by_id(receipt_id).is_ok());
         // Retreive receipt with arbitrary id expected to be invalid
         assert!(receipt_adapter.retrieve_receipt_by_id(999).is_err());
-
-        // Check unique receipt is unique
-        assert!(receipt_adapter.is_unique(unique_receipt));
-        // Check repeat receipt is not unique
-        assert!(!receipt_adapter.is_unique(received_receipt));
 
         // Remove receipt with id expected to be valid
         assert!(receipt_adapter.remove_receipt_by_id(receipt_id).is_ok());
