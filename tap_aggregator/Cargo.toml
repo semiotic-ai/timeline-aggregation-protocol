@@ -14,11 +14,8 @@ path = "src/main.rs"
 anyhow = "1.0.70"
 tokio = { version = "1.27.0", features = ["macros", "signal"] }
 tap_core = { path = "../tap_core" }
-ethereum-types = "0.14.1"
 jsonrpsee = { version = "0.18.0", features = ["server", "macros"] }
-k256 = { version = "0.13.1", features = ["ecdsa", "serde"] }
 ethers-signers = "2.0.3"
-coins-bip39 = { version = "0.8.6", default-features = false, features = ["english"] }
 clap = { version = "4.2.4", features = ["derive", "env"] }
 ethers-core = "2.0.3"
 

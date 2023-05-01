@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use coins_bip39::English;
+use ethers_signers::coins_bip39::English;
 use ethers_signers::MnemonicBuilder;
 use tokio::signal::unix::{signal, SignalKind};
 

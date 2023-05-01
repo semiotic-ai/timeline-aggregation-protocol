@@ -73,8 +73,8 @@ pub async fn run_server(
 #[cfg(test)]
 mod tests {
     use crate::server;
-    use coins_bip39::English;
-    use ethereum_types::Address;
+    use ethers_core::types::Address;
+    use ethers_signers::coins_bip39::English;
     use ethers_signers::LocalWallet;
     use ethers_signers::MnemonicBuilder;
     use ethers_signers::Signer;
