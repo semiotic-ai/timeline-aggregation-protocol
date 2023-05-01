@@ -19,5 +19,4 @@ ethers-core = "2.0.3"
 
 [dev-dependencies]
 jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }
-rand_core = "0.6.4"
 rstest = "0.17.0"
