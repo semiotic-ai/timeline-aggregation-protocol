@@ -9,8 +9,10 @@ mod server;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Port to listen on for JSON-RPC requests.
     #[arg(short, long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
+    /// Gateway mnemonic to be used to sign Receipt Aggregate Vouchers.
     #[arg(short, long, env = "TAP_MNEMONIC")]
     mnemonic: String,
 }
