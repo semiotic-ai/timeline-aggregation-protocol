@@ -118,13 +118,10 @@ mod tests {
         let client = HttpClientBuilder::default()
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
-        let res: String = client
-            .request("api_version", rpc_params!(None::<()>))
-            .await
-            .unwrap();
+        let res: Result<String, jsonrpsee::core::Error> =
+            client.request("api_version", rpc_params!(None::<()>)).await;
 
-        // Print the result.
-        println!("Result: {:?}", res);
+        assert!(res.is_ok());
 
         handle.stop().unwrap();
         handle.stopped().await;
