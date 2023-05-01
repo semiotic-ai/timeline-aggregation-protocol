@@ -28,7 +28,7 @@ pub async fn check_and_aggregate_receipts(
     }
 
     // Check that the previous rav is signed by ourselves
-    if let Some(previous_rav) = previous_rav.clone() {
+    if let Some(previous_rav) = &previous_rav {
         if previous_rav.recover_signer()? != wallet.address() {
             return Err(tap_core::Error::InvalidCheckError {
                 check_string: "Previous rav is not signed by ourselves".into(),
@@ -38,7 +38,7 @@ pub async fn check_and_aggregate_receipts(
     }
 
     // Check that the receipts timestamp is greater than the previous rav
-    check_receipt_timestamps(receipts, previous_rav.clone())?;
+    check_receipt_timestamps(receipts, previous_rav.as_ref())?;
 
     // Get the allocation id from the first receipt, return error if there are no receipts
     let allocation_id = match receipts.get(0) {
@@ -55,9 +55,8 @@ pub async fn check_and_aggregate_receipts(
     check_allocation_id(receipts, allocation_id)?;
 
     // Check that the rav has the correct allocation id
-    if let Some(previous_rav) = previous_rav.clone() {
-        let previous_rav = previous_rav.message;
-        if previous_rav.allocation_id != allocation_id {
+    if let Some(previous_rav) = &previous_rav {
+        if previous_rav.message.allocation_id != allocation_id {
             return Err(tap_core::Error::InvalidCheckError {
                 check_string: "Previous rav allocation id does not match receipts".into(),
             }
@@ -105,13 +104,12 @@ fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<
 
 fn check_receipt_timestamps(
     receipts: &[EIP712SignedMessage<Receipt>],
-    previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+    previous_rav: Option<&EIP712SignedMessage<ReceiptAggregateVoucher>>,
 ) -> Result<()> {
-    if let Some(previous_rav) = previous_rav {
-        let previous_rav = previous_rav.message;
+    if let Some(previous_rav) = &previous_rav {
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
-            if previous_rav.timestamp_ns > receipt.timestamp_ns {
+            if previous_rav.message.timestamp_ns > receipt.timestamp_ns {
                 return Err(tap_core::Error::InvalidCheckError {
                     check_string: "Receipt timestamp is less or equal then previous rav timestamp"
                         .into(),
@@ -231,7 +229,7 @@ mod tests {
                 .unwrap(),
         );
 
-        aggregator::check_receipt_timestamps(&receipts, Some(rav)).unwrap();
+        aggregator::check_receipt_timestamps(&receipts, Some(&rav)).unwrap();
     }
 
     #[rstest]
@@ -265,7 +263,7 @@ mod tests {
         .await
         .unwrap();
 
-        let res = aggregator::check_receipt_timestamps(&receipts, Some(rav));
+        let res = aggregator::check_receipt_timestamps(&receipts, Some(&rav));
 
         assert!(res.is_err());
     }
