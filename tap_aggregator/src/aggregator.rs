@@ -1,7 +1,9 @@
+use std::collections::hash_set;
+
 use anyhow::{Ok, Result};
 use ethers_core::types::{Address, Signature};
 use ethers_signers::{LocalWallet, Signer};
-use std::collections::hash_set;
+
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
@@ -124,15 +126,16 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use crate::aggregator;
+    use std::{
+        str::FromStr,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
     use ethers_core::types::Address;
-    use ethers_signers::coins_bip39::English;
-    use ethers_signers::LocalWallet;
-    use ethers_signers::MnemonicBuilder;
-    use ethers_signers::Signer;
+    use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
-    use std::time::UNIX_EPOCH;
-    use std::{str::FromStr, time::SystemTime};
+
+    use crate::aggregator;
     use tap_core::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
     #[fixture]

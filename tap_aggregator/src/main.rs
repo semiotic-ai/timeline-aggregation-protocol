@@ -1,7 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use ethers_signers::coins_bip39::English;
-use ethers_signers::MnemonicBuilder;
+use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
 mod aggregator;

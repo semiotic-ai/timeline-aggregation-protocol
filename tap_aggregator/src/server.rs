@@ -1,9 +1,12 @@
-use crate::aggregator::check_and_aggregate_receipts;
 use anyhow::Result;
 use ethers_signers::LocalWallet;
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::server::ServerBuilder;
-use jsonrpsee::{core::async_trait, server::ServerHandle};
+use jsonrpsee::{
+    proc_macros::rpc,
+    server::ServerBuilder,
+    {core::async_trait, server::ServerHandle},
+};
+
+use crate::aggregator::check_and_aggregate_receipts;
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
@@ -72,17 +75,14 @@ pub async fn run_server(
 
 #[cfg(test)]
 mod tests {
-    use crate::server;
-    use ethers_core::types::Address;
-    use ethers_signers::coins_bip39::English;
-    use ethers_signers::LocalWallet;
-    use ethers_signers::MnemonicBuilder;
-    use ethers_signers::Signer;
-    use jsonrpsee::core::client::ClientT;
-    use jsonrpsee::http_client::HttpClientBuilder;
-    use jsonrpsee::rpc_params;
-    use rstest::*;
     use std::str::FromStr;
+
+    use ethers_core::types::Address;
+    use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
+    use rstest::*;
+
+    use crate::server;
     use tap_core::{
         eip_712_signed_message::EIP712SignedMessage,
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
