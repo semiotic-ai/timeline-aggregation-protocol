@@ -37,7 +37,7 @@ pub async fn check_and_aggregate_receipts(
         };
     }
 
-    // Check that the receipts timestamp is greater then the previous rav
+    // Check that the receipts timestamp is greater than the previous rav
     check_receipt_timestamps(receipts, previous_rav.clone())?;
 
     // Get the allocation id from the first receipt, return error if there are no receipts
