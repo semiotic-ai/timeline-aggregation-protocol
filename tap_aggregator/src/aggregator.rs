@@ -18,23 +18,13 @@ pub async fn check_and_aggregate_receipts(
     check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by ourselves
-    for receipt in receipts.iter() {
-        if receipt.recover_signer()? != wallet.address() {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "Receipt is not signed by ourselves".into(),
-            }
-            .into());
-        };
-    }
+    receipts
+        .iter()
+        .try_for_each(|receipt| receipt.verify(wallet.address()))?;
 
     // Check that the previous rav is signed by ourselves
     if let Some(previous_rav) = &previous_rav {
-        if previous_rav.recover_signer()? != wallet.address() {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "Previous rav is not signed by ourselves".into(),
-            }
-            .into());
-        };
+        previous_rav.verify(wallet.address())?;
     }
 
     // Check that the receipts timestamp is greater than the previous rav
