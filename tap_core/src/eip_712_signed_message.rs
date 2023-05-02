@@ -28,16 +28,23 @@ impl<M: eip712::Eip712 + Send + Sync> EIP712SignedMessage<M> {
         Ok(Self { message, signature })
     }
 
+    /// Recovers and returns the signer of the message from the signature.
+    pub fn recover_signer(&self) -> Result<Address> {
+        Ok(self
+            .signature
+            .recover(Self::get_eip712_encoding(&self.message)?)?)
+    }
+
     /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
     ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn recover_signer(&self) -> Result<Address> {
-        Ok(self
-            .signature
-            .recover(Self::get_eip712_encoding(&self.message)?)?)
+    pub fn verify(&self, expected_address: Address) -> Result<()> {
+        self.signature
+            .verify(Self::get_eip712_encoding(&self.message)?, expected_address)?;
+        Ok(())
     }
 
     /// Unable to cleanly typecast encode_eip712 associated error type to crate
