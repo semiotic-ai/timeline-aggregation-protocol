@@ -3,7 +3,14 @@
 
 use ethereum_types::Address;
 
-pub trait CollateralAdapter<T> {
-    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, T>;
-    fn subtract_collateral(&mut self, gateway_id: Address, value: u128) -> Result<(), T>;
+pub trait CollateralAdapter {
+    /// User defined error type;
+    type AdapterError: std::error::Error + std::fmt::Debug;
+
+    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, Self::AdapterError>;
+    fn subtract_collateral(
+        &mut self,
+        gateway_id: Address,
+        value: u128,
+    ) -> Result<(), Self::AdapterError>;
 }

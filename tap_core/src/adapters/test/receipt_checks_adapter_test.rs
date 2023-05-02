@@ -3,6 +3,16 @@
 
 #[cfg(test)]
 mod receipt_checks_adapter_unit_test {
+    use std::{
+        collections::{HashMap, HashSet},
+        str::FromStr,
+    };
+
+    use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
+    use futures::{stream, StreamExt};
+    use rstest::*;
+
     use crate::{
         adapters::{
             receipt_checks_adapter::ReceiptChecksAdapter,
@@ -10,14 +20,6 @@ mod receipt_checks_adapter_unit_test {
         },
         eip_712_signed_message::EIP712SignedMessage,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
-    };
-    use ethereum_types::Address;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
-    use futures::{stream, StreamExt};
-    use rstest::*;
-    use std::{
-        collections::{HashMap, HashSet},
-        str::FromStr,
     };
 
     #[rstest]

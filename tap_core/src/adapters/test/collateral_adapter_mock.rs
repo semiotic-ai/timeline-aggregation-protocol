@@ -1,13 +1,21 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use ethereum_types::Address;
 use std::collections::HashMap;
+
+use ethereum_types::Address;
 
 use crate::adapters::collateral_adapter::CollateralAdapter;
 
 pub struct CollateralAdapterMock {
     gateway_collateral_storage: HashMap<Address, u128>,
+}
+
+use thiserror::Error;
+#[derive(Debug, Error)]
+pub enum AdpaterErrorMock {
+    #[error("something went wrong: {Error}")]
+    AdapterError { Error: String },
 }
 
 impl CollateralAdapterMock {
@@ -16,11 +24,13 @@ impl CollateralAdapterMock {
             gateway_collateral_storage: <HashMap<Address, u128>>::new(),
         }
     }
-    pub fn collateral(&self, gateway_id: Address) -> Result<u128, &'static str> {
+    pub fn collateral(&self, gateway_id: Address) -> Result<u128, AdpaterErrorMock> {
         if let Some(collateral) = self.gateway_collateral_storage.get(&gateway_id) {
             return Ok(*collateral);
         }
-        Err("No collateral exists for provided gateway ID.")
+        Err(AdpaterErrorMock::AdapterError {
+            Error: "No collateral exists for provided gateway ID.".to_owned(),
+        })
     }
 
     pub fn increase_collateral(&mut self, gateway_id: Address, value: u128) {
@@ -36,7 +46,7 @@ impl CollateralAdapterMock {
         &mut self,
         gateway_id: Address,
         value: u128,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), AdpaterErrorMock> {
         if let Some(current_value) = self.gateway_collateral_storage.get(&gateway_id) {
             let checked_new_value = current_value.checked_sub(value);
             if let Some(new_value) = checked_new_value {
@@ -45,7 +55,9 @@ impl CollateralAdapterMock {
                 return Ok(());
             }
         }
-        Err("Provided value is greater than existing collateral.")
+        Err(AdpaterErrorMock::AdapterError {
+            Error: "Provided value is greater than existing collateral.".to_owned(),
+        })
     }
 }
 
@@ -55,15 +67,16 @@ impl Default for CollateralAdapterMock {
     }
 }
 
-impl CollateralAdapter<&'static str> for CollateralAdapterMock {
-    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, &'static str> {
+impl CollateralAdapter for CollateralAdapterMock {
+    type AdapterError = AdpaterErrorMock;
+    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, Self::AdapterError> {
         self.collateral(gateway_id)
     }
     fn subtract_collateral(
         &mut self,
         gateway_id: Address,
         value: u128,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Self::AdapterError> {
         self.reduce_collateral(gateway_id, value)
     }
 }

@@ -3,11 +3,12 @@
 
 #[cfg(test)]
 mod collateral_adapter_unit_test {
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use rstest::*;
+
     use crate::adapters::{
         collateral_adapter::CollateralAdapter, collateral_adapter_mock::CollateralAdapterMock,
     };
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
-    use rstest::*;
 
     #[rstest]
     fn collateral_adapter_test() {

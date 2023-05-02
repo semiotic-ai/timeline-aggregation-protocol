@@ -13,9 +13,10 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
+use strum_macros::{Display, EnumString};
+
 use super::{Receipt, ReceiptCheck, ReceiptCheckResults};
 use crate::eip_712_signed_message::EIP712SignedMessage;
-use strum_macros::{Display, EnumString};
 
 #[derive(Eq, PartialEq, Debug, Clone, EnumString, Display)]
 /// State of the contained receipt
@@ -85,7 +86,7 @@ impl ReceivedReceipt {
         self.update_state();
     }
 
-    /// Update results of an incomplete receipt check, this is only valid if there are remaining checks to resolve
+    /// Update results of an receipt check, this is only valid if there are remaining checks to resolve
     pub fn update_check(
         &mut self,
         check: ReceiptCheck,
@@ -208,5 +209,12 @@ impl ReceivedReceipt {
 
     fn all_checks_passed(&self) -> bool {
         self.checking_is_completed() && !self.any_check_resulted_in_error()
+    }
+
+    pub fn check_is_complete(&self, check: ReceiptCheck) -> bool {
+        match self.checks.get(&check){
+            Some(Some(check_result_option)) => true,
+            _ => false
+        }
     }
 }
