@@ -28,12 +28,7 @@ impl<M: eip712::Eip712 + Send + Sync> EIP712SignedMessage<M> {
         Ok(Self { message, signature })
     }
 
-    /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
-    ///
+    /// Recovers and returns the signer of the message from the signature.
     pub fn recover_signer(&self) -> Result<Address> {
         Ok(self
             .signature
