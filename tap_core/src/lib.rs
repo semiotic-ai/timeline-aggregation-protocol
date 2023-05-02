@@ -131,4 +131,17 @@ mod tap_tests {
 
         assert!(signed_rav.recover_signer().unwrap() == keys.1);
     }
+
+    #[rstest]
+    async fn verify_signature(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+        let signed_message =
+            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                .await
+                .unwrap();
+
+        assert!(signed_message.verify(keys.1).is_ok());
+        assert!(signed_message
+            .verify(Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap())
+            .is_err());
+    }
 }
