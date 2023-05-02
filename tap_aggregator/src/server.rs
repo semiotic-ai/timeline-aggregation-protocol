@@ -70,6 +70,7 @@ pub async fn run_server(
     println!("Listening on: {}", addr);
     let rpc_impl = RpcImpl {
         wallet: wallet.clone(),
+        /// TODO: define a proper API versioning scheme
         api_version: "🤷".into(),
     };
     let handle = server.start(rpc_impl.into_rpc())?;
