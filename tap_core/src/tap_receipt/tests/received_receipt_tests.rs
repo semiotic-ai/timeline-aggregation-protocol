@@ -3,6 +3,12 @@
 
 #[cfg(test)]
 mod received_receipt_unit_test {
+    use std::str::FromStr;
+
+    use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use rstest::*;
+
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,
         tap_receipt::{
@@ -11,10 +17,6 @@ mod received_receipt_unit_test {
             Receipt, ReceiptCheck, ReceivedReceipt,
         },
     };
-    use ethereum_types::Address;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
-    use rstest::*;
-    use std::str::FromStr;
 
     #[fixture]
     fn allocation_ids() -> Vec<Address> {

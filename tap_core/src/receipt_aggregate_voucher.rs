@@ -8,13 +8,15 @@
 //! The payment receiver would verify the received receipt and store it to be
 //! accumulated with other received receipts in the future.
 
-use crate::Error;
-use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
+use std::cmp;
+
 use ethereum_types::Address;
 use ethers_contract::EthAbiType;
 use ethers_contract_derive::Eip712;
 use serde::{Deserialize, Serialize};
-use std::cmp;
+
+use crate::Error;
+use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
 /// Holds information needed for promise of payment signed with ECDSA
 #[derive(Debug, Serialize, Deserialize, Clone, Eip712, EthAbiType)]

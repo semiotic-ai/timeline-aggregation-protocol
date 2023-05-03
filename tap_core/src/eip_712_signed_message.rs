@@ -4,13 +4,14 @@
 //! Module containing EIP712 message and signature
 //!
 
-use crate::{Error, Result};
 use ethers::{
     signers::{LocalWallet, Signer},
     types::Signature,
 };
 use ethers_core::types::{transaction::eip712, Address};
 use serde::{Deserialize, Serialize};
+
+use crate::{Error, Result};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EIP712SignedMessage<M: eip712::Eip712 + Send + Sync> {

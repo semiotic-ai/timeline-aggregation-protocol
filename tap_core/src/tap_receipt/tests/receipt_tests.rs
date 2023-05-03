@@ -3,11 +3,13 @@
 
 #[cfg(test)]
 mod receipt_unit_test {
-    use crate::tap_receipt::Receipt;
-    use ethereum_types::Address;
-    use rstest::*;
     use std::str::FromStr;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    use ethereum_types::Address;
+    use rstest::*;
+
+    use crate::tap_receipt::Receipt;
 
     #[fixture]
     fn allocation_ids() -> Vec<Address> {

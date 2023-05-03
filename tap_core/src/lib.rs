@@ -38,14 +38,16 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]
 mod tap_tests {
+    use std::str::FromStr;
+
+    use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use rstest::*;
+
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
     };
-    use ethereum_types::Address;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
-    use rstest::*;
-    use std::str::FromStr;
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {
