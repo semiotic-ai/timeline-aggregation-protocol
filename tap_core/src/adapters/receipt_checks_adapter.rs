@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use ethereum_types::Address;
 
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
