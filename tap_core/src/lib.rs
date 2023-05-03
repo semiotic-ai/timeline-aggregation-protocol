@@ -6,12 +6,15 @@
 //! from a payment sender to be aggregated then cheaply
 //! verified on-chain by a payment receiver.
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use ethers::{signers::WalletError, types::SignatureError};
 use thiserror::Error;
 
 pub mod adapters;
 pub mod eip_712_signed_message;
 pub mod receipt_aggregate_voucher;
+pub mod tap_manager;
 pub mod tap_receipt;
 
 #[derive(Error, Debug)]
@@ -35,6 +38,15 @@ pub enum Error {
     SignatureError(#[from] SignatureError),
 }
 type Result<T> = std::result::Result<T, Error>;
+
+pub(crate) fn get_current_timestamp_u64_ns() -> Result<u64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|err| Error::InvalidSystemTime {
+            source_error_message: err.to_string(),
+        })?
+        .as_nanos() as u64)
+}
 
 #[cfg(test)]
 mod tap_tests {
