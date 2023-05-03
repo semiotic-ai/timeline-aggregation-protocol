@@ -96,10 +96,8 @@ mod received_receipt_unit_test {
         let mut checks = get_full_list_of_checks();
         // Set a check to fail
         let check_to_fail = ReceiptCheck::CheckUnique;
-        let cause_of_fail = Err(crate::tap_receipt::ReceiptError::InvalidValue {
-            received_value: 10,
-            expected_value: 20,
-        });
+        let cause_of_fail =
+            Err(crate::tap_receipt::ReceiptError::InvalidValue { received_value: 10 });
         checks.insert(check_to_fail.clone(), Some(cause_of_fail));
 
         let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, checks.clone());
