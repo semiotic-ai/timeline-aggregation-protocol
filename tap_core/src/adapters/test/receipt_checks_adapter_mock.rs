@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use std::collections::{HashMap, HashSet};
 
 use ethereum_types::Address;

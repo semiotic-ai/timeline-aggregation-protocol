@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #[cfg(test)]
 mod receipt_storage_adapter_unit_test {
     use crate::adapters::{
