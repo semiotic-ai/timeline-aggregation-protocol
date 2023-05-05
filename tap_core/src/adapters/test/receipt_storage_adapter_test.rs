@@ -3,7 +3,9 @@
 
 #[cfg(test)]
 mod receipt_storage_adapter_unit_test {
+    use std::collections::HashMap;
     use std::str::FromStr;
+    use std::sync::{Arc, RwLock};
 
     use ethereum_types::Address;
     use ethers::signers::coins_bip39::English;
@@ -12,16 +14,17 @@ mod receipt_storage_adapter_unit_test {
 
     use crate::adapters::{
         receipt_storage_adapter::ReceiptStorageAdapter,
-        receipt_storage_adapter_mock::ReceiptAdapterMock,
+        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
     use crate::{
-        eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
+        eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_receipt_check_results,
         tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
     };
 
     #[rstest]
     async fn receipt_adapter_test() {
-        let mut receipt_adapter = ReceiptAdapterMock::new();
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -39,7 +42,7 @@ mod receipt_storage_adapter_unit_test {
                 .await
                 .unwrap(),
             query_id,
-            get_full_list_of_checks(),
+            get_full_list_of_receipt_check_results(),
         );
 
         let receipt_store_result = receipt_adapter.store_receipt(received_receipt.clone());
@@ -65,7 +68,8 @@ mod receipt_storage_adapter_unit_test {
 
     #[rstest]
     async fn multi_receipt_adapter_test() {
-        let mut receipt_adapter = ReceiptAdapterMock::new();
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -83,7 +87,7 @@ mod receipt_storage_adapter_unit_test {
                     .await
                     .unwrap(),
                 query_id as u64,
-                get_full_list_of_checks(),
+                get_full_list_of_receipt_check_results(),
             ));
         }
         let mut receipt_ids = Vec::new();

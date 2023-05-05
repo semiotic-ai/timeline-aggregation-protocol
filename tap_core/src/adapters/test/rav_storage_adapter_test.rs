@@ -3,7 +3,11 @@
 
 #[cfg(test)]
 mod rav_storage_adapter_unit_test {
-    use std::str::FromStr;
+    use std::{
+        collections::HashMap,
+        str::FromStr,
+        sync::{Arc, RwLock},
+    };
 
     use ethereum_types::Address;
     use ethers::signers::coins_bip39::English;
@@ -20,7 +24,8 @@ mod rav_storage_adapter_unit_test {
 
     #[rstest]
     async fn rav_storage_adapter_test() {
-        let mut rav_storage_adapter = RAVStorageAdapterMock::new();
+        let rav_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

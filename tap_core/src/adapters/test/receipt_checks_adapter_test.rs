@@ -5,7 +5,7 @@
 mod receipt_checks_adapter_unit_test {
     use std::{
         collections::{HashMap, HashSet},
-        str::FromStr,
+        str::FromStr, sync::{Arc, RwLock},
     };
 
     use ethereum_types::Address;
@@ -19,24 +19,25 @@ mod receipt_checks_adapter_unit_test {
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,
-        tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
+        tap_receipt::{get_full_list_of_receipt_check_results, Receipt, ReceivedReceipt},
     };
 
     #[rstest]
     async fn receipt_checks_adapter_test() {
+
         let gateway_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
             Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
         ];
-        let gateway_ids_set = HashSet::from(gateway_ids);
+        let gateway_ids_set = Arc::new(RwLock::new(HashSet::from(gateway_ids)));
 
         let allocation_ids = [
             Address::from_str("0xabababababababababababababababababababab").unwrap(),
             Address::from_str("0xbabababababababababababababababababababa").unwrap(),
             Address::from_str("0xdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf").unwrap(),
         ];
-        let allocation_ids_set = HashSet::from(allocation_ids);
+        let allocation_ids_set = Arc::new(RwLock::new(HashSet::from(allocation_ids)));
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -44,7 +45,7 @@ mod receipt_checks_adapter_unit_test {
          .unwrap();
         let value = 100u128;
 
-        let receipt_storage: HashMap<u64, ReceivedReceipt> = stream::iter(0..10)
+        let receipts: HashMap<u64, ReceivedReceipt> = stream::iter(0..10)
             .then(|id| {
                 let wallet = wallet.clone();
                 async move {
@@ -58,22 +59,25 @@ mod receipt_checks_adapter_unit_test {
                             .await
                             .unwrap(),
                             id,
-                            get_full_list_of_checks(),
+                            get_full_list_of_receipt_check_results(),
                         ),
                     )
                 }
             })
             .collect::<HashMap<_, _>>()
             .await;
+        let receipt_storage = Arc::new(RwLock::new(receipts));
 
         let query_appraisals = (0..11)
             .into_iter()
             .map(|id| (id, 100u128))
             .collect::<HashMap<_, _>>();
 
+        let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
+
         let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
             receipt_storage,
-            query_appraisals,
+            query_appraisals_storage,
             allocation_ids_set,
             gateway_ids_set,
         );
@@ -85,7 +89,7 @@ mod receipt_checks_adapter_unit_test {
                     .await
                     .unwrap(),
                 10u64,
-                get_full_list_of_checks(),
+                get_full_list_of_receipt_check_results(),
             ),
         );
 

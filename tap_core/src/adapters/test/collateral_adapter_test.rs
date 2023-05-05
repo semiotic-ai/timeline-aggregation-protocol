@@ -3,6 +3,8 @@
 
 #[cfg(test)]
 mod collateral_adapter_unit_test {
+    use std::{sync::{Arc, RwLock}, collections::HashMap};
+
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
@@ -12,7 +14,8 @@ mod collateral_adapter_unit_test {
 
     #[rstest]
     fn collateral_adapter_test() {
-        let mut collateral_adapter = CollateralAdapterMock::new();
+        let collateral_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut collateral_adapter = CollateralAdapterMock::new(collateral_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

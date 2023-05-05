@@ -1,44 +1,48 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use ethereum_types::Address;
 
 use crate::adapters::collateral_adapter::CollateralAdapter;
 
 pub struct CollateralAdapterMock {
-    gateway_collateral_storage: HashMap<Address, u128>,
+    gateway_collateral_storage: Arc<RwLock<HashMap<Address, u128>>>,
 }
 
 use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum AdpaterErrorMock {
-    #[error("something went wrong: {Error}")]
-    AdapterError { Error: String },
+    #[error("something went wrong: {error}")]
+    AdapterError { error: String },
 }
 
 impl CollateralAdapterMock {
-    pub fn new() -> Self {
+    pub fn new(gateway_collateral_storage: Arc<RwLock<HashMap<Address, u128>>>) -> Self {
         CollateralAdapterMock {
-            gateway_collateral_storage: <HashMap<Address, u128>>::new(),
+            gateway_collateral_storage,
         }
     }
     pub fn collateral(&self, gateway_id: Address) -> Result<u128, AdpaterErrorMock> {
-        if let Some(collateral) = self.gateway_collateral_storage.get(&gateway_id) {
+        let gateway_collateral_storage = self.gateway_collateral_storage.read().unwrap();
+        if let Some(collateral) = gateway_collateral_storage.get(&gateway_id) {
             return Ok(*collateral);
         }
         Err(AdpaterErrorMock::AdapterError {
-            Error: "No collateral exists for provided gateway ID.".to_owned(),
+            error: "No collateral exists for provided gateway ID.".to_owned(),
         })
     }
 
     pub fn increase_collateral(&mut self, gateway_id: Address, value: u128) {
-        if let Some(current_value) = self.gateway_collateral_storage.get(&gateway_id) {
-            self.gateway_collateral_storage
+        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+
+        if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
+            let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+            gateway_collateral_storage
                 .insert(gateway_id, current_value + value);
         } else {
-            self.gateway_collateral_storage.insert(gateway_id, value);
+            gateway_collateral_storage.insert(gateway_id, value);
         }
     }
 
@@ -47,23 +51,19 @@ impl CollateralAdapterMock {
         gateway_id: Address,
         value: u128,
     ) -> Result<(), AdpaterErrorMock> {
-        if let Some(current_value) = self.gateway_collateral_storage.get(&gateway_id) {
+        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+
+        if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
             let checked_new_value = current_value.checked_sub(value);
             if let Some(new_value) = checked_new_value {
-                self.gateway_collateral_storage
+                gateway_collateral_storage
                     .insert(gateway_id, new_value);
                 return Ok(());
             }
         }
         Err(AdpaterErrorMock::AdapterError {
-            Error: "Provided value is greater than existing collateral.".to_owned(),
+            error: "Provided value is greater than existing collateral.".to_owned(),
         })
-    }
-}
-
-impl Default for CollateralAdapterMock {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
