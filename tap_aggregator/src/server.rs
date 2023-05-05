@@ -62,14 +62,14 @@ pub async fn run_server(
     wallet: LocalWallet,
     max_request_body_size: u32,
     max_response_body_size: u32,
-    max_concurrent_connexions: u32,
+    max_concurrent_connections: u32,
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     println!("Starting server...");
     let server = ServerBuilder::new()
         .max_request_body_size(max_request_body_size)
         .max_response_body_size(max_response_body_size)
-        .max_connections(max_concurrent_connexions)
+        .max_connections(max_concurrent_connections)
         .http_only()
         .build(format!("127.0.0.1:{}", port))
         .await?;
