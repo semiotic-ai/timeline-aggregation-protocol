@@ -15,7 +15,7 @@ use tap_core::{
 pub async fn check_and_aggregate_receipts(
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    wallet: LocalWallet,
+    wallet: &LocalWallet,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
     // Check that the receipts are unique
     check_signatures_unique(receipts)?;
@@ -61,7 +61,7 @@ pub async fn check_and_aggregate_receipts(
     let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
 
     // Sign the rav and return
-    Ok(EIP712SignedMessage::new(rav, &wallet).await?)
+    Ok(EIP712SignedMessage::new(rav, wallet).await?)
 }
 
 fn check_allocation_id(
