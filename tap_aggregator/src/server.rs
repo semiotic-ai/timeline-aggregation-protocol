@@ -119,13 +119,39 @@ mod tests {
         ]
     }
 
+    #[fixture]
+    fn http_request_size_limit() -> u32 {
+        100 * 1024
+    }
+
+    #[fixture]
+    fn http_response_size_limit() -> u32 {
+        100 * 1024
+    }
+
+    #[fixture]
+    fn http_max_concurrent_connections() -> u32 {
+        1
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn protocol_version(keys: (LocalWallet, Address)) {
+    async fn protocol_version(
+        keys: (LocalWallet, Address),
+        http_request_size_limit: u32,
+        http_response_size_limit: u32,
+        http_max_concurrent_connections: u32,
+    ) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0, 100 * 1024, 100 * 1024, 1)
-            .await
-            .unwrap();
+        let (handle, local_addr) = server::run_server(
+            0,
+            keys.0,
+            http_request_size_limit,
+            http_response_size_limit,
+            http_max_concurrent_connections,
+        )
+        .await
+        .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -146,13 +172,22 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
         keys: (LocalWallet, Address),
+        http_request_size_limit: u32,
+        http_response_size_limit: u32,
+        http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 100 * 1024, 100 * 1024, 1)
-            .await
-            .unwrap();
+        let (handle, local_addr) = server::run_server(
+            0,
+            keys.0.clone(),
+            http_request_size_limit,
+            http_response_size_limit,
+            http_max_concurrent_connections,
+        )
+        .await
+        .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -196,13 +231,22 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
         keys: (LocalWallet, Address),
+        http_request_size_limit: u32,
+        http_response_size_limit: u32,
+        http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
     ) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 100 * 1024, 100 * 1024, 1)
-            .await
-            .unwrap();
+        let (handle, local_addr) = server::run_server(
+            0,
+            keys.0.clone(),
+            http_request_size_limit,
+            http_response_size_limit,
+            http_max_concurrent_connections,
+        )
+        .await
+        .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -248,11 +292,25 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn request_size_limit(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+    async fn request_size_limit(
+        keys: (LocalWallet, Address),
+        http_response_size_limit: u32,
+        http_max_concurrent_connections: u32,
+        allocation_ids: Vec<Address>,
+    ) {
+        // Set the request size limit to 10 kB to easily trigger the HTTP 413 error.
+        let small_request_size_limit = 10 * 1024;
+
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 10 * 1024, 10 * 1024, 1)
-            .await
-            .unwrap();
+        let (handle, local_addr) = server::run_server(
+            0,
+            keys.0.clone(),
+            small_request_size_limit,
+            http_response_size_limit,
+            http_max_concurrent_connections,
+        )
+        .await
+        .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
