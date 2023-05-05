@@ -5,7 +5,8 @@
 mod receipt_checks_adapter_unit_test {
     use std::{
         collections::{HashMap, HashSet},
-        str::FromStr, sync::{Arc, RwLock},
+        str::FromStr,
+        sync::{Arc, RwLock},
     };
 
     use ethereum_types::Address;
@@ -19,12 +20,11 @@ mod receipt_checks_adapter_unit_test {
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,
-        tap_receipt::{get_full_list_of_receipt_check_results, Receipt, ReceivedReceipt},
+        tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
 
     #[rstest]
     async fn receipt_checks_adapter_test() {
-
         let gateway_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
@@ -59,7 +59,7 @@ mod receipt_checks_adapter_unit_test {
                             .await
                             .unwrap(),
                             id,
-                            get_full_list_of_receipt_check_results(),
+                            &get_full_list_of_checks(),
                         ),
                     )
                 }
@@ -89,7 +89,7 @@ mod receipt_checks_adapter_unit_test {
                     .await
                     .unwrap(),
                 10u64,
-                get_full_list_of_receipt_check_results(),
+                &get_full_list_of_checks(),
             ),
         );
 

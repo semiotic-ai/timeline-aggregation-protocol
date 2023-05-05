@@ -15,8 +15,16 @@
 
 use strum_macros::{Display, EnumString};
 
-use super::{Receipt, ReceiptCheck, ReceiptCheckResults};
-use crate::eip_712_signed_message::EIP712SignedMessage;
+use super::{
+    receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults, ReceiptError,
+};
+use crate::{
+    adapters::{
+        collateral_adapter::CollateralAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
+    },
+    eip_712_signed_message::EIP712SignedMessage,
+    Error, Result,
+};
 
 #[derive(Eq, PartialEq, Debug, Clone, EnumString, Display)]
 /// State of the contained receipt
@@ -25,9 +33,11 @@ pub enum ReceiptState {
     Received,
     /// Checking in progress, no errors found
     Checking,
-    /// At least one check resulted in an error
+    /// Checks completed with at least one check resulting in an error
     Failed,
-    /// All checks have completed with no errors found
+    /// Checks completed with all passed, awaiting collateral check and reserve
+    AwaitingReserveCollateral,
+    /// All checks completed with no errors found, Collateral is reserved if requested by user
     Accepted,
     /// Receipt was added to a RAV request
     IncludedInRAVRequest,
@@ -56,6 +66,8 @@ pub struct ReceivedReceipt {
     pub(crate) query_id: u64,
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
+    /// Collateral check and reserve, which is performed only after all other checks are complete. `Ok` result means collateral was reserved
+    pub(crate) collateral_reserved: Option<Option<std::result::Result<(), ReceiptError>>>,
     /// The current RAV status of the receipt (e.g., not included, included in a request, or included in a received RAV)
     pub(crate) rav_status: RAVStatus,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
@@ -67,17 +79,110 @@ impl ReceivedReceipt {
     pub fn new(
         signed_receipt: EIP712SignedMessage<Receipt>,
         query_id: u64,
-        checks: ReceiptCheckResults,
+        required_checks: &[ReceiptCheck],
     ) -> Self {
+        let mut checks = Self::get_empty_required_checks_hashmap(required_checks);
+        let collateral_reserved = checks.remove(&ReceiptCheck::CheckAndReserveCollateral);
+
         let mut received_receipt = Self {
             signed_receipt,
             query_id,
             checks,
+            collateral_reserved,
             rav_status: RAVStatus::NotIncluded,
             state: ReceiptState::Received,
         };
         received_receipt.update_state();
         received_receipt
+    }
+
+    /// Completes a single *incomplete* check and stores the result, *if the check already has a result it is skipped.*
+    ///
+    /// Returns `Err` only if unable to complete the check, returns `Ok` if the check was completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveCollateral`.
+    ///
+    /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
+    ///
+    pub fn perform_check<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+        &mut self,
+        check: &ReceiptCheck,
+        receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
+    ) -> crate::Result<()> {
+        match self.state {
+            ReceiptState::Checking | ReceiptState::Received => {
+                // Cannot do collateral check and reserve until all other checks are complete
+                if check == &ReceiptCheck::CheckAndReserveCollateral {
+                    return Err(crate::Error::InvalidStateForRequestedAction {
+                        state: self.state.to_string(),
+                    });
+                }
+            }
+            // All checks are valid in this state (although complete ones will be skipped)
+            ReceiptState::AwaitingReserveCollateral => {}
+
+            // If all checks are complete then checking is skipped
+            ReceiptState::Accepted
+            | ReceiptState::Complete
+            | ReceiptState::IncludedInRAVRequest
+            | ReceiptState::Failed => return Ok(()),
+        }
+
+        // All skipped checks return `Ok`
+        let mut result = Ok(());
+        // Only perform check if it is incomplete
+        if !self.check_is_complete(check) {
+            result = self.update_check(
+                &check,
+                Some(receipt_auditor.check(&check, &self.signed_receipt, self.query_id)),
+            );
+        }
+        self.update_state();
+        result
+    }
+
+    /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
+    ///
+    /// Returns `Err` only if unable to complete a check, returns `Ok` if the checks were completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveCollateral`.
+    ///
+    /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
+    ///
+    pub fn perform_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+        &mut self,
+        checks: &[ReceiptCheck],
+        receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
+    ) -> Result<()> {
+        let mut check_and_reserve_collateral_included = false;
+        for check in checks {
+            if *check == ReceiptCheck::CheckAndReserveCollateral {
+                // if checks include check and reserve collateral it needs to be completed last
+                check_and_reserve_collateral_included = true;
+                continue;
+            }
+            self.perform_check(check, receipt_auditor)?;
+        }
+        if check_and_reserve_collateral_included && self.state != ReceiptState::Failed {
+            // CheckAndReserveCollateral is only performed after all other checks have passed
+            self.perform_check(&ReceiptCheck::CheckAndReserveCollateral, receipt_auditor)?;
+        }
+        Ok(())
+    }
+
+    /// Completes all remaining checks and stores the results
+    ///
+    /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
+    ///
+    pub fn finalize_receipt_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+        &mut self,
+        receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
+    ) -> Result<()> {
+        self.perform_checks(self.incomplete_checks().as_slice(), receipt_auditor)
     }
 
     /// Update RAV status, should be called when receipt is included in RAV request and when RAV request is received
@@ -86,23 +191,44 @@ impl ReceivedReceipt {
         self.update_state();
     }
 
-    /// Update results of an receipt check, this is only valid if there are remaining checks to resolve
-    pub fn update_check(
+    pub(crate) fn update_check(
         &mut self,
-        check: ReceiptCheck,
+        check: &ReceiptCheck,
         result: Option<super::ReceiptResult<()>>,
-    ) -> crate::Result<()> {
+    ) -> Result<()> {
+        if check == &ReceiptCheck::CheckAndReserveCollateral {
+            return self.update_collateral_reserved_check(check, result);
+        }
+
         if !self.checks.contains_key(&check) {
+            return Err(Error::InvalidCheckError {
+                check_string: check.to_string(),
+            });
+        }
+
+        self.checks.insert(check.clone(), result);
+        Ok(())
+    }
+
+    fn update_collateral_reserved_check(
+        &mut self,
+        check: &ReceiptCheck,
+        result: Option<super::ReceiptResult<()>>,
+    ) -> Result<()> {
+        if !(self.state == ReceiptState::AwaitingReserveCollateral) {
+            return Err(Error::InvalidStateForRequestedAction {
+                state: self.state.to_string(),
+            });
+        }
+
+        if let Some(ref mut collateral_reserved_check) = self.collateral_reserved {
+            *collateral_reserved_check = result;
+        } else {
             return Err(crate::Error::InvalidCheckError {
                 check_string: check.to_string(),
             });
         }
-        if !(self.state == ReceiptState::Received || self.state == ReceiptState::Checking) {
-            return Err(crate::Error::InvalidStateForRequestedAction {
-                state: self.state.to_string(),
-            });
-        }
-        self.checks.insert(check, result);
+
         self.update_state();
         Ok(())
     }
@@ -116,17 +242,24 @@ impl ReceivedReceipt {
     }
 
     /// Returns all checks that have not been completed
-    pub fn incomplete_checks(&self) -> ReceiptCheckResults {
-        self.checks
+    pub fn incomplete_checks(&self) -> Vec<ReceiptCheck> {
+        let mut incomplete_checks: Vec<ReceiptCheck> = self
+            .checks
             .iter()
             .filter_map(|(check, result)| {
                 if result.is_none() {
-                    Some(((*check).clone(), None))
+                    Some((*check).clone())
                 } else {
                     None
                 }
             })
-            .collect()
+            .collect();
+        if self.collateral_reserve_attempt_required()
+            && !self.collateral_reserve_attempt_completed()
+        {
+            incomplete_checks.push(ReceiptCheck::CheckAndReserveCollateral);
+        }
+        incomplete_checks
     }
 
     /// Returns all checks that completed with errors
@@ -158,6 +291,9 @@ impl ReceivedReceipt {
             ReceiptState::Checking => {
                 next_state = self.get_state_of_checks();
             }
+            ReceiptState::AwaitingReserveCollateral => {
+                next_state = self.get_state_of_collateral_reserve();
+            }
             ReceiptState::Failed => {} // currently no next state from Failed
             ReceiptState::Accepted => {
                 if self.rav_status == RAVStatus::IncludedInRequest {
@@ -175,17 +311,46 @@ impl ReceivedReceipt {
     }
 
     fn get_state_of_checks(&self) -> ReceiptState {
-        if self.any_check_resulted_in_error() {
+        if self.checking_is_completed() && self.any_check_resulted_in_error() {
             return ReceiptState::Failed;
         }
         if self.all_checks_passed() {
-            return ReceiptState::Accepted;
+            return self.get_state_of_collateral_reserve();
         }
         if self.checking_is_in_progress() {
             return ReceiptState::Checking;
         }
         // Incase the function got called when checking was not started we can return to received state
         ReceiptState::Received
+    }
+
+    fn get_state_of_collateral_reserve(&self) -> ReceiptState {
+        if !self.collateral_reserve_attempt_required() {
+            return ReceiptState::Accepted;
+        }
+        if self.collateral_reserve_attempt_completed() {
+            if let Some(Some(collateral_reserve_attempt_result)) = &self.collateral_reserved {
+                if collateral_reserve_attempt_result.is_err() {
+                    return ReceiptState::Failed;
+                }
+                if collateral_reserve_attempt_result.is_ok() {
+                    return ReceiptState::Accepted;
+                }
+            }
+        }
+
+        ReceiptState::AwaitingReserveCollateral
+    }
+
+    fn collateral_reserve_attempt_completed(&self) -> bool {
+        if let Some(collateral_reserve_attempt) = &self.collateral_reserved {
+            return collateral_reserve_attempt.is_some();
+        }
+        false
+    }
+
+    fn collateral_reserve_attempt_required(&self) -> bool {
+        self.collateral_reserved.is_some()
     }
 
     fn checking_is_in_progress(&self) -> bool {
@@ -211,10 +376,28 @@ impl ReceivedReceipt {
         self.checking_is_completed() && !self.any_check_resulted_in_error()
     }
 
-    pub fn check_is_complete(&self, check: ReceiptCheck) -> bool {
-        match self.checks.get(&check){
-            Some(Some(check_result_option)) => true,
-            _ => false
+    /// returns true `check` has a result, otherwise false
+    fn check_is_complete(&self, check: &ReceiptCheck) -> bool {
+        match self.checks.get(&check) {
+            Some(Some(_)) => true,
+            _ => false,
         }
+    }
+
+    /// Returns true if all checks are complete and at least one failed
+    pub fn is_failed(&self) -> bool {
+        self.state == ReceiptState::Failed
+    }
+
+    /// Returns true if all checks are complete and all checks passed
+    pub fn is_accepted(&self) -> bool {
+        self.state == ReceiptState::Accepted
+    }
+
+    fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
+        required_checks
+            .iter()
+            .map(|check| (check.clone(), None))
+            .collect()
     }
 }

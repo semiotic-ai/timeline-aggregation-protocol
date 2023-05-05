@@ -39,8 +39,7 @@ impl CollateralAdapterMock {
 
         if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
             let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
-            gateway_collateral_storage
-                .insert(gateway_id, current_value + value);
+            gateway_collateral_storage.insert(gateway_id, current_value + value);
         } else {
             gateway_collateral_storage.insert(gateway_id, value);
         }
@@ -56,8 +55,7 @@ impl CollateralAdapterMock {
         if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
             let checked_new_value = current_value.checked_sub(value);
             if let Some(new_value) = checked_new_value {
-                gateway_collateral_storage
-                    .insert(gateway_id, new_value);
+                gateway_collateral_storage.insert(gateway_id, new_value);
                 return Ok(());
             }
         }

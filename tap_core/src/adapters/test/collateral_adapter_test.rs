@@ -3,7 +3,10 @@
 
 #[cfg(test)]
 mod collateral_adapter_unit_test {
-    use std::{sync::{Arc, RwLock}, collections::HashMap};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, RwLock},
+    };
 
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;

@@ -17,8 +17,9 @@ mod receipt_storage_adapter_unit_test {
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
     use crate::{
-        eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_receipt_check_results,
-        tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
+        eip_712_signed_message::EIP712SignedMessage,
+        tap_receipt::get_full_list_of_checks, tap_receipt::Receipt,
+        tap_receipt::ReceivedReceipt,
     };
 
     #[rstest]
@@ -42,7 +43,7 @@ mod receipt_storage_adapter_unit_test {
                 .await
                 .unwrap(),
             query_id,
-            get_full_list_of_receipt_check_results(),
+            &get_full_list_of_checks(),
         );
 
         let receipt_store_result = receipt_adapter.store_receipt(received_receipt.clone());
@@ -87,7 +88,7 @@ mod receipt_storage_adapter_unit_test {
                     .await
                     .unwrap(),
                 query_id as u64,
-                get_full_list_of_receipt_check_results(),
+                &get_full_list_of_checks(),
             ));
         }
         let mut receipt_ids = Vec::new();

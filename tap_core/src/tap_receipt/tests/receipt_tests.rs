@@ -34,9 +34,9 @@ mod receipt_unit_test {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Current system time should be greater than `UNIX_EPOCH`")
-            .as_millis() as u64;
+            .as_nanos() as u64;
         assert!(receipt.timestamp_ns <= now);
-        assert!(receipt.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt.timestamp_ns >= now - 5000000); // 5 second tolerance
     }
 
     #[rstest]
@@ -48,7 +48,7 @@ mod receipt_unit_test {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Current system time should be greater than `UNIX_EPOCH`")
-            .as_millis() as u64;
+            .as_nanos() as u64;
 
         // Check that nonces are different
         // Note: This test has an *extremely low* (~1/2^64) probability of false failure, if a failure happens
@@ -58,9 +58,9 @@ mod receipt_unit_test {
         assert_ne!(receipt1.nonce, receipt2.nonce);
 
         assert!(receipt1.timestamp_ns <= now);
-        assert!(receipt1.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt1.timestamp_ns >= now - 5000000); // 5 second tolerance
 
         assert!(receipt2.timestamp_ns <= now);
-        assert!(receipt2.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt2.timestamp_ns >= now - 5000000); // 5 second tolerance
     }
 }
