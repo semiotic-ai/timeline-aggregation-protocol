@@ -60,10 +60,17 @@ impl RpcServer for RpcImpl {
 pub async fn run_server(
     port: u16,
     wallet: LocalWallet,
+    max_request_body_size: u32,
+    max_response_body_size: u32,
+    max_concurrent_connexions: u32,
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     println!("Starting server...");
-    let server = ServerBuilder::default()
+    let server = ServerBuilder::new()
+        .max_request_body_size(max_request_body_size)
+        .max_response_body_size(max_response_body_size)
+        .max_connections(max_concurrent_connexions)
+        .http_only()
         .build(format!("127.0.0.1:{}", port))
         .await?;
     let addr = server.local_addr()?;
@@ -116,7 +123,9 @@ mod tests {
     #[tokio::test]
     async fn protocol_version(keys: (LocalWallet, Address)) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0).await.unwrap();
+        let (handle, local_addr) = server::run_server(0, keys.0, 100 * 1024, 100 * 1024, 1)
+            .await
+            .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -141,7 +150,9 @@ mod tests {
         #[case] values: Vec<u128>,
     ) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0.clone()).await.unwrap();
+        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 100 * 1024, 100 * 1024, 1)
+            .await
+            .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -189,7 +200,9 @@ mod tests {
         #[case] values: Vec<u128>,
     ) {
         // Start the JSON-RPC server.
-        let (handle, local_addr) = server::run_server(0, keys.0.clone()).await.unwrap();
+        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 100 * 1024, 100 * 1024, 1)
+            .await
+            .unwrap();
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
@@ -228,6 +241,57 @@ mod tests {
             .unwrap();
 
         assert!(rav.recover_signer().unwrap() == keys.1);
+
+        handle.stop().unwrap();
+        handle.stopped().await;
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn request_size_limit(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+        // Start the JSON-RPC server.
+        let (handle, local_addr) = server::run_server(0, keys.0.clone(), 10 * 1024, 10 * 1024, 1)
+            .await
+            .unwrap();
+
+        // Start the JSON-RPC client.
+        let client = HttpClientBuilder::default()
+            .build(format!("http://127.0.0.1:{}", local_addr.port()))
+            .unwrap();
+
+        // Create 100 receipts
+        let mut receipts = Vec::new();
+        for _ in 1..100 {
+            receipts.push(
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                    .await
+                    .unwrap(),
+            );
+        }
+
+        // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
+        // Create RAV through the JSON-RPC server.
+        // Test with only 10 receipts
+        let res: Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::core::Error> =
+            client
+                .request(
+                    "aggregate_receipts",
+                    rpc_params!(&receipts[..10], None::<()>),
+                )
+                .await;
+
+        assert!(res.is_ok());
+
+        // Create RAV through the JSON-RPC server.
+        // Test with all 100 receipts
+        let res: Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::core::Error> =
+            client
+                .request("aggregate_receipts", rpc_params!(&receipts, None::<()>))
+                .await;
+
+        assert!(res.is_err());
+        // Make sure the error is a HTTP 413 Content Too Large
+        assert!(res.unwrap_err().to_string().contains("413"));
 
         handle.stop().unwrap();
         handle.stopped().await;
