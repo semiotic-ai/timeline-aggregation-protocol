@@ -17,9 +17,8 @@ mod receipt_storage_adapter_unit_test {
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
     use crate::{
-        eip_712_signed_message::EIP712SignedMessage,
-        tap_receipt::get_full_list_of_checks, tap_receipt::Receipt,
-        tap_receipt::ReceivedReceipt,
+        eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
+        tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
     };
 
     #[rstest]

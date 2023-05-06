@@ -1,7 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use crate::{
     adapters::receipt_storage_adapter::ReceiptStorageAdapter, tap_receipt::ReceivedReceipt,
@@ -75,6 +78,23 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
             })
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect())
+    }
+    fn update_receipt_by_id(
+        &mut self,
+        receipt_id: u64,
+        receipt: ReceivedReceipt,
+    ) -> Result<(), Self::AdapterError> {
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
+
+        if !receipt_storage.contains_key(&receipt_id) {
+            return Err(AdpaterErrorMock::AdapterError {
+                error: "Invalid receipt_id".to_owned(),
+            });
+        };
+
+        receipt_storage.insert(receipt_id, receipt);
+        self.unique_id += 1;
+        Ok(())
     }
     fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), Self::AdapterError> {
         let mut receipt_storage = self.receipt_storage.write().unwrap();

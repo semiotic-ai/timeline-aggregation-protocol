@@ -34,7 +34,7 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
         receipt_check: &ReceiptCheck,
         signed_receipt: &EIP712SignedMessage<Receipt>,
         query_id: u64,
-        receipt_id: u64
+        receipt_id: u64,
     ) -> ReceiptResult<()> {
         match receipt_check {
             ReceiptCheck::CheckUnique => self.check_uniqueness(&signed_receipt, receipt_id),
@@ -48,8 +48,15 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
         }
     }
 
-    fn check_uniqueness(&self, signed_receipt: &EIP712SignedMessage<Receipt>, receipt_id: u64) -> ReceiptResult<()> {
-        if !self.receipt_checks_adapter.is_unique(signed_receipt, receipt_id) {
+    fn check_uniqueness(
+        &self,
+        signed_receipt: &EIP712SignedMessage<Receipt>,
+        receipt_id: u64,
+    ) -> ReceiptResult<()> {
+        if !self
+            .receipt_checks_adapter
+            .is_unique(signed_receipt, receipt_id)
+        {
             return Err(ReceiptError::NonUniqueReceipt);
         }
         Ok(())

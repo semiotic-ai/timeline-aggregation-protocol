@@ -20,6 +20,11 @@ pub trait ReceiptStorageAdapter {
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
+    fn update_receipt_by_id(
+        &mut self,
+        receipt_id: u64,
+        receipt: ReceivedReceipt,
+    ) -> Result<(), Self::AdapterError>;
     fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), Self::AdapterError>;
     fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), Self::AdapterError>;
 }
