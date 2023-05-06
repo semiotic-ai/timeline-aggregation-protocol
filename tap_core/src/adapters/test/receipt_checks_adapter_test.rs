@@ -76,7 +76,7 @@ mod receipt_checks_adapter_unit_test {
         let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
 
         let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
-            receipt_storage,
+            Arc::clone(&receipt_storage),
             query_appraisals_storage,
             allocation_ids_set,
             gateway_ids_set,
@@ -93,7 +93,13 @@ mod receipt_checks_adapter_unit_test {
             ),
         );
 
-        assert!(receipt_checks_adapter.is_unique(&new_receipt.1.signed_receipt));
+        let unique_receipt_id = 0u64;
+        receipt_storage
+            .write()
+            .unwrap()
+            .insert(unique_receipt_id, new_receipt.1.clone());
+
+        assert!(receipt_checks_adapter.is_unique(&new_receipt.1.signed_receipt, unique_receipt_id));
         assert!(receipt_checks_adapter
             .is_valid_allocation_id(new_receipt.1.signed_receipt.message.allocation_id));
         // TODO: Add check when gateway_id is available from received receipt (issue: #56)

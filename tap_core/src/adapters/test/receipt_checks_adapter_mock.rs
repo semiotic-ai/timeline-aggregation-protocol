@@ -1,7 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock}};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, RwLock},
+};
 
 use ethereum_types::Address;
 
@@ -35,11 +38,14 @@ impl ReceiptChecksAdapterMock {
 }
 
 impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
-    fn is_unique(&self, receipt: &EIP712SignedMessage<Receipt>) -> bool {
+    fn is_unique(&self, receipt: &EIP712SignedMessage<Receipt>, receipt_id: u64) -> bool {
         let receipt_storage = self.receipt_storage.read().unwrap();
         receipt_storage
             .iter()
-            .all(|(_, stored_receipt)| stored_receipt.signed_receipt.message != receipt.message)
+            .all(|(stored_receipt_id, stored_receipt)| {
+                (stored_receipt.signed_receipt.message != receipt.message)
+                    || *stored_receipt_id == receipt_id
+            })
     }
 
     fn is_valid_allocation_id(&self, allocation_id: Address) -> bool {

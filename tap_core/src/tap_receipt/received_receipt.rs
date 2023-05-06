@@ -109,6 +109,7 @@ impl ReceivedReceipt {
     pub fn perform_check<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
         check: &ReceiptCheck,
+        receipt_id: u64,
         receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
     ) -> crate::Result<()> {
         match self.state {
@@ -136,7 +137,12 @@ impl ReceivedReceipt {
         if !self.check_is_complete(check) {
             result = self.update_check(
                 &check,
-                Some(receipt_auditor.check(&check, &self.signed_receipt, self.query_id)),
+                Some(receipt_auditor.check(
+                    &check,
+                    &self.signed_receipt,
+                    self.query_id,
+                    receipt_id,
+                )),
             );
         }
         self.update_state();
@@ -156,6 +162,7 @@ impl ReceivedReceipt {
     pub fn perform_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
         checks: &[ReceiptCheck],
+        receipt_id: u64,
         receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
     ) -> Result<()> {
         let mut check_and_reserve_collateral_included = false;
@@ -165,11 +172,15 @@ impl ReceivedReceipt {
                 check_and_reserve_collateral_included = true;
                 continue;
             }
-            self.perform_check(check, receipt_auditor)?;
+            self.perform_check(check, receipt_id, receipt_auditor)?;
         }
         if check_and_reserve_collateral_included && self.state != ReceiptState::Failed {
             // CheckAndReserveCollateral is only performed after all other checks have passed
-            self.perform_check(&ReceiptCheck::CheckAndReserveCollateral, receipt_auditor)?;
+            self.perform_check(
+                &ReceiptCheck::CheckAndReserveCollateral,
+                receipt_id,
+                receipt_auditor,
+            )?;
         }
         Ok(())
     }
@@ -180,9 +191,14 @@ impl ReceivedReceipt {
     ///
     pub fn finalize_receipt_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
+        receipt_id: u64,
         receipt_auditor: &mut ReceiptAuditor<CA, RCA>,
     ) -> Result<()> {
-        self.perform_checks(self.incomplete_checks().as_slice(), receipt_auditor)
+        self.perform_checks(
+            self.incomplete_checks().as_slice(),
+            receipt_id,
+            receipt_auditor,
+        )
     }
 
     /// Update RAV status, should be called when receipt is included in RAV request and when RAV request is received

@@ -15,14 +15,17 @@ mod received_receipt_unit_test {
 
     use crate::{
         adapters::{
+            collateral_adapter_mock::CollateralAdapterMock,
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
-            receipt_storage_adapter_mock::ReceiptStorageAdapterMock, collateral_adapter_mock::CollateralAdapterMock,
+            receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,
+        get_current_timestamp_u64_ns,
         tap_receipt::{
+            get_full_list_of_checks,
             received_receipt::{RAVStatus, ReceiptState},
-            Receipt, ReceiptCheck, ReceivedReceipt, ReceiptAuditor, get_full_list_of_checks,
-        }, get_current_timestamp_u64_ns,
+            Receipt, ReceiptAuditor, ReceiptCheck, ReceivedReceipt,
+        },
     };
 
     #[fixture]
@@ -85,7 +88,8 @@ mod received_receipt_unit_test {
     #[fixture]
     fn collateral_adapters() -> (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
         let gateway_collateral_storage = Arc::new(RwLock::new(HashMap::new()));
-        let collateral_adapter = CollateralAdapterMock::new(Arc::clone(&gateway_collateral_storage));
+        let collateral_adapter =
+            CollateralAdapterMock::new(Arc::clone(&gateway_collateral_storage));
         (collateral_adapter, gateway_collateral_storage)
     }
 
@@ -126,36 +130,55 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(collateral_adapter, receipt_checks_adapter, starting_min_timestamp);
+        let mut receipt_auditor = ReceiptAuditor::new(
+            collateral_adapter,
+            receipt_checks_adapter,
+            starting_min_timestamp,
+        );
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-                Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
-                &keys.0,
-            )
-            .await
-            .unwrap();
+            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
 
         let query_id = 1;
 
         // prepare adapters and storage to correctly validate receipt
 
         // add collateral for gateway
-        collateral_storage.write().unwrap().insert(keys.1, query_value+500);
+        collateral_storage
+            .write()
+            .unwrap()
+            .insert(keys.1, query_value + 500);
         // appraise query
-        query_appraisal_storage.write().unwrap().insert(query_id, query_value);
+        query_appraisal_storage
+            .write()
+            .unwrap()
+            .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
         let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let receipt_id = 0u64;
 
         assert_eq!(received_receipt.state, ReceiptState::Received);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
 
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
-        assert!(received_receipt.perform_check(&arbitrary_check_to_perform, &mut receipt_auditor).is_ok());
+        assert!(received_receipt
+            .perform_check(
+                &arbitrary_check_to_perform,
+                receipt_id,
+                &mut receipt_auditor
+            )
+            .is_ok());
 
-        assert!(received_receipt.perform_checks(&checks, &mut receipt_auditor).is_ok());
+        assert!(received_receipt
+            .perform_checks(&checks, receipt_id, &mut receipt_auditor)
+            .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
@@ -176,36 +199,55 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(collateral_adapter, receipt_checks_adapter, starting_min_timestamp);
+        let mut receipt_auditor = ReceiptAuditor::new(
+            collateral_adapter,
+            receipt_checks_adapter,
+            starting_min_timestamp,
+        );
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-                Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
-                &keys.0,
-            )
-            .await
-            .unwrap();
+            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
 
         let query_id = 1;
 
         // prepare adapters and storage to correctly validate receipt
 
         // add collateral for gateway
-        collateral_storage.write().unwrap().insert(keys.1, query_value+500);
+        collateral_storage
+            .write()
+            .unwrap()
+            .insert(keys.1, query_value + 500);
         // appraise query
-        query_appraisal_storage.write().unwrap().insert(query_id, query_value);
+        query_appraisal_storage
+            .write()
+            .unwrap()
+            .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
         let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let receipt_id = 0u64;
 
         assert_eq!(received_receipt.state, ReceiptState::Received);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
 
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
-        assert!(received_receipt.perform_check(&arbitrary_check_to_perform, &mut receipt_auditor).is_ok());
+        assert!(received_receipt
+            .perform_check(
+                &arbitrary_check_to_perform,
+                receipt_id,
+                &mut receipt_auditor
+            )
+            .is_ok());
 
-        assert!(received_receipt.finalize_receipt_checks(&mut receipt_auditor).is_ok());
+        assert!(received_receipt
+            .finalize_receipt_checks(receipt_id, &mut receipt_auditor)
+            .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
@@ -221,7 +263,7 @@ mod received_receipt_unit_test {
         assert_eq!(received_receipt.rav_status, RAVStatus::IncludedInReceived);
     }
 
-        #[rstest]
+    #[rstest]
     async fn standard_lifetime_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -236,32 +278,45 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(collateral_adapter, receipt_checks_adapter, starting_min_timestamp);
+        let mut receipt_auditor = ReceiptAuditor::new(
+            collateral_adapter,
+            receipt_checks_adapter,
+            starting_min_timestamp,
+        );
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-                Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
-                &keys.0,
-            )
-            .await
-            .unwrap();
+            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
 
         let query_id = 1;
 
         // prepare adapters and storage to correctly validate receipt
 
         // add collateral for gateway
-        collateral_storage.write().unwrap().insert(keys.1, query_value+500);
+        collateral_storage
+            .write()
+            .unwrap()
+            .insert(keys.1, query_value + 500);
         // appraise query
-        query_appraisal_storage.write().unwrap().insert(query_id, query_value);
+        query_appraisal_storage
+            .write()
+            .unwrap()
+            .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
         let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let receipt_id = 0u64;
 
         assert_eq!(received_receipt.state, ReceiptState::Received);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
 
-        assert!(received_receipt.finalize_receipt_checks(&mut receipt_auditor).is_ok());
+        assert!(received_receipt
+            .finalize_receipt_checks(receipt_id, &mut receipt_auditor)
+            .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
