@@ -19,7 +19,7 @@ use crate::Error;
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
 /// Holds information needed for promise of payment signed with ECDSA
-#[derive(Debug, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
 #[eip712(
     //TODO: Update this info, or make it user defined?
     name = "tap",

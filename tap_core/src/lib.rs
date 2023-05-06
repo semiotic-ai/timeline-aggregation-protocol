@@ -8,7 +8,9 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use ethereum_types::Address;
 use ethers::{signers::WalletError, types::SignatureError};
+use receipt_aggregate_voucher::ReceiptAggregateVoucher;
 use thiserror::Error;
 
 pub mod adapters;
@@ -36,6 +38,17 @@ pub enum Error {
     WalletError(#[from] WalletError),
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    #[error("Recovered gateway address invalid{address}")]
+    InvalidRecoveredSigner { address: Address },
+    #[error("Received RAV does not match expexted RAV")]
+    InvalidReceivedRAV {
+        received_rav: ReceiptAggregateVoucher,
+        expected_rav: ReceiptAggregateVoucher,
+    },
+    #[error("Error from adapter: {source_error_message}")]
+    AdapterError { source_error_message: String },
+    #[error("Failed to produce rav request, no valid receipts")]
+    NoValidReceiptsForRAVRequest,
 }
 type Result<T> = std::result::Result<T, Error>;
 

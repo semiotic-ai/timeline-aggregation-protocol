@@ -3,7 +3,9 @@ use crate::{
         collateral_adapter::CollateralAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
     },
     eip_712_signed_message::EIP712SignedMessage,
+    receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{Receipt, ReceiptCheck, ReceiptError, ReceiptResult},
+    Error, Result,
 };
 
 pub struct ReceiptAuditor<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> {
@@ -144,6 +146,22 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
             });
         }
 
+        Ok(())
+    }
+
+    pub fn check_rav_signature(
+        &self,
+        signed_rav: &EIP712SignedMessage<ReceiptAggregateVoucher>,
+    ) -> Result<()> {
+        let rav_signer_address = signed_rav.recover_signer()?;
+        if !self
+            .receipt_checks_adapter
+            .is_valid_gateway_id(rav_signer_address)
+        {
+            return Err(Error::InvalidRecoveredSigner {
+                address: rav_signer_address,
+            });
+        }
         Ok(())
     }
 }
