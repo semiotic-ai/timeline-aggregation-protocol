@@ -1,12 +1,12 @@
+use super::{SignedRAV, SignedReceipt};
 use crate::{
     adapters::{
         collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
         receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::ReceiptStorageAdapter,
     },
-    eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
-    tap_receipt::{Receipt, ReceiptAuditor, ReceiptCheck, ReceivedReceipt},
+    tap_receipt::{ReceiptAuditor, ReceiptCheck, ReceivedReceipt},
     Error,
 };
 
@@ -54,7 +54,7 @@ impl<
 
     pub fn verify_and_store_receipt(
         &mut self,
-        signed_receipt: EIP712SignedMessage<Receipt>,
+        signed_receipt: SignedReceipt,
         query_id: u64,
         initial_checks: Vec<ReceiptCheck>,
     ) -> std::result::Result<(), Error> {
@@ -82,14 +82,14 @@ impl<
     pub fn verify_and_store_rav(
         &mut self,
         expected_rav: ReceiptAggregateVoucher,
-        signed_rav: EIP712SignedMessage<ReceiptAggregateVoucher>,
+        signed_rav: SignedRAV,
     ) -> std::result::Result<(), Error> {
         self.receipt_auditor.check_rav_signature(&signed_rav)?;
 
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRAV {
-                received_rav: signed_rav.message.clone(),
-                expected_rav: expected_rav.clone(),
+                received_rav: signed_rav.message,
+                expected_rav,
             });
         }
 
@@ -108,14 +108,14 @@ impl<
         timestamp_buffer_ns: u64,
     ) -> Result<
         (
-            Vec<EIP712SignedMessage<Receipt>>,
-            Vec<EIP712SignedMessage<Receipt>>,
+            Vec<SignedReceipt>,
+            Vec<SignedReceipt>,
             ReceiptAggregateVoucher,
         ),
         Error,
     > {
         // get previous rav
-        let mut previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>> = None;
+        let mut previous_rav: Option<SignedRAV> = None;
         if let Some(current_rav_id) = self.current_rav_id {
             let stored_previous_rav = self
                 .rav_storage_adapter
@@ -138,13 +138,7 @@ impl<
     fn collect_receipts(
         &mut self,
         timestamp_buffer_ns: u64,
-    ) -> Result<
-        (
-            Vec<EIP712SignedMessage<Receipt>>,
-            Vec<EIP712SignedMessage<Receipt>>,
-        ),
-        Error,
-    > {
+    ) -> Result<(Vec<SignedReceipt>, Vec<SignedReceipt>), Error> {
         let cutoff_timestamp = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
         let received_receipts = self
             .receipt_storage_adapter
@@ -153,8 +147,8 @@ impl<
                 source_error_message: err.to_string(),
             })?;
 
-        let mut accepted_signed_receipts = Vec::<EIP712SignedMessage<Receipt>>::new();
-        let mut failed_signed_receipts = Vec::<EIP712SignedMessage<Receipt>>::new();
+        let mut accepted_signed_receipts = Vec::<SignedReceipt>::new();
+        let mut failed_signed_receipts = Vec::<SignedReceipt>::new();
 
         for (receipt_id, mut received_receipt) in received_receipts {
             received_receipt.finalize_receipt_checks(receipt_id, &mut self.receipt_auditor)?;
@@ -165,12 +159,12 @@ impl<
             }
         }
 
-        return Ok((accepted_signed_receipts, failed_signed_receipts));
+        Ok((accepted_signed_receipts, failed_signed_receipts))
     }
 
     fn generate_expected_rav(
-        receipts: &[EIP712SignedMessage<Receipt>],
-        previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+        receipts: &[SignedReceipt],
+        previous_rav: Option<SignedRAV>,
     ) -> Result<ReceiptAggregateVoucher, Error> {
         if receipts.is_empty() {
             return Err(Error::NoValidReceiptsForRAVRequest);

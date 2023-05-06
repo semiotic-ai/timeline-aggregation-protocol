@@ -18,7 +18,7 @@ pub struct ReceiptStorageAdapterMock {
 impl ReceiptStorageAdapterMock {
     pub fn new(receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>) -> Self {
         Self {
-            receipt_storage: receipt_storage,
+            receipt_storage,
             unique_id: 0u64,
         }
     }

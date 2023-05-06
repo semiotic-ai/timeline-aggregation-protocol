@@ -45,7 +45,7 @@ mod receipt_storage_adapter_unit_test {
             &get_full_list_of_checks(),
         );
 
-        let receipt_store_result = receipt_adapter.store_receipt(received_receipt.clone());
+        let receipt_store_result = receipt_adapter.store_receipt(received_receipt);
         assert!(receipt_store_result.is_ok());
         let receipt_id = receipt_store_result.unwrap();
 
@@ -105,13 +105,10 @@ mod receipt_storage_adapter_unit_test {
         assert!(receipt_adapter
             .retrieve_receipts_by_timestamp(receipt_timestamps[0])
             .is_ok());
-        assert!(
-            receipt_adapter
-                .retrieve_receipts_by_timestamp(receipt_timestamps[0])
-                .unwrap()
-                .len()
-                > 0
-        );
+        assert!(!receipt_adapter
+            .retrieve_receipts_by_timestamp(receipt_timestamps[0])
+            .unwrap()
+            .is_empty());
 
         // Retreive receipts before timestamp
         assert!(receipt_adapter

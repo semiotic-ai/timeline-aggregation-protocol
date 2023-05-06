@@ -136,13 +136,8 @@ impl ReceivedReceipt {
         // Only perform check if it is incomplete
         if !self.check_is_complete(check) {
             result = self.update_check(
-                &check,
-                Some(receipt_auditor.check(
-                    &check,
-                    &self.signed_receipt,
-                    self.query_id,
-                    receipt_id,
-                )),
+                check,
+                Some(receipt_auditor.check(check, &self.signed_receipt, self.query_id, receipt_id)),
             );
         }
         self.update_state();
@@ -216,7 +211,7 @@ impl ReceivedReceipt {
             return self.update_collateral_reserved_check(check, result);
         }
 
-        if !self.checks.contains_key(&check) {
+        if !self.checks.contains_key(check) {
             return Err(Error::InvalidCheckError {
                 check_string: check.to_string(),
             });
@@ -394,10 +389,7 @@ impl ReceivedReceipt {
 
     /// returns true `check` has a result, otherwise false
     fn check_is_complete(&self, check: &ReceiptCheck) -> bool {
-        match self.checks.get(&check) {
-            Some(Some(_)) => true,
-            _ => false,
-        }
+        matches!(self.checks.get(check), Some(Some(_)))
     }
 
     /// Returns true if all checks are complete and at least one failed

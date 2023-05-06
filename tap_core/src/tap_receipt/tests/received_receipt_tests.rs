@@ -98,18 +98,16 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
-        let signed_receipt = EIP712SignedMessage::new(
-            Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
-            &keys.0,
-        )
-        .await
-        .unwrap();
+        let signed_receipt =
+            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 10).unwrap(), &keys.0)
+                .await
+                .unwrap();
         let query_id = 1;
         let checks = get_full_list_of_checks();
 
         let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
 
-        assert!(received_receipt.completed_checks_with_errors().len() == 0);
+        assert!(received_receipt.completed_checks_with_errors().is_empty());
         assert!(received_receipt.incomplete_checks().len() == checks.len());
         assert_eq!(received_receipt.state, ReceiptState::Received);
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
@@ -138,7 +136,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
         .await
@@ -207,7 +205,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
         .await
@@ -286,7 +284,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
-            Receipt::new(allocation_ids[0].clone(), query_value).unwrap(),
+            Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
         .await

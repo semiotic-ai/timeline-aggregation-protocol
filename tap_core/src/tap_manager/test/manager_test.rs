@@ -6,6 +6,10 @@ mod manager_unit_test {
         sync::{Arc, RwLock},
     };
 
+    use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use rstest::*;
+
     use crate::{
         adapters::{
             collateral_adapter_mock::CollateralAdapterMock,
@@ -18,9 +22,6 @@ mod manager_unit_test {
         tap_manager::Manager,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceiptCheck},
     };
-    use ethereum_types::Address;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
-    use rstest::*;
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {
@@ -55,8 +56,8 @@ mod manager_unit_test {
     #[fixture]
     fn rav_storage_adapter() -> RAVStorageAdapterMock {
         let rav_storage = Arc::new(RwLock::new(HashMap::new()));
-        let rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
-        rav_storage_adapter
+
+        RAVStorageAdapterMock::new(rav_storage)
     }
 
     #[fixture]

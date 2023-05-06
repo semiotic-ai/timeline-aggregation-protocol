@@ -39,13 +39,13 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
         receipt_id: u64,
     ) -> ReceiptResult<()> {
         match receipt_check {
-            ReceiptCheck::CheckUnique => self.check_uniqueness(&signed_receipt, receipt_id),
-            ReceiptCheck::CheckAllocationId => self.check_allocation_id(&signed_receipt),
-            ReceiptCheck::CheckSignature => self.check_signature(&signed_receipt),
-            ReceiptCheck::CheckTimestamp => self.check_timestamp(&signed_receipt),
-            ReceiptCheck::CheckValue => self.check_value(&signed_receipt, query_id),
+            ReceiptCheck::CheckUnique => self.check_uniqueness(signed_receipt, receipt_id),
+            ReceiptCheck::CheckAllocationId => self.check_allocation_id(signed_receipt),
+            ReceiptCheck::CheckSignature => self.check_signature(signed_receipt),
+            ReceiptCheck::CheckTimestamp => self.check_timestamp(signed_receipt),
+            ReceiptCheck::CheckValue => self.check_value(signed_receipt, query_id),
             ReceiptCheck::CheckAndReserveCollateral => {
-                self.check_and_reserve_collateral(&signed_receipt)
+                self.check_and_reserve_collateral(signed_receipt)
             }
         }
     }
@@ -119,8 +119,7 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
                 source_error_message: format!(
                     "Recovered gateway id is not valid: {}",
                     receipt_signer_address
-                )
-                .to_string(),
+                ),
             });
         }
         Ok(())
@@ -136,10 +135,10 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
                 .map_err(|err| ReceiptError::InvalidSignature {
                     source_error_message: err.to_string(),
                 })?;
-        if !(self
+        if self
             .collateral_adapter
             .subtract_collateral(receipt_signer_address, signed_receipt.message.value)
-            .is_ok())
+            .is_err()
         {
             return Err(ReceiptError::InsufficientCollateral {
                 value: signed_receipt.message.value,
