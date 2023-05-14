@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "tap_core"
+    "tap_core",
+    "tap_aggregator"
 ]
 
 [workspace.package]

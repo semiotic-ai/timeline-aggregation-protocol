@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 #[cfg(test)]
 mod received_receipt_unit_test {
     use crate::{
@@ -9,8 +12,7 @@ mod received_receipt_unit_test {
         },
     };
     use ethereum_types::Address;
-    use k256::ecdsa::{SigningKey, VerifyingKey};
-    use rand_core::OsRng;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
     use std::str::FromStr;
 
@@ -25,18 +27,22 @@ mod received_receipt_unit_test {
     }
 
     #[fixture]
-    fn keys() -> (SigningKey, VerifyingKey) {
-        let signing_key = SigningKey::random(&mut OsRng);
-        let verifying_key = VerifyingKey::from(&signing_key);
-        (signing_key, verifying_key)
+    fn keys() -> (LocalWallet, Address) {
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+        let address = wallet.address();
+        (wallet, address)
     }
 
     #[rstest]
-    fn test_initialization(keys: (SigningKey, VerifyingKey), allocation_ids: Vec<Address>) {
+    async fn test_initialization(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
         let signed_receipt = EIP712SignedMessage::new(
             Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
             &keys.0,
         )
+        .await
         .unwrap();
         let query_id = 1;
         let checks = get_full_list_of_checks();
@@ -50,14 +56,15 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
-    fn test_initialization_with_some_checks_with_ok(
-        keys: (SigningKey, VerifyingKey),
+    async fn test_initialization_with_some_checks_with_ok(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         let signed_receipt = EIP712SignedMessage::new(
             Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
             &keys.0,
         )
+        .await
         .unwrap();
         let query_id = 1;
         let mut checks = get_full_list_of_checks();
@@ -73,20 +80,21 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
-    fn test_initialization_with_some_checks_with_err(
-        keys: (SigningKey, VerifyingKey),
+    async fn test_initialization_with_some_checks_with_err(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         let signed_receipt = EIP712SignedMessage::new(
             Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
             &keys.0,
         )
+        .await
         .unwrap();
         let query_id = 1;
         let mut checks = get_full_list_of_checks();
         // Set a check to fail
         let check_to_fail = ReceiptCheck::CheckUnique;
-        let cause_of_fail = Err(crate::Error::InvalidValue {
+        let cause_of_fail = Err(crate::tap_receipt::ReceiptError::InvalidValue {
             received_value: 10,
             expected_value: 20,
         });
@@ -104,14 +112,15 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
-    fn test_initialization_all_checks_complete_with_ok(
-        keys: (SigningKey, VerifyingKey),
+    async fn test_initialization_all_checks_complete_with_ok(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         let signed_receipt = EIP712SignedMessage::new(
             Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
             &keys.0,
         )
+        .await
         .unwrap();
         let query_id = 1;
         let mut checks = get_full_list_of_checks();
@@ -128,14 +137,15 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
-    fn test_full_lifetime_with_valid_receipt(
-        keys: (SigningKey, VerifyingKey),
+    async fn test_full_lifetime_with_valid_receipt(
+        keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
     ) {
         let signed_receipt = EIP712SignedMessage::new(
             Receipt::new(allocation_ids[0].clone(), 10).unwrap(),
             &keys.0,
         )
+        .await
         .unwrap();
         let query_id = 1;
         let checks = get_full_list_of_checks();
