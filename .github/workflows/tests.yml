@@ -71,6 +71,57 @@ jobs:
         with:
           lcov-file: lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cargo Audit
+        run: |
+              cargo install cargo-audit
+
+      - name: Generate Cargo Audit Report
+        id: report
+        run: |
+           cargo audit | tee report.xml
+           body="$(cat report.xml)"
+           delimiter="$(openssl rand -hex 8)"
+           echo "body<<$delimiter" >> $GITHUB_OUTPUT
+           echo "$body" >> $GITHUB_OUTPUT
+           echo "$delimiter" >> $GITHUB_OUTPUT
+
+      - name: Report Folding
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        env:
+          FINALREPORT: "${{ steps.report.outputs.body }}"
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### 🤖 **** Cargo Audit Report **** 🤖\`
+
+            <details><summary>Show Report</summary>
+            \*\*\*\n
+            ${process.env.FINALREPORT}
+            \`\`\`
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
   
   sbom:
    name: Syft SBOM Generator
