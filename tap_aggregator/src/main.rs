@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
     // Start the JSON-RPC server.
     let (handle, _) = server::run_server(
         args.port,
-        wallet.clone(),
+        wallet,
         args.max_request_body_size,
         args.max_response_body_size,
         args.max_connections,

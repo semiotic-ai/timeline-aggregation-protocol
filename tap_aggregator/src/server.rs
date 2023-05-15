@@ -44,7 +44,7 @@ impl RpcServer for RpcImpl {
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::types::ErrorObjectOwned>
     {
-        let res = check_and_aggregate_receipts(&receipts, previous_rav, self.wallet.clone()).await;
+        let res = check_and_aggregate_receipts(&receipts, previous_rav, &self.wallet).await;
         // handle error
         match res {
             Ok(res) => Ok(res),
@@ -76,7 +76,7 @@ pub async fn run_server(
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
     let rpc_impl = RpcImpl {
-        wallet: wallet.clone(),
+        wallet,
         /// TODO: define a proper API versioning scheme
         api_version: "🤷".into(),
     };
