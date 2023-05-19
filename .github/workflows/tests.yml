@@ -139,7 +139,7 @@ jobs:
            ./syft .  --scope all-layers -o cyclonedx-xml=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").xml
            ./syft .  --scope all-layers -o cyclonedx-json=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").json
            cp ${{ env.REPORT_FOLDER }}/*.xml sbom-report.xml      
-           curl -X 'POST' 'http://34.135.212.207:8081/api/v1/bom' \
+           curl -X 'POST' 'http://34.149.248.118/api/v1/bom' \
                         -H 'Content-Type: multipart/form-data' \
                         -H 'X-API-Key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}' \
                         -F 'autoCreate=true' \
