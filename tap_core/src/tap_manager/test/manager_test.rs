@@ -199,15 +199,18 @@ mod manager_unit_test {
 
         let rav_request = rav_request_result.unwrap();
         // all passing
-        assert_eq!(rav_request.0.len(), stored_signed_receipts.len());
+        assert_eq!(
+            rav_request.valid_receipts.len(),
+            stored_signed_receipts.len()
+        );
         // no failing
-        assert_eq!(rav_request.1.len(), 0);
+        assert_eq!(rav_request.invalid_receipts.len(), 0);
 
-        let signed_rav = EIP712SignedMessage::new(rav_request.2.clone(), &keys.0)
+        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
             .await
             .unwrap();
         assert!(manager
-            .verify_and_store_rav(rav_request.2, signed_rav)
+            .verify_and_store_rav(rav_request.expected_rav, signed_rav)
             .is_ok());
     }
 }

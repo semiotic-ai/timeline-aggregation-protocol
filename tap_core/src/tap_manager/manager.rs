@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{SignedRAV, SignedReceipt};
+use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
     adapters::{
         collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
@@ -132,8 +132,6 @@ impl<
         Ok(())
     }
 
-    // TODO: create a rav request struct for return (receipts for rav request, failed receipt, expected rav)
-
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
     /// for aggregating list of valid receipts.
@@ -142,17 +140,7 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
     ///
-    pub fn create_rav_request(
-        &mut self,
-        timestamp_buffer_ns: u64,
-    ) -> Result<
-        (
-            Vec<SignedReceipt>,
-            Vec<SignedReceipt>,
-            ReceiptAggregateVoucher,
-        ),
-        Error,
-    > {
+    pub fn create_rav_request(&mut self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
         // get previous rav
         let mut previous_rav: Option<SignedRAV> = None;
         if let Some(current_rav_id) = self.current_rav_id {
@@ -171,7 +159,11 @@ impl<
         self.receipt_auditor
             .update_min_timestamp_ns(expected_rav.timestamp_ns + 1);
 
-        Ok((valid_receipts, invalid_receipts, expected_rav))
+        Ok(RAVRequest {
+            valid_receipts,
+            invalid_receipts,
+            expected_rav,
+        })
     }
 
     fn collect_receipts(
