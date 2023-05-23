@@ -141,17 +141,8 @@ impl<
     /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
     ///
     pub fn create_rav_request(&mut self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
-        // get previous rav
-        let mut previous_rav: Option<SignedRAV> = None;
-        if let Some(current_rav_id) = self.current_rav_id {
-            let stored_previous_rav = self
-                .rav_storage_adapter
-                .retrieve_rav_by_id(current_rav_id)
-                .map_err(|err| Error::AdapterError {
-                    source_error_message: err.to_string(),
-                })?;
-            previous_rav = Some(stored_previous_rav);
-        }
+        let previous_rav = self.get_previous_rav()?;
+
         let (valid_receipts, invalid_receipts) = self.collect_receipts(timestamp_buffer_ns)?;
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav)?;
@@ -164,6 +155,21 @@ impl<
             invalid_receipts,
             expected_rav,
         })
+    }
+
+    fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
+        let mut previous_rav: Option<SignedRAV> = None;
+
+        if let Some(current_rav_id) = self.current_rav_id {
+            let stored_previous_rav = self
+                .rav_storage_adapter
+                .retrieve_rav_by_id(current_rav_id)
+                .map_err(|err| Error::AdapterError {
+                    source_error_message: err.to_string(),
+                })?;
+            previous_rav = Some(stored_previous_rav);
+        }
+        Ok(previous_rav)
     }
 
     fn collect_receipts(
