@@ -84,17 +84,23 @@ impl<
     ) -> std::result::Result<(), Error> {
         let mut received_receipt =
             ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
+        // The receipt id is needed before `perform_checks` can be called on received receipt
+        // since it is needed for uniqueness check. Since the receipt_id is defined when it is stored
+        // This function first stores it, then checks it, then updates what was stored.
+
         let receipt_id = self
             .receipt_storage_adapter
             .store_receipt(received_receipt.clone())
             .map_err(|err| Error::AdapterError {
                 source_error_message: err.to_string(),
             })?;
+
         received_receipt.perform_checks(
             initial_checks.as_slice(),
             receipt_id,
             &mut self.receipt_auditor,
         )?;
+
         self.receipt_storage_adapter
             .update_receipt_by_id(receipt_id, received_receipt)
             .map_err(|err| Error::AdapterError {
