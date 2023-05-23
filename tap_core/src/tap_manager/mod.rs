@@ -1,6 +1,15 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! The tap_manager is used to manage receipt and RAV validation and storage flow
+//!
+//! The tap_manager
+//!
+//! Receipts are used as single transaction promise of payment. A payment sender
+//! creates a receipt and ECDSA signs it, then sends it to a payment receiver.
+//! The payment receiver would verify the received receipt and store it to be
+//! accumulated with other received receipts in the future.
+
 mod manager;
 mod rav_request;
 

@@ -19,10 +19,16 @@ pub struct Manager<
     RSA: ReceiptStorageAdapter,
     RAVSA: RAVStorageAdapter,
 > {
+    /// Adapter for RAV CRUD
     rav_storage_adapter: RAVSA,
+    /// Adapter for receipt CRUD
     receipt_storage_adapter: RSA,
+    /// Checks that must be completed for each receipt before being confirmed or denied for rav request
     required_checks: Vec<ReceiptCheck>,
+    /// RAV id key needed to access the latest RAV in storage
     current_rav_id: Option<u64>,
+    /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
+    /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<CA, RCA>,
 }
 
@@ -33,6 +39,10 @@ impl<
         RAVSA: RAVStorageAdapter,
     > Manager<CA, RCA, RSA, RAVSA>
 {
+    /// Creates new manager with provided `adapters`, any receipts received by this manager
+    /// will complete all `required_checks` before being accepted or declined from RAV.
+    /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
+    ///
     pub fn new(
         collateral_adapter: CA,
         receipt_checks_adapter: RCA,
@@ -55,6 +65,17 @@ impl<
         }
     }
 
+    /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
+    /// The provided `query_id` will be used as a key when chaecking query appraisal.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AdapterError`] if there are any errors while storing receipts
+    ///
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveCollateral`
+    ///
+    /// Returns [`Error::InvalidCheckError`] if check in `initial_checks` is not in `required_checks` provided when manager was created
+    ///
     pub fn verify_and_store_receipt(
         &mut self,
         signed_receipt: SignedReceipt,
@@ -82,6 +103,12 @@ impl<
         Ok(())
     }
 
+    /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
+    ///
     pub fn verify_and_store_rav(
         &mut self,
         expected_rav: ReceiptAggregateVoucher,
@@ -106,6 +133,15 @@ impl<
     }
 
     // TODO: create a rav request struct for return (receipts for rav request, failed receipt, expected rav)
+
+    /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
+    /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
+    /// for aggregating list of valid receipts.
+    ///
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow while generating expected RAV
+    ///
+    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
+    ///
     pub fn create_rav_request(
         &mut self,
         timestamp_buffer_ns: u64,
