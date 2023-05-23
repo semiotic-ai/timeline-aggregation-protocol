@@ -28,8 +28,8 @@ pub enum ReceiptError {
     InvalidValue { received_value: u128 },
     #[error("Receipt is not unique")]
     NonUniqueReceipt,
-    #[error("Insufficient collateral available for value: {value}")]
-    InsufficientCollateral { value: u128 },
+    #[error("Attempt to collect collateral failed")]
+    SubtractCollateralFailed,
     #[error("Issue encountered while performing check: {source_error_message}")]
     CheckFailedToComplete { source_error_message: String },
 }

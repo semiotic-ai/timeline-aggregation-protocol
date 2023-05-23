@@ -143,9 +143,7 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
             .subtract_collateral(receipt_signer_address, signed_receipt.message.value)
             .is_err()
         {
-            return Err(ReceiptError::InsufficientCollateral {
-                value: signed_receipt.message.value,
-            });
+            return Err(ReceiptError::SubtractCollateralFailed);
         }
 
         Ok(())
