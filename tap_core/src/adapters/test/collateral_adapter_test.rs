@@ -3,15 +3,22 @@
 
 #[cfg(test)]
 mod collateral_adapter_unit_test {
-    use crate::adapters::{
-        collateral_adapter::CollateralAdapter, collateral_adapter_mock::CollateralAdapterMock,
+    use std::{
+        collections::HashMap,
+        sync::{Arc, RwLock},
     };
+
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
+    use crate::adapters::{
+        collateral_adapter::CollateralAdapter, collateral_adapter_mock::CollateralAdapterMock,
+    };
+
     #[rstest]
     fn collateral_adapter_test() {
-        let mut collateral_adapter = CollateralAdapterMock::new();
+        let collateral_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut collateral_adapter = CollateralAdapterMock::new(collateral_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

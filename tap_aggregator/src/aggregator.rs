@@ -242,7 +242,7 @@ mod tests {
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_millis() as u64;
+            .as_nanos() as u64;
 
         // Create rav
         let rav = EIP712SignedMessage::new(

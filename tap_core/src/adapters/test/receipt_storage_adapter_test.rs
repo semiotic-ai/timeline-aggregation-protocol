@@ -3,23 +3,28 @@
 
 #[cfg(test)]
 mod receipt_storage_adapter_unit_test {
+    use std::collections::HashMap;
+    use std::str::FromStr;
+    use std::sync::{Arc, RwLock};
+
+    use ethereum_types::Address;
+    use ethers::signers::coins_bip39::English;
+    use ethers::signers::{LocalWallet, MnemonicBuilder};
+    use rstest::*;
+
     use crate::adapters::{
         receipt_storage_adapter::ReceiptStorageAdapter,
-        receipt_storage_adapter_mock::ReceiptAdapterMock,
+        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
     use crate::{
         eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
         tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
     };
-    use ethereum_types::Address;
-    use ethers::signers::coins_bip39::English;
-    use ethers::signers::{LocalWallet, MnemonicBuilder};
-    use rstest::*;
-    use std::str::FromStr;
 
     #[rstest]
     async fn receipt_adapter_test() {
-        let mut receipt_adapter = ReceiptAdapterMock::new();
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -37,10 +42,10 @@ mod receipt_storage_adapter_unit_test {
                 .await
                 .unwrap(),
             query_id,
-            get_full_list_of_checks(),
+            &get_full_list_of_checks(),
         );
 
-        let receipt_store_result = receipt_adapter.store_receipt(received_receipt.clone());
+        let receipt_store_result = receipt_adapter.store_receipt(received_receipt);
         assert!(receipt_store_result.is_ok());
         let receipt_id = receipt_store_result.unwrap();
 
@@ -63,7 +68,8 @@ mod receipt_storage_adapter_unit_test {
 
     #[rstest]
     async fn multi_receipt_adapter_test() {
-        let mut receipt_adapter = ReceiptAdapterMock::new();
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -81,7 +87,7 @@ mod receipt_storage_adapter_unit_test {
                     .await
                     .unwrap(),
                 query_id as u64,
-                get_full_list_of_checks(),
+                &get_full_list_of_checks(),
             ));
         }
         let mut receipt_ids = Vec::new();
@@ -99,13 +105,10 @@ mod receipt_storage_adapter_unit_test {
         assert!(receipt_adapter
             .retrieve_receipts_by_timestamp(receipt_timestamps[0])
             .is_ok());
-        assert!(
-            receipt_adapter
-                .retrieve_receipts_by_timestamp(receipt_timestamps[0])
-                .unwrap()
-                .len()
-                > 0
-        );
+        assert!(!receipt_adapter
+            .retrieve_receipts_by_timestamp(receipt_timestamps[0])
+            .unwrap()
+            .is_empty());
 
         // Retreive receipts before timestamp
         assert!(receipt_adapter

@@ -8,11 +8,12 @@
 //! The payment receiver would verify the received receipt and store it to be
 //! accumulated with other received receipts in the future.
 
+use std::str::FromStr;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ethereum_types::Address;
 use k256::ecdsa::{SigningKey, VerifyingKey};
 use rand_core::OsRng;
-use std::str::FromStr;
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,

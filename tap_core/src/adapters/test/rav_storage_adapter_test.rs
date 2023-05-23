@@ -3,6 +3,17 @@
 
 #[cfg(test)]
 mod rav_storage_adapter_unit_test {
+    use std::{
+        collections::HashMap,
+        str::FromStr,
+        sync::{Arc, RwLock},
+    };
+
+    use ethereum_types::Address;
+    use ethers::signers::coins_bip39::English;
+    use ethers::signers::{LocalWallet, MnemonicBuilder};
+    use rstest::*;
+
     use crate::adapters::{
         rav_storage_adapter::RAVStorageAdapter, rav_storage_adapter_mock::RAVStorageAdapterMock,
     };
@@ -10,15 +21,11 @@ mod rav_storage_adapter_unit_test {
         eip_712_signed_message::EIP712SignedMessage,
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
     };
-    use ethereum_types::Address;
-    use ethers::signers::coins_bip39::English;
-    use ethers::signers::{LocalWallet, MnemonicBuilder};
-    use rstest::*;
-    use std::str::FromStr;
 
     #[rstest]
     async fn rav_storage_adapter_test() {
-        let mut rav_storage_adapter = RAVStorageAdapterMock::new();
+        let rav_storage = Arc::new(RwLock::new(HashMap::new()));
+        let mut rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

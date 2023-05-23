@@ -6,12 +6,17 @@
 //! from a payment sender to be aggregated then cheaply
 //! verified on-chain by a payment receiver.
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use ethereum_types::Address;
 use ethers::{signers::WalletError, types::SignatureError};
+use receipt_aggregate_voucher::ReceiptAggregateVoucher;
 use thiserror::Error;
 
 pub mod adapters;
 pub mod eip_712_signed_message;
 pub mod receipt_aggregate_voucher;
+pub mod tap_manager;
 pub mod tap_receipt;
 
 #[derive(Error, Debug)]
@@ -33,19 +38,41 @@ pub enum Error {
     WalletError(#[from] WalletError),
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    #[error("Recovered gateway address invalid{address}")]
+    InvalidRecoveredSigner { address: Address },
+    #[error("Received RAV does not match expexted RAV")]
+    InvalidReceivedRAV {
+        received_rav: ReceiptAggregateVoucher,
+        expected_rav: ReceiptAggregateVoucher,
+    },
+    #[error("Error from adapter: {source_error_message}")]
+    AdapterError { source_error_message: String },
+    #[error("Failed to produce rav request, no valid receipts")]
+    NoValidReceiptsForRAVRequest,
 }
 type Result<T> = std::result::Result<T, Error>;
 
+pub(crate) fn get_current_timestamp_u64_ns() -> Result<u64> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|err| Error::InvalidSystemTime {
+            source_error_message: err.to_string(),
+        })?
+        .as_nanos() as u64)
+}
+
 #[cfg(test)]
 mod tap_tests {
+    use std::str::FromStr;
+
+    use ethereum_types::Address;
+    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use rstest::*;
+
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
     };
-    use ethereum_types::Address;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
-    use rstest::*;
-    use std::str::FromStr;
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {

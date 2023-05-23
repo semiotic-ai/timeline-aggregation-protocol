@@ -3,11 +3,13 @@
 
 #[cfg(test)]
 mod receipt_unit_test {
-    use crate::tap_receipt::Receipt;
-    use ethereum_types::Address;
-    use rstest::*;
     use std::str::FromStr;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    use ethereum_types::Address;
+    use rstest::*;
+
+    use crate::tap_receipt::Receipt;
 
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
@@ -23,7 +25,7 @@ mod receipt_unit_test {
     fn test_new_receipt(allocation_ids: Vec<Address>) {
         let value = 1234;
 
-        let receipt = Receipt::new(allocation_ids[0].clone(), value).unwrap();
+        let receipt = Receipt::new(allocation_ids[0], value).unwrap();
 
         assert_eq!(receipt.allocation_id, allocation_ids[0]);
         assert_eq!(receipt.value, value);
@@ -32,21 +34,21 @@ mod receipt_unit_test {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Current system time should be greater than `UNIX_EPOCH`")
-            .as_millis() as u64;
+            .as_nanos() as u64;
         assert!(receipt.timestamp_ns <= now);
-        assert!(receipt.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt.timestamp_ns >= now - 5000000); // 5 second tolerance
     }
 
     #[rstest]
     fn test_unique_nonce_and_timestamp(allocation_ids: Vec<Address>) {
         let value = 1234;
 
-        let receipt1 = Receipt::new(allocation_ids[0].clone(), value).unwrap();
-        let receipt2 = Receipt::new(allocation_ids[0].clone(), value).unwrap();
+        let receipt1 = Receipt::new(allocation_ids[0], value).unwrap();
+        let receipt2 = Receipt::new(allocation_ids[0], value).unwrap();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Current system time should be greater than `UNIX_EPOCH`")
-            .as_millis() as u64;
+            .as_nanos() as u64;
 
         // Check that nonces are different
         // Note: This test has an *extremely low* (~1/2^64) probability of false failure, if a failure happens
@@ -56,9 +58,9 @@ mod receipt_unit_test {
         assert_ne!(receipt1.nonce, receipt2.nonce);
 
         assert!(receipt1.timestamp_ns <= now);
-        assert!(receipt1.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt1.timestamp_ns >= now - 5000000); // 5 second tolerance
 
         assert!(receipt2.timestamp_ns <= now);
-        assert!(receipt2.timestamp_ns >= now - 5000); // 5 second tolerance
+        assert!(receipt2.timestamp_ns >= now - 5000000); // 5 second tolerance
     }
 }
