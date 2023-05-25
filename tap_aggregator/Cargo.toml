@@ -16,6 +16,8 @@ jsonrpsee = { version = "0.18.0", features = ["server", "macros"] }
 ethers-signers = "2.0.3"
 clap = { version = "4.2.4", features = ["derive", "env"] }
 ethers-core = "2.0.3"
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = { version = "1.0.96", features = ["raw_value"] }
 
 [dev-dependencies]
 jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }

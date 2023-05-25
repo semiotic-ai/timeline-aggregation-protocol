@@ -4,10 +4,14 @@
 use anyhow::Result;
 use ethers_signers::LocalWallet;
 use jsonrpsee::{
+    core::Serialize,
     proc_macros::rpc,
     server::ServerBuilder,
     {core::async_trait, server::ServerHandle},
 };
+use serde::Deserialize;
+use serde_json::value::Value;
+use tracing::log::error;
 
 use crate::aggregator::check_and_aggregate_receipts;
 use tap_core::{
@@ -15,32 +19,100 @@ use tap_core::{
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
 
+#[derive(Serialize, Clone, Debug)]
+struct StaticStrArray(&'static [&'static str]);
+
+/// Implements Display for StaticStrArray that serializes the array as a JSON string.
+impl std::fmt::Display for StaticStrArray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            serde_json::to_string(self.0).map_err(|e| {
+                error!("{}", e);
+                std::fmt::Error
+            })?
+        )?;
+        Ok(())
+    }
+}
+
+/// Implements Deref trait for StaticStrArray
+impl std::ops::Deref for StaticStrArray {
+    type Target = [&'static str];
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
 /// The version of the TAP JSON-RPC API implemented by this server.
 /// This version number is independent of the TAP software version. As such, we are
 /// enabling the introduction of breaking changes to the TAP library interface without
 /// necessarily introducing breaking changes to the JSON-RPC API (or vice versa).
-const TAP_RPC_API_VERSIONS: &[&str] = &["0.0"];
+const TAP_RPC_API_VERSIONS: StaticStrArray = StaticStrArray(&["0.0"]);
 
 /// List of RPC version numbers for which a deprecation warning has to be issued.
 /// This is a very basic approach to deprecation warnings. The most important thing
 /// is to have *some* process in place to warn users of breaking changes.
-const TAP_RPC_API_VERSIONS_DEPRECATION_WARNING: &[&str] = &[];
+/// NOTE: Make sure to test it when that list becomes non-empty.
+const TAP_RPC_API_VERSIONS_DEPRECATION_WARNING: StaticStrArray = StaticStrArray(&[]);
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct JsonRpcWarning {
+    code: i32,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<Value>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct JsonRpcResponse<T: Serialize> {
+    data: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    warnings: Option<Vec<JsonRpcWarning>>,
+}
+
+pub type JsonRpcError = jsonrpsee::types::ErrorObjectOwned;
+pub type JsonRpcResult<T> = Result<JsonRpcResponse<T>, JsonRpcError>;
+
+impl<T: Serialize> JsonRpcResponse<T> {
+    /// Helper method that returns a JsonRpcResponse with the given data and no warnings.
+    fn ok(data: T) -> Self {
+        JsonRpcResponse {
+            data,
+            warnings: None,
+        }
+    }
+
+    /// Helper method that returns a JsonRpcResponse with the given data and warnings.
+    /// If the warnings vector is empty, no warning field is added to the JSON-RPC response.
+    fn warn(data: T, warnings: Vec<JsonRpcWarning>) -> Self {
+        JsonRpcResponse {
+            data,
+            warnings: if warnings.is_empty() {
+                None
+            } else {
+                Some(warnings)
+            },
+        }
+    }
+}
+
+impl JsonRpcWarning {
+    fn new<S: Serialize>(code: i32, message: String, data: Option<S>) -> Self {
+        JsonRpcWarning {
+            code,
+            message,
+            data: data.and_then(|d| serde_json::to_value(&d).ok()),
+        }
+    }
+}
 
 #[rpc(server)]
 pub trait Rpc {
     /// Returns the versions of the TAP JSON-RPC API implemented by this server.
     #[method(name = "api_versions")]
-    async fn api_versions(&self) -> Result<Vec<String>, jsonrpsee::types::ErrorObjectOwned>;
-
-    /// Checks if the given API version is deprecated and returns a warning message if so.
-    /// If the API version is not deprecated, returns `None`.
-    /// We expect clients to call this method occasionally to check if their API version
-    /// is to be deprecated in the near future.
-    #[method(name = "api_deprecation_check")]
-    async fn api_version_deprecation_check(
-        &self,
-        api_version: String,
-    ) -> Result<Option<String>, jsonrpsee::types::ErrorObjectOwned>;
+    async fn api_versions(&self) -> JsonRpcResult<&'static [&'static str]>;
 
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
@@ -50,7 +122,7 @@ pub trait Rpc {
         api_version: String,
         receipts: Vec<EIP712SignedMessage<Receipt>>,
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::types::ErrorObjectOwned>;
+    ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>>;
 }
 
 struct RpcImpl {
@@ -59,18 +131,13 @@ struct RpcImpl {
 
 /// Helper method that checks if the given API version is supported.
 /// Returns an error if the API version is not supported.
-fn check_api_version(api_version: &str) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
+fn check_api_version_supported(api_version: &str) -> Result<(), JsonRpcError> {
     if !TAP_RPC_API_VERSIONS.contains(&api_version) {
         return Err(jsonrpsee::types::ErrorObject::owned(
-            -32000,
+            -32001,
             format!(
-                "Unsupported API version: {}. Supported versions: {}",
-                api_version,
-                TAP_RPC_API_VERSIONS
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>()
-                    .join(", ")
+                "Unsupported API version: \"{}\". Supported versions: {}",
+                api_version, TAP_RPC_API_VERSIONS
             ),
             None::<()>,
         ));
@@ -78,25 +145,28 @@ fn check_api_version(api_version: &str) -> Result<(), jsonrpsee::types::ErrorObj
     Ok(())
 }
 
-#[async_trait]
-impl RpcServer for RpcImpl {
-    async fn api_versions(&self) -> Result<Vec<String>, jsonrpsee::types::ErrorObjectOwned> {
-        Ok(TAP_RPC_API_VERSIONS.iter().map(|s| s.to_string()).collect())
-    }
-
-    async fn api_version_deprecation_check(
-        &self,
-        api_version: String,
-    ) -> Result<Option<String>, jsonrpsee::types::ErrorObjectOwned> {
-        if TAP_RPC_API_VERSIONS_DEPRECATION_WARNING.contains(&api_version.as_str()) {
-            Ok(Some(format!(
+/// Helper method that checks if the given API version has a deprecation warning.
+/// Returns a warning if the API version is deprecated.
+fn check_api_version_deprecation(api_version: &str) -> Option<JsonRpcWarning> {
+    if TAP_RPC_API_VERSIONS_DEPRECATION_WARNING.contains(&api_version) {
+        Some(JsonRpcWarning::new(
+            -32002,
+            format!(
                 "The API version {} will be deprecated. \
                 Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information.",
                 api_version
-            )))
-        } else {
-            Ok(None)
-        }
+            ),
+            None::<()>,
+        ))
+    } else {
+        None
+    }
+}
+
+#[async_trait]
+impl RpcServer for RpcImpl {
+    async fn api_versions(&self) -> JsonRpcResult<&'static [&'static str]> {
+        Ok(JsonRpcResponse::ok(TAP_RPC_API_VERSIONS.0))
     }
 
     async fn aggregate_receipts(
@@ -104,14 +174,22 @@ impl RpcServer for RpcImpl {
         api_version: String,
         receipts: Vec<EIP712SignedMessage<Receipt>>,
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::types::ErrorObjectOwned>
-    {
-        check_api_version(api_version.as_str())?; // check if the API version is supported
+    ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+        // Return an error if the API version is not supported.
+        check_api_version_supported(api_version.as_str())?;
 
+        // Add a warning if the API version is to be deprecated.
+        let mut warnings: Vec<JsonRpcWarning> = Vec::new();
+        if let Some(w) = check_api_version_deprecation(api_version.as_str()) {
+            warnings.push(w);
+        }
+
+        // Aggregate the receipts.
         let res = check_and_aggregate_receipts(&receipts, previous_rav, &self.wallet).await;
-        // handle aggregation error
+
+        // Handle aggregation error
         match res {
-            Ok(res) => Ok(res),
+            Ok(res) => Ok(JsonRpcResponse::warn(res, warnings)),
             Err(e) => Err(jsonrpsee::types::ErrorObject::owned(
                 -32000,
                 e.to_string(),
@@ -217,14 +295,15 @@ mod tests {
         let client = HttpClientBuilder::default()
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
-        let res: Result<Vec<String>, jsonrpsee::core::Error> = client
+        let res: server::JsonRpcResponse<Vec<String>> = client
             .request("api_versions", rpc_params!(None::<()>))
-            .await;
+            .await
+            .unwrap();
+
+        println!("{:?}", res);
 
         handle.stop().unwrap();
         handle.stopped().await;
-
-        res.unwrap();
     }
 
     #[rstest]
@@ -268,13 +347,15 @@ mod tests {
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
-        let remote_rav: EIP712SignedMessage<ReceiptAggregateVoucher> = client
+        let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
             .request(
                 "aggregate_receipts",
                 rpc_params!(api_version, &receipts, None::<()>),
             )
             .await
             .unwrap();
+
+        let remote_rav = res.data;
 
         let local_rav =
             ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
@@ -339,7 +420,7 @@ mod tests {
         let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).await.unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
-        let rav: EIP712SignedMessage<ReceiptAggregateVoucher> = client
+        let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
             .request(
                 "aggregate_receipts",
                 rpc_params!(
@@ -351,7 +432,68 @@ mod tests {
             .await
             .unwrap();
 
+        let rav = res.data;
+
         assert!(rav.recover_signer().unwrap() == keys.1);
+
+        handle.stop().unwrap();
+        handle.stopped().await;
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn invalid_api_version(
+        keys: (LocalWallet, Address),
+        http_request_size_limit: u32,
+        http_response_size_limit: u32,
+        http_max_concurrent_connections: u32,
+        allocation_ids: Vec<Address>,
+    ) {
+        // Start the JSON-RPC server.
+        let (handle, local_addr) = server::run_server(
+            0,
+            keys.0.clone(),
+            http_request_size_limit,
+            http_response_size_limit,
+            http_max_concurrent_connections,
+        )
+        .await
+        .unwrap();
+
+        // Start the JSON-RPC client.
+        let client = HttpClientBuilder::default()
+            .build(format!("http://127.0.0.1:{}", local_addr.port()))
+            .unwrap();
+
+        // Create receipts
+        let receipts =
+            vec![
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
+                    .await
+                    .unwrap(),
+            ];
+
+        // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
+        // Create RAV through the JSON-RPC server.
+        let res: Result<
+            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            jsonrpsee::core::Error,
+        > = client
+            .request(
+                "aggregate_receipts",
+                rpc_params!("invalid version string", &receipts, None::<()>),
+            )
+            .await;
+
+        println!("{:#?}", res);
+
+        assert!(res.is_err());
+
+        // Make sure the JSON-RPC error is "invalid version"
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported API version"));
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -398,25 +540,29 @@ mod tests {
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
         // Test with only 10 receipts
-        let res: Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::core::Error> =
-            client
-                .request(
-                    "aggregate_receipts",
-                    rpc_params!(api_version, &receipts[..10], None::<()>),
-                )
-                .await;
+        let res: Result<
+            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            jsonrpsee::core::Error,
+        > = client
+            .request(
+                "aggregate_receipts",
+                rpc_params!(api_version, &receipts[..10], None::<()>),
+            )
+            .await;
 
         assert!(res.is_ok());
 
         // Create RAV through the JSON-RPC server.
         // Test with all 100 receipts
-        let res: Result<EIP712SignedMessage<ReceiptAggregateVoucher>, jsonrpsee::core::Error> =
-            client
-                .request(
-                    "aggregate_receipts",
-                    rpc_params!(api_version, &receipts, None::<()>),
-                )
-                .await;
+        let res: Result<
+            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            jsonrpsee::core::Error,
+        > = client
+            .request(
+                "aggregate_receipts",
+                rpc_params!(api_version, &receipts, None::<()>),
+            )
+            .await;
 
         assert!(res.is_err());
         // Make sure the error is a HTTP 413 Content Too Large
