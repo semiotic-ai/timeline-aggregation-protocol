@@ -1,118 +1,33 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::str::FromStr;
+
 use anyhow::Result;
 use ethers_signers::LocalWallet;
 use jsonrpsee::{
-    core::Serialize,
     proc_macros::rpc,
     server::ServerBuilder,
     {core::async_trait, server::ServerHandle},
 };
-use serde::Deserialize;
-use serde_json::value::Value;
-use tracing::log::error;
 
 use crate::aggregator::check_and_aggregate_receipts;
+use crate::api_versioning::{
+    tap_rpc_api_versions_info, TapRpcApiVersion, TapRpcApiVersionsInfo,
+    TAP_RPC_API_VERSIONS_DEPRECATED,
+};
+use crate::jsonrpsee_helpers::{JsonRpcError, JsonRpcResponse, JsonRpcResult, JsonRpcWarning};
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
 
-#[derive(Serialize, Clone, Debug)]
-struct StaticStrArray(&'static [&'static str]);
-
-/// Implements Display for StaticStrArray that serializes the array as a JSON string.
-impl std::fmt::Display for StaticStrArray {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            serde_json::to_string(self.0).map_err(|e| {
-                error!("{}", e);
-                std::fmt::Error
-            })?
-        )?;
-        Ok(())
-    }
-}
-
-/// Implements Deref trait for StaticStrArray
-impl std::ops::Deref for StaticStrArray {
-    type Target = [&'static str];
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-/// The version of the TAP JSON-RPC API implemented by this server.
-/// This version number is independent of the TAP software version. As such, we are
-/// enabling the introduction of breaking changes to the TAP library interface without
-/// necessarily introducing breaking changes to the JSON-RPC API (or vice versa).
-const TAP_RPC_API_VERSIONS: StaticStrArray = StaticStrArray(&["0.0"]);
-
-/// List of RPC version numbers for which a deprecation warning has to be issued.
-/// This is a very basic approach to deprecation warnings. The most important thing
-/// is to have *some* process in place to warn users of breaking changes.
-/// NOTE: Make sure to test it when that list becomes non-empty.
-const TAP_RPC_API_VERSIONS_DEPRECATION_WARNING: StaticStrArray = StaticStrArray(&[]);
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct JsonRpcWarning {
-    code: i32,
-    message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<Value>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct JsonRpcResponse<T: Serialize> {
-    data: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    warnings: Option<Vec<JsonRpcWarning>>,
-}
-
-pub type JsonRpcError = jsonrpsee::types::ErrorObjectOwned;
-pub type JsonRpcResult<T> = Result<JsonRpcResponse<T>, JsonRpcError>;
-
-impl<T: Serialize> JsonRpcResponse<T> {
-    /// Helper method that returns a JsonRpcResponse with the given data and no warnings.
-    fn ok(data: T) -> Self {
-        JsonRpcResponse {
-            data,
-            warnings: None,
-        }
-    }
-
-    /// Helper method that returns a JsonRpcResponse with the given data and warnings.
-    /// If the warnings vector is empty, no warning field is added to the JSON-RPC response.
-    fn warn(data: T, warnings: Vec<JsonRpcWarning>) -> Self {
-        JsonRpcResponse {
-            data,
-            warnings: if warnings.is_empty() {
-                None
-            } else {
-                Some(warnings)
-            },
-        }
-    }
-}
-
-impl JsonRpcWarning {
-    fn new<S: Serialize>(code: i32, message: String, data: Option<S>) -> Self {
-        JsonRpcWarning {
-            code,
-            message,
-            data: data.and_then(|d| serde_json::to_value(&d).ok()),
-        }
-    }
-}
-
+/// Generates the `RpcServer` trait that is used to define the JSON-RPC API.
 #[rpc(server)]
 pub trait Rpc {
     /// Returns the versions of the TAP JSON-RPC API implemented by this server.
     #[method(name = "api_versions")]
-    async fn api_versions(&self) -> JsonRpcResult<&'static [&'static str]>;
+    async fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo>;
 
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
@@ -131,24 +46,20 @@ struct RpcImpl {
 
 /// Helper method that checks if the given API version is supported.
 /// Returns an error if the API version is not supported.
-fn check_api_version_supported(api_version: &str) -> Result<(), JsonRpcError> {
-    if !TAP_RPC_API_VERSIONS.contains(&api_version) {
-        return Err(jsonrpsee::types::ErrorObject::owned(
+fn parse_api_version(api_version: &str) -> Result<TapRpcApiVersion, JsonRpcError> {
+    TapRpcApiVersion::from_str(api_version).map_err(|_| {
+        jsonrpsee::types::ErrorObject::owned(
             -32001,
-            format!(
-                "Unsupported API version: \"{}\". Supported versions: {}",
-                api_version, TAP_RPC_API_VERSIONS
-            ),
-            None::<()>,
-        ));
-    }
-    Ok(())
+            format!("Unsupported API version: \"{}\".", api_version),
+            Some(tap_rpc_api_versions_info()),
+        )
+    })
 }
 
 /// Helper method that checks if the given API version has a deprecation warning.
 /// Returns a warning if the API version is deprecated.
-fn check_api_version_deprecation(api_version: &str) -> Option<JsonRpcWarning> {
-    if TAP_RPC_API_VERSIONS_DEPRECATION_WARNING.contains(&api_version) {
+fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonRpcWarning> {
+    if TAP_RPC_API_VERSIONS_DEPRECATED.contains(api_version) {
         Some(JsonRpcWarning::new(
             -32002,
             format!(
@@ -165,8 +76,8 @@ fn check_api_version_deprecation(api_version: &str) -> Option<JsonRpcWarning> {
 
 #[async_trait]
 impl RpcServer for RpcImpl {
-    async fn api_versions(&self) -> JsonRpcResult<&'static [&'static str]> {
-        Ok(JsonRpcResponse::ok(TAP_RPC_API_VERSIONS.0))
+    async fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
+        Ok(JsonRpcResponse::ok(tap_rpc_api_versions_info()))
     }
 
     async fn aggregate_receipts(
@@ -176,16 +87,19 @@ impl RpcServer for RpcImpl {
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
         // Return an error if the API version is not supported.
-        check_api_version_supported(api_version.as_str())?;
+        let api_version = parse_api_version(api_version.as_str())?;
 
         // Add a warning if the API version is to be deprecated.
         let mut warnings: Vec<JsonRpcWarning> = Vec::new();
-        if let Some(w) = check_api_version_deprecation(api_version.as_str()) {
+        if let Some(w) = check_api_version_deprecation(&api_version) {
             warnings.push(w);
         }
 
-        // Aggregate the receipts.
-        let res = check_and_aggregate_receipts(&receipts, previous_rav, &self.wallet).await;
+        let res = match api_version {
+            TapRpcApiVersion::V0_0 => {
+                check_and_aggregate_receipts(&receipts, previous_rav, &self.wallet).await
+            }
+        };
 
         // Handle aggregation error
         match res {
@@ -295,7 +209,7 @@ mod tests {
         let client = HttpClientBuilder::default()
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
-        let res: server::JsonRpcResponse<Vec<String>> = client
+        let res: server::JsonRpcResponse<server::TapRpcApiVersionsInfo> = client
             .request("api_versions", rpc_params!(None::<()>))
             .await
             .unwrap();
@@ -491,9 +405,22 @@ mod tests {
 
         // Make sure the JSON-RPC error is "invalid version"
         assert!(res
+            .as_ref()
             .unwrap_err()
             .to_string()
             .contains("Unsupported API version"));
+
+        // Check the API versions returned by the server
+        match res.expect_err("Expected an error") {
+            jsonrpsee::core::Error::Call(err) => {
+                let versions: server::TapRpcApiVersionsInfo =
+                    serde_json::from_str(err.data().unwrap().get()).unwrap();
+                assert!(versions
+                    .versions_supported
+                    .contains(&server::TapRpcApiVersion::V0_0));
+            }
+            _ => panic!("Expected data in error"),
+        }
 
         handle.stop().unwrap();
         handle.stopped().await;

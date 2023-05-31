@@ -7,6 +7,8 @@ use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
 mod aggregator;
+mod api_versioning;
+mod jsonrpsee_helpers;
 mod server;
 
 #[derive(Parser, Debug)]
