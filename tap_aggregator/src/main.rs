@@ -12,7 +12,7 @@ mod aggregator;
 mod api_versioning;
 mod error_codes;
 mod jsonrpsee_helpers;
-mod server;
+use tap_aggregator::server;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
