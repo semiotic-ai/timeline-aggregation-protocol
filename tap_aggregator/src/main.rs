@@ -6,8 +6,7 @@ use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
-mod aggregator;
-mod server;
+use tap_aggregator::server;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
