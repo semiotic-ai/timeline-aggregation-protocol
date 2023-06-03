@@ -72,7 +72,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
                 Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information.",
                 api_version
             ),
-            None::<()>,
+            Some(tap_rpc_api_versions_info()),
         ))
     } else {
         None
