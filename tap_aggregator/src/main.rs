@@ -10,6 +10,7 @@ use tokio::signal::unix::{signal, SignalKind};
 
 mod aggregator;
 mod api_versioning;
+mod error_codes;
 mod jsonrpsee_helpers;
 mod server;
 

@@ -16,6 +16,7 @@ use crate::api_versioning::{
     tap_rpc_api_versions_info, TapRpcApiVersion, TapRpcApiVersionsInfo,
     TAP_RPC_API_VERSIONS_DEPRECATED,
 };
+use crate::error_codes::{JsonRpcErrorCode, JsonRpcWarningCode};
 use crate::jsonrpsee_helpers::{JsonRpcError, JsonRpcResponse, JsonRpcResult, JsonRpcWarning};
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
@@ -54,7 +55,7 @@ struct RpcImpl {
 fn parse_api_version(api_version: &str) -> Result<TapRpcApiVersion, JsonRpcError> {
     TapRpcApiVersion::from_str(api_version).map_err(|_| {
         jsonrpsee::types::ErrorObject::owned(
-            -32001,
+            JsonRpcErrorCode::InvalidVersionError as i32,
             format!("Unsupported API version: \"{}\".", api_version),
             Some(tap_rpc_api_versions_info()),
         )
@@ -66,7 +67,7 @@ fn parse_api_version(api_version: &str) -> Result<TapRpcApiVersion, JsonRpcError
 fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonRpcWarning> {
     if TAP_RPC_API_VERSIONS_DEPRECATED.contains(api_version) {
         Some(JsonRpcWarning::new(
-            -32002,
+            JsonRpcWarningCode::DeprecatedVersionWarning as i32,
             format!(
                 "The API version {} will be deprecated. \
                 Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information.",
@@ -110,7 +111,7 @@ impl RpcServer for RpcImpl {
         match res {
             Ok(res) => Ok(JsonRpcResponse::warn(res, warnings)),
             Err(e) => Err(jsonrpsee::types::ErrorObject::owned(
-                -32000,
+                JsonRpcErrorCode::AggregationError as i32,
                 e.to_string(),
                 None::<()>,
             )),
