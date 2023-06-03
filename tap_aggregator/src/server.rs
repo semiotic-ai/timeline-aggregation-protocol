@@ -23,6 +23,11 @@ use tap_core::{
 };
 
 /// Generates the `RpcServer` trait that is used to define the JSON-RPC API.
+///
+/// Note that because of the way the `rpc` macro works, we cannot document the RpcServer trait here.
+/// (So even this very docstring will not appear in the generated documentation...)
+/// As a result, we document the JSON-RPC API in the `tap_aggregator/README.md` file.
+/// Do not forget to update the documentation there if you make any changes to the JSON-RPC API.
 #[rpc(server)]
 pub trait Rpc {
     /// Returns the versions of the TAP JSON-RPC API implemented by this server.

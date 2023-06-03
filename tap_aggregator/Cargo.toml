@@ -3,6 +3,7 @@ name="tap_aggregator"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+readme = "README.md"
 
 [[bin]]
 name = "tap_aggregator"
