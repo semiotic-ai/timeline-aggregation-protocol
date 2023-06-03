@@ -6,10 +6,33 @@ A JSON-RPC service that lets clients request an aggregate receipt from a list of
 
 ### Common interface
 
-The request format is standard, as described in [the official spec](https://www.jsonrpc.org/specification#request_object).
+#### Request format
 
-If the call is successful, the response format is as described in [the official spec](https://www.jsonrpc.org/specification#response_object).
-In particular, the `result` field is of the form:
+The request format is standard, as described in
+[the official spec](https://www.jsonrpc.org/specification#request_object).
+
+#### Successful response format
+
+If the call is successful, the response format is as described in
+[the official spec](https://www.jsonrpc.org/specification#response_object), and in addition the `result` field is of the
+form:
+
+```json
+{
+    "id": 0,
+    "jsonrpc": "2.0",
+    "result": {
+        "data": {...},
+        "warnings": [
+            {
+                "code": -32000,
+                "message": "Error message",
+                "data": {...}
+            }
+        ]
+    }
+}
+```
 
 | Field         | Type      | Description                                                                                              |
 | ------------- | --------- | -------------------------------------------------------------------------------------------------------- |
@@ -20,17 +43,92 @@ WARNING: Always check for warnings!
 
 Warning object format (similar to the standard JSON-RPC error object):
 
-| Field         | Type      | Description                                                                           |
-| ------------- | --------- | ------------------------------------------------------------------------------------- |
-| `code`        | `Integer` | A number that indicates the error type that occurred.                                 |
-| `message`     | `String`  | A short description of the error.                                                     |
-| `data`        | `Object`  | A primitive or structured value that contains additional information about the error. |
+| Field         | Type      | Description                                                                                      |
+| ------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `code`        | `Integer` | A number that indicates the error type that occurred.                                            |
+| `message`     | `String`  | A short description of the error.                                                                |
+| `data`        | `Object`  | (Optional) A primitive or structured value that contains additional information about the error. |
 
-If the call fails, the response format is as described in [the official spec](https://www.jsonrpc.org/specification#error_object).
+We define these warning codes:
+
+- `-32101` API version deprecation
+  
+  Also returns an object containing the method's supported versions in the `data` field. Example:
+
+  ```json
+  {
+      "id": 0,
+      "jsonrpc": "2.0",
+      "result": {
+          "data": {...},
+          "warnings": [
+              {
+                  "code": -32101,
+                  "data": {
+                      "versions_deprecated": [
+                          "0.0"
+                      ],
+                      "versions_supported": [
+                          "0.0",
+                          "0.1"
+                      ]
+                  },
+                  "message": "The API version 0.0 will be deprecated. Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information."
+              }
+          ]
+      }
+  }
+  ```
+
+#### Error response format
+
+If the call fails, the error response format is as described in
+[the official spec](https://www.jsonrpc.org/specification#error_object).
+
+In addition to the official spec, we define a few special errors:
+
+- `-32001` Invalid API version.
+  
+  Also returns an object containing the method's supported versions in the `data` field. Example:
+
+  ```json
+  {
+      "error": {
+          "code": -32001,
+          "data": {
+              "versions_deprecated": [
+                  "0.0"
+              ],
+              "versions_supported": [
+                  "0.0",
+                  "0.1"
+              ]
+          },
+          "message": "Unsupported API version: \"0.2\"."
+      },
+      "id": 0,
+      "jsonrpc": "2.0"
+  }
+  ```
+
+- `-32002` Aggregation error.
+  
+  The aggregation function returned an error. Example:
+
+  ```json
+  {
+      "error": {
+          "code": -32002,
+          "message": "Signature verification failed. Expected 0x9858…da94, got 0x3ef9…a4a3"
+      },
+      "id": 0,
+      "jsonrpc": "2.0"
+  }
+  ```
 
 ### Methods
 
-#### `api_versions`
+#### `api_versions()`
 
 [source](server::RpcServer::api_versions)
 
@@ -71,7 +169,7 @@ Example:
 }
 ```
 
-#### `aggregate_receipts`
+#### `aggregate_receipts(api_version, receipts, previous_rav)`
 
 [source](server::RpcServer::aggregate_receipts)
 
