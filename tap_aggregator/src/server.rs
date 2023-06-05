@@ -215,12 +215,10 @@ mod tests {
         let client = HttpClientBuilder::default()
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
-        let res: server::JsonRpcResponse<server::TapRpcApiVersionsInfo> = client
+        let _: server::JsonRpcResponse<server::TapRpcApiVersionsInfo> = client
             .request("api_versions", rpc_params!(None::<()>))
             .await
             .unwrap();
-
-        println!("{:?}", res);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -404,8 +402,6 @@ mod tests {
                 rpc_params!("invalid version string", &receipts, None::<()>),
             )
             .await;
-
-        println!("{:#?}", res);
 
         assert!(res.is_err());
 
