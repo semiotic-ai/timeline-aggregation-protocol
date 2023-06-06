@@ -1,0 +1,18 @@
+{
+  "changelog-path": "CHANGELOG.md",
+  "release-type": "rust",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease": true,
+  "draft": false,
+  "packages": {
+    "tap_core": {},
+    "tap_aggregator": {}
+  },
+  "plugins": [
+    {
+      "type": "cargo-workspace"
+    }
+  ],
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
