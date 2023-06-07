@@ -14,11 +14,11 @@
 pub enum JsonRpcErrorCode {
     /// -32000 -- Generic error.
     #[allow(dead_code)]
-    GenericError = -32000,
+    Generic = -32000,
     /// -32001 -- Invalid API version.
-    InvalidVersionError = -32001,
+    InvalidVersion = -32001,
     /// -32002 -- Error during receipt aggregation.
-    AggregationError = -32002,
+    Aggregation = -32002,
 }
 
 /// JSON-RPC warning codes
@@ -29,7 +29,7 @@ pub enum JsonRpcErrorCode {
 pub enum JsonRpcWarningCode {
     /// -32050 -- Generic warning.
     #[allow(dead_code)]
-    GenericWarning = -32050,
+    Generic = -32050,
     /// -32051 -- Requested API version is deprecated.
-    DeprecatedVersionWarning = -32051,
+    DeprecatedVersion = -32051,
 }
