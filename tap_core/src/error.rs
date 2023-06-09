@@ -1,3 +1,9 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Module containing EIP712 message and signature
+//!
+
 use crate::receipt_aggregate_voucher::ReceiptAggregateVoucher;
 use ethers::signers::WalletError;
 use ethers_core::{abi::Address, types::SignatureError};
