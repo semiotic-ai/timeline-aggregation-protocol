@@ -2,16 +2,20 @@
 name = "tap_integration_tests"
 version = "0.1.0"
 edition = "2018"
+autotests = false
 
 [dependencies]
 tap_aggregator = { path = "../tap_aggregator" }
 tap_core = { path = "../tap_core" }
-jsonrpsee = { version = "0.18.0", features = ["http-client", "macros", "server"] }
-anyhow = "1.0.0"
-tokio = {version = "1.28.0", features = ["macros", "signal","full"] }
+jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
 ethers = "2.0.0"
 clap = { version = "4.2.4", features = ["derive", "env"] }
 rstest = "0.17.0"
 rand = "0.8.5"
 futures = "0.3.28"
-tracing-subscriber = "0.3.17"
+anyhow = "1.0.71"
+tokio = "1.28.2"
+
+[[test]]
+name = "integration_tests"
+path = "tests/lib.rs"

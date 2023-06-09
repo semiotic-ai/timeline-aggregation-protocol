@@ -1,15 +1,20 @@
-// manager_server.rs
-use anyhow::Result;
-use jsonrpsee::core::async_trait;
-use jsonrpsee::core::client::ClientT;
-use jsonrpsee::http_client::HttpClient;
-use jsonrpsee::rpc_params;
-use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use jsonrpsee::{http_client::HttpClientBuilder, proc_macros::rpc};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tap_core::Error as TapCoreError;
+// indexer_mock.rs
+use std::{
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::{SystemTime, UNIX_EPOCH},
+};
+use anyhow::{Error, Result};
+use jsonrpsee::{
+    core::{async_trait, client::ClientT},
+    http_client::HttpClient,
+    rpc_params,
+    server::{ServerBuilder, ServerHandle},
+    {http_client::HttpClientBuilder, proc_macros::rpc},
+};
+use tokio::sync::Mutex;
 use tap_core::{
     adapters::{
         collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
@@ -18,9 +23,8 @@ use tap_core::{
     },
     tap_manager::{Manager, SignedReceipt},
     tap_receipt::ReceiptCheck,
+    Error as TapCoreError,
 };
-use tokio::sync::Mutex;
-
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
 #[rpc(server)]
@@ -145,35 +149,6 @@ impl<
     }
 }
 
-/// request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
-async fn request_rav<
-    CA: CollateralAdapter + Send + 'static,
-    RCA: ReceiptChecksAdapter + Send + 'static,
-    RSA: ReceiptStorageAdapter + Send + 'static,
-    RAVSA: RAVStorageAdapter + Send + 'static,
->(
-    manager: &Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Mutex-protected manager object for thread safety
-    time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
-    aggregator_client: &HttpClient, // HttpClient for making requests to the tap_aggregator server
-) -> Result<()> {
-    let rav;
-    // Create the aggregate_receipts request params
-    {
-        let mut manager_guard = manager.lock().await;
-        rav = manager_guard.create_rav_request(time_stamp_buffer)?;
-    }
-    let params = rpc_params!(&rav.valid_receipts, None::<()>);
-    // Call the aggregate_receipts method on the other server
-    let remote_rav_result = aggregator_client
-        .request("aggregate_receipts", params)
-        .await?;
-    {
-        let mut manager_guard = manager.lock().await;
-        let _result = manager_guard.verify_and_store_rav(rav.expected_rav, remote_rav_result)?;
-    }
-    Ok(())
-}
-
 /// run_server function initializes and starts a JSON-RPC server that handles incoming requests.
 pub async fn run_server<
     CA: CollateralAdapter + Send + 'static,
@@ -214,7 +189,40 @@ pub async fn run_server<
     Ok((handle, addr))
 }
 
-/// get_current_timestamp_u64_ns function returns current system time since UNIX_EPOCH as a 64-bit unsigned integer.
+// request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
+async fn request_rav<
+    CA: CollateralAdapter + Send + 'static,
+    RCA: ReceiptChecksAdapter + Send + 'static,
+    RSA: ReceiptStorageAdapter + Send + 'static,
+    RAVSA: RAVStorageAdapter + Send + 'static,
+>(
+    manager: &Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Mutex-protected manager object for thread safety
+    time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
+    aggregator_client: &HttpClient, // HttpClient for making requests to the tap_aggregator server
+) -> Result<()> {
+    let rav;
+    // Create the aggregate_receipts request params
+    {
+        let mut manager_guard = manager.lock().await;
+        rav = manager_guard.create_rav_request(time_stamp_buffer)?;
+    }
+    let params = rpc_params!(&rav.valid_receipts, None::<()>);
+    match rav.invalid_receipts.is_empty() {
+        true => Ok(()),
+        false => Err(Error::msg("Invalid receipts found")),
+    }?;
+    // Call the aggregate_receipts method on the other server
+    let remote_rav_result = aggregator_client
+        .request("aggregate_receipts", params)
+        .await?;
+    {
+        let mut manager_guard = manager.lock().await;
+        let _result = manager_guard.verify_and_store_rav(rav.expected_rav, remote_rav_result)?;
+    }
+    Ok(())
+}
+
+// get_current_timestamp_u64_ns function returns current system time since UNIX_EPOCH as a 64-bit unsigned integer.
 fn get_current_timestamp_u64_ns() -> Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
