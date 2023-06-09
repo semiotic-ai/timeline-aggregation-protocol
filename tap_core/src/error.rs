@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Module containing EIP712 message and signature
+//! Module containing Error type and Result typedef
 //!
 
 use crate::receipt_aggregate_voucher::ReceiptAggregateVoucher;
