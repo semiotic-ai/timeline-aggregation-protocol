@@ -4,11 +4,12 @@
 //! Module containing EIP712 message and signature
 //!
 
+use ethereum_types::Address;
 use ethers::{
     signers::{LocalWallet, Signer},
     types::Signature,
 };
-use ethers_core::types::{transaction::eip712, Address};
+use ethers_core::types::transaction::eip712;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result};
