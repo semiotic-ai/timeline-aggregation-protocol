@@ -1,4 +1,6 @@
-// indexer_mock.rs
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
