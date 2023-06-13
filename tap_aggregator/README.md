@@ -51,7 +51,7 @@ Warning object format (similar to the standard JSON-RPC error object):
 
 We define these warning codes:
 
-- `-32101` API version deprecation
+- `-32051` API version deprecation
   
   Also returns an object containing the method's supported versions in the `data` field. Example:
 
@@ -63,7 +63,7 @@ We define these warning codes:
           "data": {...},
           "warnings": [
               {
-                  "code": -32101,
+                  "code": -32051,
                   "data": {
                       "versions_deprecated": [
                           "0.0"
