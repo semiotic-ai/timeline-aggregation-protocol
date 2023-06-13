@@ -3,3 +3,6 @@
 
 pub mod aggregator;
 pub mod server;
+pub mod api_versioning;
+pub mod error_codes;
+pub mod jsonrpsee_helpers;

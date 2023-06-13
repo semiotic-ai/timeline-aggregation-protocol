@@ -8,10 +8,6 @@ use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
-mod aggregator;
-mod api_versioning;
-mod error_codes;
-mod jsonrpsee_helpers;
 use tap_aggregator::server;
 
 #[derive(Parser, Debug)]
