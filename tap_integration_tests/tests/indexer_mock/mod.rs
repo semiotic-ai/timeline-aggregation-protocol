@@ -1,6 +1,5 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -17,13 +16,14 @@ use jsonrpsee::{
     {http_client::HttpClientBuilder, proc_macros::rpc},
 };
 use tokio::sync::Mutex;
+use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     adapters::{
         collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
         receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::ReceiptStorageAdapter,
     },
-    tap_manager::{Manager, SignedReceipt},
+    tap_manager::{Manager, SignedRAV, SignedReceipt},
     tap_receipt::ReceiptCheck,
     Error as TapCoreError,
 };
@@ -57,7 +57,7 @@ pub struct RpcManager<
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     receipt_count: Arc<AtomicU64>,     // Thread-safe atomic counter for receipts
     threshold: u64,                    // The count at which a RAV request will be triggered
-    aggregator_client: HttpClient,     // HTTP client for sending requests to the aggregator server
+    aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
 }
 
 /// Implementation for `RpcManager`, includes the constructor and the `request` method.
@@ -79,6 +79,7 @@ impl<
         required_checks: Vec<ReceiptCheck>,
         threshold: u64,
         aggregate_server_address: String,
+        aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
             manager: Arc::new(Mutex::new(Manager::<CA, RCA, RSA, RAVSA>::new(
@@ -92,8 +93,10 @@ impl<
             initial_checks,
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
-            aggregator_client: HttpClientBuilder::default()
-                .build(format!("{}", aggregate_server_address))?,
+            aggregator_client: (
+                HttpClientBuilder::default().build(format!("{}", aggregate_server_address))?,
+                aggregate_server_api_version,
+            ),
         })
     }
 }
@@ -158,15 +161,16 @@ pub async fn run_server<
     RSA: ReceiptStorageAdapter + Send + 'static,
     RAVSA: RAVStorageAdapter + Send + 'static,
 >(
-    port: u16,                          // Port on which the server will listen
-    collateral_adapter: CA,             // CollateralAdapter instance
-    receipt_checks_adapter: RCA,        // ReceiptChecksAdapter instance
-    receipt_storage_adapter: RSA,       // ReceiptStorageAdapter instance
-    rav_storage_adapter: RAVSA,         // RAVStorageAdapter instance
-    initial_checks: Vec<ReceiptCheck>,  // Vector of initial checks to be performed on each request
+    port: u16,                            // Port on which the server will listen
+    collateral_adapter: CA,               // CollateralAdapter instance
+    receipt_checks_adapter: RCA,          // ReceiptChecksAdapter instance
+    receipt_storage_adapter: RSA,         // ReceiptStorageAdapter instance
+    rav_storage_adapter: RAVSA,           // RAVStorageAdapter instance
+    initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     required_checks: Vec<ReceiptCheck>, // Vector of required checks to be performed on each request
-    threshold: u64,                     // The count at which a RAV request will be triggered
-    aggregate_server_address: String,   // Address of the aggregator server
+    threshold: u64,                    // The count at which a RAV request will be triggered
+    aggregate_server_address: String,  // Address of the aggregator server
+    aggregate_server_api_version: String, // API version of the aggregator server
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     println!("Starting server...");
@@ -185,6 +189,7 @@ pub async fn run_server<
         required_checks,
         threshold,
         aggregate_server_address,
+        aggregate_server_api_version,
     )?;
 
     let handle = server.start(rpc_manager.into_rpc())?;
@@ -200,7 +205,7 @@ async fn request_rav<
 >(
     manager: &Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Mutex-protected manager object for thread safety
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
-    aggregator_client: &HttpClient, // HttpClient for making requests to the tap_aggregator server
+    aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
 ) -> Result<()> {
     let rav;
     // Create the aggregate_receipts request params
@@ -208,18 +213,23 @@ async fn request_rav<
         let mut manager_guard = manager.lock().await;
         rav = manager_guard.create_rav_request(time_stamp_buffer)?;
     }
-    let params = rpc_params!(&rav.valid_receipts, None::<()>);
     match rav.invalid_receipts.is_empty() {
         true => Ok(()),
         false => Err(Error::msg("Invalid receipts found")),
     }?;
+
+    // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
+    let params = rpc_params!(&aggregator_client.1, &rav.valid_receipts, None::<()>);
+
     // Call the aggregate_receipts method on the other server
-    let remote_rav_result = aggregator_client
+    let remote_rav_result: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> = aggregator_client
+        .0
         .request("aggregate_receipts", params)
         .await?;
     {
         let mut manager_guard = manager.lock().await;
-        let _result = manager_guard.verify_and_store_rav(rav.expected_rav, remote_rav_result)?;
+        let _result =
+            manager_guard.verify_and_store_rav(rav.expected_rav, remote_rav_result.data)?;
     }
     Ok(())
 }

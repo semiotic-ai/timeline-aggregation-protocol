@@ -53,6 +53,11 @@ fn http_max_concurrent_connections() -> u32 {
     2
 }
 
+#[fixture]
+fn aggregate_server_api_version() -> String {
+    "0.0".to_string()
+}
+
 // Test parameters: num_queries is the number of unique "queries" available to a client
 #[fixture]
 fn num_queries() -> u64 {
@@ -682,6 +687,7 @@ async fn start_indexer_server(
         required_checks,
         receipt_threshold,
         aggregate_server_address,
+        aggregate_server_api_version(),
     )
     .await?;
 
