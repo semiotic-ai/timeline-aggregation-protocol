@@ -1,7 +1,8 @@
 [package]
 name = "tap_integration_tests"
 version = "0.1.0"
-edition = "2018"
+edition.workspace = true
+license.workspace = true
 autotests = false
 
 [dependencies]

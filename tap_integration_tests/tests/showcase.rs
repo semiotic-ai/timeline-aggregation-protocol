@@ -13,6 +13,7 @@ use std::{
     str::FromStr,
     sync::{Arc, RwLock},
 };
+
 use anyhow::{Error, Result};
 use ethers::{
     signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer},
@@ -23,6 +24,7 @@ use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, server::S
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
 use tokio::join;
+
 use tap_aggregator::server as agg_server;
 use tap_core::{
     adapters::{
@@ -35,6 +37,7 @@ use tap_core::{
     tap_receipt::ReceiptCheck,
     tap_receipt::{Receipt, ReceivedReceipt},
 };
+
 use crate::indexer_mock;
 
 // Fixtures for gateway aggregator server

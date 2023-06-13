@@ -7,6 +7,7 @@ use std::{
     },
     time::{SystemTime, UNIX_EPOCH},
 };
+
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::{async_trait, client::ClientT},
@@ -16,6 +17,7 @@ use jsonrpsee::{
     {http_client::HttpClientBuilder, proc_macros::rpc},
 };
 use tokio::sync::Mutex;
+
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     adapters::{
