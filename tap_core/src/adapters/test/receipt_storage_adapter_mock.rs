@@ -3,6 +3,7 @@
 
 use std::{
     collections::HashMap,
+    ops::Range,
     sync::{Arc, RwLock},
 };
 
@@ -79,6 +80,19 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect())
     }
+    fn retrieve_receipts_in_timestamp_range(
+        &self,
+        timestamp_range_ns: Range<u64>,
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
+        let receipt_storage = self.receipt_storage.read().unwrap();
+        Ok(receipt_storage
+            .iter()
+            .filter(|(_, rx_receipt)| {
+                timestamp_range_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
+            })
+            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
+            .collect())
+    }
     fn update_receipt_by_id(
         &mut self,
         receipt_id: u64,
@@ -109,6 +123,16 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
         for receipt_id in receipt_ids {
             self.remove_receipt_by_id(*receipt_id)?;
         }
+        Ok(())
+    }
+    fn remove_receipts_in_timestamp_range(
+        &mut self,
+        timestamp_ns: Range<u64>,
+    ) -> Result<(), Self::AdapterError> {
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
+        receipt_storage.retain(|_, rx_receipt| {
+            !timestamp_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
+        });
         Ok(())
     }
 }
