@@ -129,11 +129,14 @@ impl<
             });
         }
 
-        self.rav_storage_adapter
+        let rav_id = self
+            .rav_storage_adapter
             .store_rav(signed_rav)
             .map_err(|err| Error::AdapterError {
                 source_error_message: err.to_string(),
             })?;
+
+        self.current_rav_id = Some(rav_id);
 
         Ok(())
     }
@@ -148,16 +151,22 @@ impl<
     ///
     pub fn create_rav_request(&mut self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
         let previous_rav = self.get_previous_rav()?;
+        let min_timestamp_ns = previous_rav
+            .as_ref()
+            .map(|rav| rav.message.timestamp_ns + 1)
+            .unwrap_or(0);
 
-        let (valid_receipts, invalid_receipts) = self.collect_receipts(timestamp_buffer_ns)?;
+        let (valid_receipts, invalid_receipts) =
+            self.collect_receipts(timestamp_buffer_ns, min_timestamp_ns)?;
 
-        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav)?;
+        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
         self.receipt_auditor
             .update_min_timestamp_ns(expected_rav.timestamp_ns + 1);
 
         Ok(RAVRequest {
             valid_receipts,
+            previous_rav,
             invalid_receipts,
             expected_rav,
         })
@@ -181,11 +190,12 @@ impl<
     fn collect_receipts(
         &mut self,
         timestamp_buffer_ns: u64,
+        min_timestamp_ns: u64,
     ) -> Result<(Vec<SignedReceipt>, Vec<SignedReceipt>), Error> {
-        let cutoff_timestamp = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
+        let max_timestamp_ns = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
         let received_receipts = self
             .receipt_storage_adapter
-            .retrieve_receipts_upto_timestamp(cutoff_timestamp)
+            .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns)
             .map_err(|err| Error::AdapterError {
                 source_error_message: err.to_string(),
             })?;

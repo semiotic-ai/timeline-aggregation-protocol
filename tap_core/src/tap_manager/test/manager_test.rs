@@ -176,6 +176,7 @@ mod manager_unit_test {
             get_full_list_of_checks(),
             starting_min_timestamp,
         );
+        collateral_storage.write().unwrap().insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         for query_id in 0..10 {
@@ -189,7 +190,6 @@ mod manager_unit_test {
                 .write()
                 .unwrap()
                 .insert(query_id, value);
-            collateral_storage.write().unwrap().insert(keys.1, 999999);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
                 .is_ok());
@@ -205,6 +205,127 @@ mod manager_unit_test {
         );
         // no failing
         assert_eq!(rav_request.invalid_receipts.len(), 0);
+
+        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
+            .await
+            .unwrap();
+        assert!(manager
+            .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+            .is_ok());
+    }
+
+    #[rstest]
+    #[case::full_checks(get_full_list_of_checks())]
+    #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
+    #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    async fn manager_create_multiple_rav_requests_all_valid_receipts(
+        rav_storage_adapter: RAVStorageAdapterMock,
+        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        receipt_adapters: (
+            ReceiptStorageAdapterMock,
+            ReceiptChecksAdapterMock,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        #[case] initial_checks: Vec<ReceiptCheck>,
+    ) {
+        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
+            receipt_adapters;
+        // give receipt 5 second variance for min start time
+        let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
+
+        let mut manager = Manager::new(
+            collateral_adapter,
+            receipt_checks_adapter,
+            rav_storage_adapter,
+            receipt_storage_adapter,
+            get_full_list_of_checks(),
+            starting_min_timestamp,
+        );
+
+        collateral_storage.write().unwrap().insert(keys.1, 999999);
+
+        let mut stored_signed_receipts = Vec::new();
+        let mut expected_accumulated_value = 0;
+        for query_id in 0..10 {
+            let value = 20u128;
+            let signed_receipt =
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
+                    .unwrap();
+            stored_signed_receipts.push(signed_receipt.clone());
+            query_appraisal_storage
+                .write()
+                .unwrap()
+                .insert(query_id, value);
+            assert!(manager
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .is_ok());
+            expected_accumulated_value += value;
+        }
+        let rav_request_result = manager.create_rav_request(0);
+        assert!(rav_request_result.is_ok());
+
+        let rav_request = rav_request_result.unwrap();
+        // all receipts passing
+        assert_eq!(
+            rav_request.valid_receipts.len(),
+            stored_signed_receipts.len()
+        );
+        // no receipts failing
+        assert_eq!(rav_request.invalid_receipts.len(), 0);
+        // accumulated value is correct
+        assert_eq!(
+            rav_request.expected_rav.value_aggregate,
+            expected_accumulated_value
+        );
+        // no previous rav
+        assert!(rav_request.previous_rav.is_none());
+
+        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
+            .await
+            .unwrap();
+        assert!(manager
+            .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+            .is_ok());
+
+        stored_signed_receipts.clear();
+        for query_id in 10..20 {
+            let value = 20u128;
+            let signed_receipt =
+                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
+                    .await
+                    .unwrap();
+            stored_signed_receipts.push(signed_receipt.clone());
+            query_appraisal_storage
+                .write()
+                .unwrap()
+                .insert(query_id, value);
+            assert!(manager
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .is_ok());
+            expected_accumulated_value += value;
+        }
+        let rav_request_result = manager.create_rav_request(0);
+        assert!(rav_request_result.is_ok());
+
+        let rav_request = rav_request_result.unwrap();
+        // all receipts passing
+        assert_eq!(
+            rav_request.valid_receipts.len(),
+            stored_signed_receipts.len()
+        );
+        // no receipts failing
+        assert_eq!(rav_request.invalid_receipts.len(), 0);
+        // accumulated value is correct
+        assert_eq!(
+            rav_request.expected_rav.value_aggregate,
+            expected_accumulated_value
+        );
+        // no previous rav
+        assert!(rav_request.previous_rav.is_some());
 
         let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
             .await
