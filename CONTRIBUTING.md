@@ -66,21 +66,21 @@ Depending on how large the project is, you may want to outsource the questioning
 > ```
 > Developer Certificate of Origin
 > Version 1.1
-> 
+>
 > Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-> 
+>
 > Everyone is permitted to copy and distribute verbatim copies of this
 > license document, but changing it is not allowed.
-> 
-> 
+>
+>
 > Developer's Certificate of Origin 1.1
-> 
+>
 > By making a contribution to this project, I certify that:
-> 
+>
 > (a) The contribution was created in whole or in part by me and I
 >     have the right to submit it under the open source license
 >     indicated in the file; or
-> 
+>
 > (b) The contribution is based upon previous work that, to the best
 >     of my knowledge, is covered under an appropriate open source
 >     license and I have the right under that license to submit that
@@ -88,11 +88,11 @@ Depending on how large the project is, you may want to outsource the questioning
 >     by me, under the same open source license (unless I am
 >     permitted to submit under a different license), as indicated
 >     in the file; or
-> 
+>
 > (c) The contribution was provided directly to me by some other
 >     person who certified (a), (b) or (c) and I have not modified
 >     it.
-> 
+>
 > (d) I understand and agree that this project and the contribution
 >     are public and that a record of the contribution (including all
 >     personal information I submit with it, including my sign-off) is
@@ -146,7 +146,7 @@ Once it's filed:
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion for H2S2, **including completely new features and minor improvements to existing functionality**. Following these guidelines will help maintainers and the community to understand your suggestion and find related suggestions.
+This section guides you through submitting an enhancement suggestion for TAP, **including completely new features and minor improvements to existing functionality**. Following these guidelines will help maintainers and the community to understand your suggestion and find related suggestions.
 
 <!-- omit in toc -->
 #### Before Submitting an Enhancement
@@ -165,7 +165,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/semiot
 - Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
 - **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point you can also tell which alternatives do not work for you.
 - You may want to **include screenshots and animated GIFs** which help you demonstrate the steps or point out the part which the suggestion is related to. You can use [this tool](https://www.cockos.com/licecap/) to record GIFs on macOS and Windows, and [this tool](https://github.com/colinkeenan/silentcast) or [this tool](https://github.com/GNOME/byzanz) on Linux. <!-- this should only be included if the project has a GUI -->
-- **Explain why this enhancement would be useful** to most H2S2 users. You may also want to point out the other projects that solved it better and which could serve as inspiration.
+- **Explain why this enhancement would be useful** to most TAP users. You may also want to point out the other projects that solved it better and which could serve as inspiration.
 
 <!-- You might want to create an issue template for enhancement suggestions that can be used as a guide and that defines the structure of the information to be included. If you do so, reference it here in the description. -->
 
