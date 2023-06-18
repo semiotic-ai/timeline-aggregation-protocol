@@ -11,10 +11,10 @@ use std::{
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::{async_trait, client::ClientT},
-    http_client::HttpClient,
+    http_client::{HttpClient, HttpClientBuilder},
+    proc_macros::rpc,
     rpc_params,
     server::{ServerBuilder, ServerHandle},
-    {http_client::HttpClientBuilder, proc_macros::rpc},
 };
 use tokio::sync::Mutex;
 

@@ -9,7 +9,6 @@ use std::{
     convert::TryInto,
     iter::FromIterator,
     net::{SocketAddr, TcpListener},
-    pin::Pin,
     str::FromStr,
     sync::{Arc, RwLock},
 };
@@ -19,11 +18,9 @@ use ethers::{
     signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer},
     types::{Address, H160},
 };
-use futures::Future;
 use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, server::ServerHandle};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
-use tokio::join;
 
 use tap_aggregator::server as agg_server;
 use tap_core::{
@@ -88,7 +85,7 @@ fn receipt_threshold_2(num_queries: u64, num_batches: u64) -> u64 {
 
 // The private key (LocalWallet) and public key (Address) of a Gateway
 #[fixture]
-fn keys() -> (LocalWallet, Address) {
+fn keys_gateway() -> (LocalWallet, Address) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
     .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
     .build()
@@ -99,7 +96,7 @@ fn keys() -> (LocalWallet, Address) {
 
 // The private key (LocalWallet) and public key (Address) of a Gateway. This key is used to test when the Gateway's key differs from the Indexer's expectation.
 #[fixture]
-fn wrong_keys() -> (LocalWallet, Address) {
+fn wrong_keys_gateway() -> (LocalWallet, Address) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
         .phrase("devote force reopen galaxy humor virtual hobby chief grit nothing bag pulse")
         .build()
@@ -157,12 +154,12 @@ fn receipt_storage_adapter(
 // This adapter is used by the Indexer to check the validity of the receipt.
 #[fixture]
 fn receipt_checks_adapter(
-    keys: (LocalWallet, Address),
+    keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     allocation_ids: Vec<Address>,
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
 ) -> ReceiptChecksAdapterMock {
-    let (_, gateway_address) = keys;
+    let (_, gateway_address) = keys_gateway;
     let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
     let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
     let allocation_ids: Arc<RwLock<HashSet<H160>>> =
@@ -256,12 +253,12 @@ fn indexer_2_adapters(
 // Messages are formatted according to TAP spec and signed according to EIP-712.
 #[fixture]
 async fn requests_1(
-    keys: (LocalWallet, Address),
+    keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
     allocation_ids: Vec<H160>,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
-    let (gateway_key, _) = keys;
+    let (gateway_key, _) = keys_gateway;
     // Create your Receipt here
     let requests =
         generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
@@ -270,12 +267,12 @@ async fn requests_1(
 
 #[fixture]
 async fn requests_2(
-    keys: (LocalWallet, Address),
+    keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
     allocation_ids: Vec<H160>,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
-    let (gateway_key, _) = keys;
+    let (gateway_key, _) = keys_gateway;
     // Create your Receipt here
     let requests =
         generate_requests(query_price, num_batches, &gateway_key, allocation_ids[1]).await?;
@@ -284,12 +281,12 @@ async fn requests_2(
 
 #[fixture]
 async fn wrong_requests(
-    wrong_keys: (LocalWallet, Address),
+    wrong_keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
     allocation_ids: Vec<H160>,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
-    let (gateway_key, _) = wrong_keys;
+    let (gateway_key, _) = wrong_keys_gateway;
     // Create your Receipt here
     // Create your Receipt here
     let requests =
@@ -300,7 +297,7 @@ async fn wrong_requests(
 // Helper fixtures to start servers for tests
 #[fixture]
 async fn single_indexer_test_server(
-    keys: (LocalWallet, Address),
+    keys_gateway: (LocalWallet, Address),
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -315,9 +312,9 @@ async fn single_indexer_test_server(
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
-    let gateway_id = keys.1;
+    let gateway_id = keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
-        keys,
+        keys_gateway,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -348,7 +345,7 @@ async fn single_indexer_test_server(
 
 #[fixture]
 async fn two_indexers_test_servers(
-    keys: (LocalWallet, Address),
+    keys_gateway: (LocalWallet, Address),
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -376,9 +373,9 @@ async fn two_indexers_test_servers(
     ServerHandle,
     SocketAddr,
 )> {
-    let gateway_id = keys.1;
+    let gateway_id = keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
-        keys,
+        keys_gateway,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -437,7 +434,7 @@ async fn two_indexers_test_servers(
 
 #[fixture]
 async fn single_indexer_wrong_gateway_test_server(
-    wrong_keys: (LocalWallet, Address),
+    wrong_keys_gateway: (LocalWallet, Address),
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -452,9 +449,9 @@ async fn single_indexer_wrong_gateway_test_server(
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
-    let gateway_id = wrong_keys.1;
+    let gateway_id = wrong_keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
-        wrong_keys,
+        wrong_keys_gateway,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -546,18 +543,10 @@ async fn test_manager_two_indexers(
     let requests_2 = requests_2.await?;
 
     for ((receipt_1, id_1), (receipt_2, id_2)) in requests_1.iter().zip(requests_2) {
-        let future_1: Pin<Box<dyn Future<Output = Result<(), jsonrpsee::core::Error>> + Send>> =
-            client_1.request("request", (id_1, receipt_1));
-        let future_2: Pin<Box<dyn Future<Output = Result<(), jsonrpsee::core::Error>> + Send>> =
-            client_2.request("request", (id_2, receipt_2));
-        let (result_1, result_2) = join!(future_1, future_2);
-
-        match result_1 {
-            Ok(()) => {}
-            Err(e) => panic!("Error making receipt request: {:?}", e),
-        }
-        match result_2 {
-            Ok(()) => {}
+        let future_1 = client_1.request("request", (id_1, receipt_1));
+        let future_2 = client_2.request("request", (id_2, receipt_2));
+        match tokio::try_join!(future_1, future_2) {
+            Ok(((),())) => {}
             Err(e) => panic!("Error making receipt request: {:?}", e),
         }
     }
@@ -583,9 +572,14 @@ async fn test_manager_wrong_aggregator_keys(
     let mut counter = 1;
     for (receipt_1, id) in requests {
         let result = client_1.request("request", (id, receipt_1)).await;
+        // The rav request is being made with messages that have been signed with a key that differs from the gateway aggregator's.
+        // So the Gateway Aggregator should send an error to the requesting Indexer.
+        // And so the Indexer should then return an error to the clinet when a rav request is made.
+        // A rav request is made when the number of receipts sent = receipt_threshold_1.
+        // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise.
         if (counter % receipt_threshold_1) == 0 {
             match result {
-                Ok(()) => panic!("Should have failed signature verification"),
+                Ok(()) => panic!("Gateway Aggregator should have sent an error to the Indexer."),
                 Err(_) => {}
             }
         } else {
@@ -619,6 +613,10 @@ async fn test_manager_wrong_requestor_keys(
     let mut counter = 1;
     for (receipt_1, id) in requests {
         let result = client_1.request("request", (id, receipt_1)).await;
+        // The receipts have been signed with a key that the Indexer is not expecting.
+        // So the Indexer should return an error when a rav request is made, because they will not have any valid receipts for the request.
+        // A rav request is made when the number of receipts sent = receipt_threshold_1.
+        // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise. 
         if (counter % receipt_threshold_1) == 0 {
             match result {
                 Ok(()) => panic!("Should have failed signature verification"),
