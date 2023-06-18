@@ -546,7 +546,7 @@ async fn test_manager_two_indexers(
         let future_1 = client_1.request("request", (id_1, receipt_1));
         let future_2 = client_2.request("request", (id_2, receipt_2));
         match tokio::try_join!(future_1, future_2) {
-            Ok(((),())) => {}
+            Ok(((), ())) => {}
             Err(e) => panic!("Error making receipt request: {:?}", e),
         }
     }
@@ -616,7 +616,7 @@ async fn test_manager_wrong_requestor_keys(
         // The receipts have been signed with a key that the Indexer is not expecting.
         // So the Indexer should return an error when a rav request is made, because they will not have any valid receipts for the request.
         // A rav request is made when the number of receipts sent = receipt_threshold_1.
-        // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise. 
+        // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise.
         if (counter % receipt_threshold_1) == 0 {
             match result {
                 Ok(()) => panic!("Should have failed signature verification"),
