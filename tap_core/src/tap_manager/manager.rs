@@ -149,6 +149,8 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
     ///
+    /// Returns [`Error::TimestampRangeError`] if the max timestamp of the previous RAV is greater than the min timestamp. Caused by timestamp buffer being too large, or requests coming too soon.
+    ///
     pub fn create_rav_request(&mut self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
         let previous_rav = self.get_previous_rav()?;
         let min_timestamp_ns = previous_rav
@@ -193,6 +195,13 @@ impl<
         min_timestamp_ns: u64,
     ) -> Result<(Vec<SignedReceipt>, Vec<SignedReceipt>), Error> {
         let max_timestamp_ns = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
+
+        if min_timestamp_ns > max_timestamp_ns {
+            return Err(Error::TimestampRangeError {
+                min_timestamp_ns,
+                max_timestamp_ns,
+            });
+        }
         let received_receipts = self
             .receipt_storage_adapter
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns)
