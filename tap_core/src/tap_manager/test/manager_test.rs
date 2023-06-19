@@ -324,7 +324,7 @@ mod manager_unit_test {
             rav_request.expected_rav.value_aggregate,
             expected_accumulated_value
         );
-        // no previous rav
+        // Verify there is a previous rav
         assert!(rav_request.previous_rav.is_some());
 
         let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
