@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "tap_core",
-    "tap_aggregator"
+    "tap_aggregator",
+    "tap_integration_tests"
 ]
 
 [workspace.package]
