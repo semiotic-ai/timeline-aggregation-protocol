@@ -209,19 +209,20 @@ async fn request_rav<
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
 ) -> Result<()> {
-    let rav;
     // Create the aggregate_receipts request params
-    {
-        let mut manager_guard = manager.lock().await;
-        rav = manager_guard.create_rav_request(time_stamp_buffer)?;
-    }
-    match rav.invalid_receipts.is_empty() {
+    let rav_request = manager.lock().await.create_rav_request(time_stamp_buffer)?;
+
+    match rav_request.invalid_receipts.is_empty() {
         true => Ok(()),
         false => Err(Error::msg("Invalid receipts found")),
     }?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
-    let params = rpc_params!(&aggregator_client.1, &rav.valid_receipts, None::<()>);
+    let params = rpc_params!(
+        &aggregator_client.1,
+        &rav_request.valid_receipts,
+        rav_request.previous_rav
+    );
 
     // Call the aggregate_receipts method on the other server
     let remote_rav_result: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> = aggregator_client
@@ -231,7 +232,7 @@ async fn request_rav<
     {
         let mut manager_guard = manager.lock().await;
         let _result =
-            manager_guard.verify_and_store_rav(rav.expected_rav, remote_rav_result.data)?;
+            manager_guard.verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)?;
     }
     Ok(())
 }
