@@ -102,7 +102,7 @@ fn check_receipt_timestamps(
     if let Some(previous_rav) = &previous_rav {
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
-            if previous_rav.message.timestamp_ns > receipt.timestamp_ns {
+            if previous_rav.message.timestamp_ns >= receipt.timestamp_ns {
                 return Err(tap_core::Error::InvalidCheckError {
                     check_string: "Receipt timestamp is less or equal then previous rav timestamp"
                         .into(),
