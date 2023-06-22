@@ -46,7 +46,7 @@ pub enum Error {
     #[error("Duplicate receipt signature: {0}")]
     DuplicateReceiptSignature(String),
     #[error(
-        "Receipt timestamp ({receipt_ts}) is less or equal then previous rav timestamp ({rav_ts})"
+        "Receipt timestamp ({receipt_ts}) is less or equal than previous rav timestamp ({rav_ts})"
     )]
     ReceiptTimestampLowerThanRav { rav_ts: u64, receipt_ts: u64 },
     #[error("Timestamp range error: min_timestamp_ns: {min_timestamp_ns}, max_timestamp_ns: {max_timestamp_ns}. Adjust timestamp buffer.")]
