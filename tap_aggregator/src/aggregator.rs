@@ -193,8 +193,9 @@ mod tests {
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
     async fn check_receipt_timestamps(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
         // Create receipts with consecutive timestamps
+        let receipt_timestamp_range = 10..20;
         let mut receipts = Vec::new();
-        for i in 10..20 {
+        for i in receipt_timestamp_range.clone() {
             receipts.push(
                 EIP712SignedMessage::new(
                     Receipt {
@@ -214,7 +215,7 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: 9,
+                timestamp_ns: receipt_timestamp_range.clone().min().unwrap() - 1,
                 value_aggregate: 42,
             },
             &keys.0,
@@ -228,7 +229,7 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: 10,
+                timestamp_ns: receipt_timestamp_range.clone().min().unwrap(),
                 value_aggregate: 42,
             },
             &keys.0,
@@ -242,7 +243,7 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: 20,
+                timestamp_ns: receipt_timestamp_range.clone().max().unwrap() + 1,
                 value_aggregate: 42,
             },
             &keys.0,
