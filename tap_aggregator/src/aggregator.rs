@@ -117,10 +117,7 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        str::FromStr,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::str::FromStr;
 
     use ethers_core::types::Address;
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
@@ -194,71 +191,65 @@ mod tests {
     #[rstest]
     #[tokio::test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
-    async fn check_receipt_timestamps_ok(
-        keys: (LocalWallet, Address),
-        allocation_ids: Vec<Address>,
-    ) {
-        let time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+    async fn check_receipt_timestamps(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+        // Create receipts with consecutive timestamps
+        let mut receipts = Vec::new();
+        for i in 10..20 {
+            receipts.push(
+                EIP712SignedMessage::new(
+                    Receipt {
+                        allocation_id: allocation_ids[0],
+                        timestamp_ns: i,
+                        nonce: 0,
+                        value: 42,
+                    },
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
+            );
+        }
 
-        // Create rav
+        // Create rav with max_timestamp below the receipts timestamps
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: time,
+                timestamp_ns: 9,
                 value_aggregate: 42,
             },
             &keys.0,
         )
         .await
         .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_ok());
 
-        let mut receipts = Vec::new();
-        receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
-        );
-
-        aggregator::check_receipt_timestamps(&receipts, Some(&rav)).unwrap();
-    }
-
-    #[rstest]
-    #[tokio::test]
-    /// Test that a receipt with a timestamp less then the rav timestamp fails
-    async fn check_receipt_timestamps_fail(
-        keys: (LocalWallet, Address),
-        allocation_ids: Vec<Address>,
-    ) {
-        let mut receipts = Vec::new();
-        receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
-        );
-
-        let time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
-
-        // Create rav
+        // Create rav with max_timestamp equal to the lowest receipt timestamp
+        // Aggregation should fail
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: time,
+                timestamp_ns: 10,
                 value_aggregate: 42,
             },
             &keys.0,
         )
         .await
         .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
 
-        let res = aggregator::check_receipt_timestamps(&receipts, Some(&rav));
-
-        assert!(res.is_err());
+        // Create rav with max_timestamp above highest receipt timestamp
+        // Aggregation should fail
+        let rav = EIP712SignedMessage::new(
+            tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
+                allocation_id: allocation_ids[0],
+                timestamp_ns: 20,
+                value_aggregate: 42,
+            },
+            &keys.0,
+        )
+        .await
+        .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
     }
 
     #[rstest]
