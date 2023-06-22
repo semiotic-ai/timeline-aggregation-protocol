@@ -445,14 +445,20 @@ mod tests {
         allocation_ids: Vec<Address>,
         #[values("0.0")] api_version: &str,
     ) {
-        // Set the request size limit to 100 kB to reproducibly trigger the HTTP 413 error.
-        let http_request_size_limit_100kb = 100 * 1024;
+        // Set the request byte size limit to a value that easily triggers the HTTP 413
+        // error.
+        let http_request_size_limit = 100 * 1024;
+
+        // Number of receipts that is just above the number that would fit within the
+        // request size limit. This value is hard-coded here because it supports the
+        // maximum number of receipts per aggregate value we wrote in the spec / docs.
+        let number_of_receipts_to_exceed_limit = 300;
 
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
-            http_request_size_limit_100kb,
+            http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
         )
@@ -464,9 +470,9 @@ mod tests {
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
 
-        // Create 300 receipts
+        // Create receipts
         let mut receipts = Vec::new();
-        for _ in 1..300 {
+        for _ in 1..number_of_receipts_to_exceed_limit {
             receipts.push(
                 EIP712SignedMessage::new(
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
@@ -479,21 +485,25 @@ mod tests {
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
-        // Test with only 250 receipts
+        // Test with a number of receipts that stays within request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::Error,
         > = client
             .request(
                 "aggregate_receipts",
-                rpc_params!(api_version, &receipts[..250], None::<()>),
+                rpc_params!(
+                    api_version,
+                    &receipts[..number_of_receipts_to_exceed_limit - 50],
+                    None::<()>
+                ),
             )
             .await;
 
         assert!(res.is_ok());
 
         // Create RAV through the JSON-RPC server.
-        // Test with all 300 receipts
+        // Test with all receipts to exceed request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::Error,
