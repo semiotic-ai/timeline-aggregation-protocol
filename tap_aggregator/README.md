@@ -176,6 +176,10 @@ Example:
 Aggregates the given receipts into a receipt aggregate voucher.
 Returns an error if the user expected API version is not supported.
 
+We recommend that the server is set-up to support a maximum HTTP request size of 10MB, in which case we guarantee that
+`aggregate_receipts` support a maximum of at least 15,000 receipts per call. If you have more than 15,000 receipts to
+aggregate, we recommend calling `aggregate_receipts` multiple times.
+
 Example:
 
 *Request*:
