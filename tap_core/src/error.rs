@@ -39,6 +39,11 @@ pub enum Error {
     AdapterError { source_error_message: String },
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRAVRequest,
+    #[error("Timestamp range error: min_timestamp_ns: {min_timestamp_ns}, max_timestamp_ns: {max_timestamp_ns}. Adjust timestamp buffer.")]
+    TimestampRangeError {
+        min_timestamp_ns: u64,
+        max_timestamp_ns: u64,
+    },
 }
 
 pub type Result<T> = StdResult<T, Error>;
