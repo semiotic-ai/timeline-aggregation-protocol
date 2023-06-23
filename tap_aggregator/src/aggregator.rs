@@ -102,7 +102,7 @@ fn check_receipt_timestamps(
     if let Some(previous_rav) = &previous_rav {
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
-            if previous_rav.message.timestamp_ns > receipt.timestamp_ns {
+            if previous_rav.message.timestamp_ns >= receipt.timestamp_ns {
                 return Err(tap_core::Error::InvalidCheckError {
                     check_string: "Receipt timestamp is less or equal then previous rav timestamp"
                         .into(),
@@ -117,10 +117,7 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        str::FromStr,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::str::FromStr;
 
     use ethers_core::types::Address;
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
@@ -194,71 +191,66 @@ mod tests {
     #[rstest]
     #[tokio::test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
-    async fn check_receipt_timestamps_ok(
-        keys: (LocalWallet, Address),
-        allocation_ids: Vec<Address>,
-    ) {
-        let time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+    async fn check_receipt_timestamps(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+        // Create receipts with consecutive timestamps
+        let receipt_timestamp_range = 10..20;
+        let mut receipts = Vec::new();
+        for i in receipt_timestamp_range.clone() {
+            receipts.push(
+                EIP712SignedMessage::new(
+                    Receipt {
+                        allocation_id: allocation_ids[0],
+                        timestamp_ns: i,
+                        nonce: 0,
+                        value: 42,
+                    },
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
+            );
+        }
 
-        // Create rav
+        // Create rav with max_timestamp below the receipts timestamps
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: time,
+                timestamp_ns: receipt_timestamp_range.clone().min().unwrap() - 1,
                 value_aggregate: 42,
             },
             &keys.0,
         )
         .await
         .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_ok());
 
-        let mut receipts = Vec::new();
-        receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
-        );
-
-        aggregator::check_receipt_timestamps(&receipts, Some(&rav)).unwrap();
-    }
-
-    #[rstest]
-    #[tokio::test]
-    /// Test that a receipt with a timestamp less then the rav timestamp fails
-    async fn check_receipt_timestamps_fail(
-        keys: (LocalWallet, Address),
-        allocation_ids: Vec<Address>,
-    ) {
-        let mut receipts = Vec::new();
-        receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
-        );
-
-        let time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u64;
-
-        // Create rav
+        // Create rav with max_timestamp equal to the lowest receipt timestamp
+        // Aggregation should fail
         let rav = EIP712SignedMessage::new(
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
-                timestamp_ns: time,
+                timestamp_ns: receipt_timestamp_range.clone().min().unwrap(),
                 value_aggregate: 42,
             },
             &keys.0,
         )
         .await
         .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
 
-        let res = aggregator::check_receipt_timestamps(&receipts, Some(&rav));
-
-        assert!(res.is_err());
+        // Create rav with max_timestamp above highest receipt timestamp
+        // Aggregation should fail
+        let rav = EIP712SignedMessage::new(
+            tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
+                allocation_id: allocation_ids[0],
+                timestamp_ns: receipt_timestamp_range.clone().max().unwrap() + 1,
+                value_aggregate: 42,
+            },
+            &keys.0,
+        )
+        .await
+        .unwrap();
+        assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
     }
 
     #[rstest]
