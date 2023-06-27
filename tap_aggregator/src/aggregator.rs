@@ -36,12 +36,7 @@ pub async fn check_and_aggregate_receipts(
     // Get the allocation id from the first receipt, return error if there are no receipts
     let allocation_id = match receipts.get(0) {
         Some(receipt) => receipt.message.allocation_id,
-        None => {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "No receipts".into(),
-            }
-            .into())
-        }
+        None => return Err(tap_core::Error::NoValidReceiptsForRAVRequest.into()),
     };
 
     // Check that the receipts all have the same allocation id
@@ -49,9 +44,11 @@ pub async fn check_and_aggregate_receipts(
 
     // Check that the rav has the correct allocation id
     if let Some(previous_rav) = &previous_rav {
-        if previous_rav.message.allocation_id != allocation_id {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "Previous rav allocation id does not match receipts".into(),
+        let prev_id = previous_rav.message.allocation_id;
+        if prev_id != allocation_id {
+            return Err(tap_core::Error::RavAllocationIdMismatch {
+                prev_id: format!("{prev_id:#X}"),
+                new_id: format!("{allocation_id:#X}"),
             }
             .into());
         }
@@ -71,10 +68,7 @@ fn check_allocation_id(
     for receipt in receipts.iter() {
         let receipt = &receipt.message;
         if receipt.allocation_id != allocation_id {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "Receipts allocation id is not uniform".into(),
-            }
-            .into());
+            return Err(tap_core::Error::RavAllocationIdNotUniform.into());
         }
     }
     Ok(())
@@ -84,13 +78,9 @@ fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<
     let mut receipt_signatures: hash_set::HashSet<Signature> = hash_set::HashSet::new();
     for receipt in receipts.iter() {
         let signature = receipt.signature;
-        if receipt_signatures.contains(&signature) {
-            return Err(tap_core::Error::InvalidCheckError {
-                check_string: "Duplicate receipt signature".into(),
-            }
-            .into());
+        if !receipt_signatures.insert(signature) {
+            return Err(tap_core::Error::DuplicateReceiptSignature(signature.to_string()).into());
         }
-        receipt_signatures.insert(signature);
     }
     Ok(())
 }
@@ -103,9 +93,9 @@ fn check_receipt_timestamps(
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
             if previous_rav.message.timestamp_ns >= receipt.timestamp_ns {
-                return Err(tap_core::Error::InvalidCheckError {
-                    check_string: "Receipt timestamp is less or equal then previous rav timestamp"
-                        .into(),
+                return Err(tap_core::Error::ReceiptTimestampLowerThanRav {
+                    rav_ts: previous_rav.message.timestamp_ns,
+                    receipt_ts: receipt.timestamp_ns,
                 }
                 .into());
             }

@@ -17,7 +17,7 @@ pub enum Error {
     #[error("Failed to encode to EIP712 hash:\n{source_error_message}")]
     EIP712EncodeError { source_error_message: String },
     #[error(
-        "Unexpected check: {check_string}, only checks provided in initial checklist are valid"
+        "Unexpected check: \"{check_string}\". Only checks provided in initial checklist are valid"
     )]
     InvalidCheckError { check_string: String },
     #[error("The requested action is invalid for current receipt state: {state}")]
@@ -39,6 +39,16 @@ pub enum Error {
     AdapterError { source_error_message: String },
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRAVRequest,
+    #[error("Previous RAV allocation id ({prev_id}) doesn't match the allocation id from the new receipt ({new_id}).")]
+    RavAllocationIdMismatch { prev_id: String, new_id: String },
+    #[error("All receipts should have the same allocation id, but they don't")]
+    RavAllocationIdNotUniform,
+    #[error("Duplicate receipt signature: {0}")]
+    DuplicateReceiptSignature(String),
+    #[error(
+        "Receipt timestamp ({receipt_ts}) is less or equal than previous rav timestamp ({rav_ts})"
+    )]
+    ReceiptTimestampLowerThanRav { rav_ts: u64, receipt_ts: u64 },
     #[error("Timestamp range error: min_timestamp_ns: {min_timestamp_ns}, max_timestamp_ns: {max_timestamp_ns}. Adjust timestamp buffer.")]
     TimestampRangeError {
         min_timestamp_ns: u64,
