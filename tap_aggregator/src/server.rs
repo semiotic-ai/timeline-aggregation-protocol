@@ -428,6 +428,14 @@ mod tests {
         handle.stopped().await;
     }
 
+    /// Test that the server returns an error when the request size exceeds the limit.
+    /// The server should return HTTP 413 (Request Entity Too Large).
+    /// In this test, the request size limit is set to 100 kB, and we are expecting
+    /// that to fit about 250 receipts. We also test with 300 receipts, which should
+    /// exceed the limit.
+    /// We conclude that a limit of 10MB should fit about 25k receipts, and thus
+    /// the TAP spec will require that the aggregator supports up to 15k receipts
+    /// per aggregation request as a safe limit.
     #[rstest]
     #[tokio::test]
     async fn request_size_limit(
@@ -437,14 +445,20 @@ mod tests {
         allocation_ids: Vec<Address>,
         #[values("0.0")] api_version: &str,
     ) {
-        // Set the request size limit to 10 kB to easily trigger the HTTP 413 error.
-        let small_request_size_limit = 10 * 1024;
+        // Set the request byte size limit to a value that easily triggers the HTTP 413
+        // error.
+        let http_request_size_limit = 100 * 1024;
+
+        // Number of receipts that is just above the number that would fit within the
+        // request size limit. This value is hard-coded here because it supports the
+        // maximum number of receipts per aggregate value we wrote in the spec / docs.
+        let number_of_receipts_to_exceed_limit = 300;
 
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
-            small_request_size_limit,
+            http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
         )
@@ -456,33 +470,40 @@ mod tests {
             .build(format!("http://127.0.0.1:{}", local_addr.port()))
             .unwrap();
 
-        // Create 100 receipts
+        // Create receipts
         let mut receipts = Vec::new();
-        for _ in 1..100 {
+        for _ in 1..number_of_receipts_to_exceed_limit {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
             );
         }
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
-        // Test with only 10 receipts
+        // Test with a number of receipts that stays within request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::Error,
         > = client
             .request(
                 "aggregate_receipts",
-                rpc_params!(api_version, &receipts[..10], None::<()>),
+                rpc_params!(
+                    api_version,
+                    &receipts[..number_of_receipts_to_exceed_limit - 50],
+                    None::<()>
+                ),
             )
             .await;
 
         assert!(res.is_ok());
 
         // Create RAV through the JSON-RPC server.
-        // Test with all 100 receipts
+        // Test with all receipts to exceed request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::Error,
