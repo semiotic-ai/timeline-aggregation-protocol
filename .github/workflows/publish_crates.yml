@@ -18,6 +18,6 @@ jobs:
             - name: Install cargo-workspaces
               run: cargo install cargo-workspaces
             - name: Publish workspace crates
-              run: cargo workspaces publish
+              run: cargo workspaces publish --from-git -y
               env:
-                  CARGO_AUTH_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+                CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
