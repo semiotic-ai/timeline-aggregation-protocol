@@ -10,15 +10,7 @@ publish = false
 [dependencies]
 tap_aggregator = { path = "../tap_aggregator" }
 tap_core = { path = "../tap_core" }
-jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
-ethers = "2.0.0"
-clap = { version = "4.2.4", features = ["derive", "env"] }
-rstest = "0.17.0"
-rand = "0.8.5"
-futures = "0.3.28"
-anyhow = "1.0.71"
-tokio = "1.28.2"
 
 [[test]]
-name = "integration_tests"
+name = "test"
 path = "tests/lib.rs"
