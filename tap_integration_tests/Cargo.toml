@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 autotests = false
 description = "Integration tests for the Time Aggregation Protocol."
+publish = false
 
 [dependencies]
 tap_aggregator = { path = "../tap_aggregator" }
