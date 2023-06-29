@@ -12,7 +12,32 @@ name: release-please
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release-please.outputs.releases_created }}
     steps:
-      - uses: google-github-actions/release-please-action@v3
+      - name: Generate token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92 #v1.8.0
+        with:
+          app_id: ${{ secrets.PR_AUTOMATION_APP_ID }}
+          private_key: ${{ secrets.PR_AUTOMATION_APP_PEM }}
+      - name: Release please
+        id: release-please
+        uses: google-github-actions/release-please-action@8016a6649226f2ec88ed05441c11bb5410a22d29 #v3.7.10
         with:
           command: manifest
+          token: ${{ steps.generate_token.outputs.token }}
+
+  publish-crates:
+    runs-on: ubuntu-latest
+    # run only if release-please had released a new version
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+      - name: Publish workspace crates
+        run: cargo workspaces publish --from-git -y
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
