@@ -24,7 +24,7 @@ jobs:
       - name: Check DCO
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DCO_CHECK_EXCLUDE_PATTERN: dependabot\[bot\]@users\.noreply\.github\.com
+          DCO_CHECK_EXCLUDE_PATTERN: (dependabot|semiotic-labs-pr-automation)\[bot\]@users\.noreply\.github\.com
           DCO_CHECK_VERBOSE: '1'
           # Comma-separated list of emails that should be ignored during DCO checks
           # DCO_CHECK_EXCLUDE_EMAILS: ${{ inputs.exclude-emails }}
