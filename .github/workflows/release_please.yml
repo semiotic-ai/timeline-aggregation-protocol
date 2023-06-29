@@ -2,6 +2,15 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_publish:
+        type: boolean
+        description: >-
+          Force publish-crates. Note that if the current crate version is already 
+          published, it will do nothing.
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -32,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     # run only if release-please had released a new version
     needs: release-please
-    if: needs.release-please.outputs.releases_created == 'true'
+    if: needs.release-please.outputs.releases_created == 'true' || github.event.inputs.force_publish == 'true'
     steps:
       - uses: actions/checkout@v2
       - name: Install cargo-workspaces
