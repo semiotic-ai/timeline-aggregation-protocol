@@ -8,8 +8,8 @@ description = "Integration tests for the Timeline Aggregation Protocol."
 publish = false
 
 [dependencies]
-tap_aggregator = { path = "../tap_aggregator" }
-tap_core = { path = "../tap_core" }
+tap_aggregator = { version = "0.1.0", path = "../tap_aggregator" }
+tap_core = { version = "0.1.0", path = "../tap_core" }
 jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
 ethers = "2.0.0"
 clap = { version = "4.2.4", features = ["derive", "env"] }
