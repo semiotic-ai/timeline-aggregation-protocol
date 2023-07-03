@@ -4,7 +4,6 @@
 #[cfg(test)]
 mod rav_storage_adapter_unit_test {
     use std::{
-        collections::HashMap,
         str::FromStr,
         sync::{Arc, RwLock},
     };
@@ -24,7 +23,7 @@ mod rav_storage_adapter_unit_test {
 
     #[rstest]
     async fn rav_storage_adapter_test() {
-        let rav_storage = Arc::new(RwLock::new(HashMap::new()));
+        let rav_storage = Arc::new(RwLock::new(None));
         let mut rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
@@ -52,22 +51,40 @@ mod rav_storage_adapter_unit_test {
         .await
         .unwrap();
 
-        let rav_id = rav_storage_adapter.store_rav(signed_rav).unwrap();
+        rav_storage_adapter
+            .update_last_rav(signed_rav.clone())
+            .unwrap();
 
-        // Retreive rav with id expected to be valid
-        assert!(rav_storage_adapter.retrieve_rav_by_id(rav_id).is_ok());
-        // Retreive rav with arbitrary id expected to be invalid
-        assert!(rav_storage_adapter.retrieve_rav_by_id(999).is_err());
+        // Retreive rav
+        let retrieved_rav = rav_storage_adapter.last_rav();
+        assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 
-        // Remove rav with id expected to be valid
-        assert!(rav_storage_adapter.remove_rav_by_id(rav_id).is_ok());
-        // Remove rav with arbitrary id expected to be invalid
-        assert!(rav_storage_adapter.remove_rav_by_id(999).is_err());
+        // Testing the last rav update...
 
-        // Retreive rav that was removed previously
-        assert!(rav_storage_adapter.retrieve_rav_by_id(rav_id).is_err());
+        // Create more receipts
+        let mut receipts = Vec::new();
+        for value in 60..70 {
+            receipts.push(
+                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
+                    .await
+                    .unwrap(),
+            );
+        }
 
-        // Remove rav that was removed previously
-        assert!(rav_storage_adapter.retrieve_rav_by_id(rav_id).is_err());
+        let signed_rav = EIP712SignedMessage::new(
+            ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+            &wallet,
+        )
+        .await
+        .unwrap();
+
+        // Update the last rav
+        rav_storage_adapter
+            .update_last_rav(signed_rav.clone())
+            .unwrap();
+
+        // Retreive rav
+        let retrieved_rav = rav_storage_adapter.last_rav();
+        assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
     }
 }

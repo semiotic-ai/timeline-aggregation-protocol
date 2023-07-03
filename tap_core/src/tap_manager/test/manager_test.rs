@@ -58,7 +58,7 @@ mod manager_unit_test {
 
     #[fixture]
     fn rav_storage_adapter() -> RAVStorageAdapterMock {
-        let rav_storage = Arc::new(RwLock::new(HashMap::new()));
+        let rav_storage = Arc::new(RwLock::new(None));
 
         RAVStorageAdapterMock::new(rav_storage)
     }

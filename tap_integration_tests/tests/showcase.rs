@@ -178,7 +178,7 @@ fn receipt_checks_adapter(
 // A structure for storing received RAVs.
 #[fixture]
 fn rav_storage_adapter() -> RAVStorageAdapterMock {
-    RAVStorageAdapterMock::new(Arc::new(RwLock::new(HashMap::new())))
+    RAVStorageAdapterMock::new(Arc::new(RwLock::new(None)))
 }
 
 // These are the checks that the Indexer will perform when requesting a RAV.
