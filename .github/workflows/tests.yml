@@ -14,7 +14,7 @@ jobs:
     container: 
       image: rust:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: cargo test
         
   fmt:
@@ -23,7 +23,7 @@ jobs:
     container: 
       image: rust:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: |
           rustup component add rustfmt
           cargo fmt --all -- --check
@@ -34,7 +34,7 @@ jobs:
     container: 
       image: rust:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
@@ -73,7 +73,7 @@ jobs:
     container:
       image: rust:latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Cargo Audit
@@ -121,7 +121,7 @@ jobs:
     REPO_NAME: ${{ github.event.repository.name }}
     REPORT_FOLDER: ${{ github.event.repository.name }}-sbom-report
    steps:
-       - uses: actions/checkout@v2
+       - uses: actions/checkout@v3
          with:
            token: ${{ secrets.GITHUB_TOKEN }}
        - run: |

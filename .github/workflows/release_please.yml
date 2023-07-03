@@ -43,7 +43,7 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.releases_created == 'true' || github.event.inputs.force_publish == 'true'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
       - name: Publish workspace crates
