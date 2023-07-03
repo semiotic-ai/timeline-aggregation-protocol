@@ -15,6 +15,15 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # We don't use a key based on ${{ hashFiles('**/Cargo.lock') }} because we
+          # ignore Cargo.lock in git
+          key: ${{ runner.os }}-cargo-test
       - run: cargo test
         
   fmt:
@@ -35,8 +44,13 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-clippy
       - run: |
            rustup component add clippy
            cargo clippy --all-features -- -D clippy::all
@@ -51,6 +65,13 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-cov
       - name: Update Rust and Install LLVM Tools
         run: | 
             rustup update stable
@@ -74,8 +95,13 @@ jobs:
       image: rust:latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-audit
       - name: Install Cargo Audit
         run: |
               cargo install cargo-audit
@@ -115,33 +141,38 @@ jobs:
             })
   
   sbom:
-   name: Syft SBOM Generator
-   runs-on: ubuntu-20.04
-   env:
-    REPO_NAME: ${{ github.event.repository.name }}
-    REPORT_FOLDER: ${{ github.event.repository.name }}-sbom-report
-   steps:
-       - uses: actions/checkout@v3
-         with:
-           token: ${{ secrets.GITHUB_TOKEN }}
-       - run: |
-           curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
-           mkdir "${{ env.REPORT_FOLDER }}"
-           ./syft .  --scope all-layers -o cyclonedx-xml=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").xml
-           ./syft .  --scope all-layers -o cyclonedx-json=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").json
-           cp ${{ env.REPORT_FOLDER }}/*.xml sbom-report.xml      
-           curl -X 'POST' 'http://34.149.248.118/api/v1/bom' \
-                        -H 'Content-Type: multipart/form-data' \
-                        -H 'X-API-Key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}' \
-                        -F 'autoCreate=true' \
-                        -F 'projectVersion=1.0' \
-                        -F "projectName=${{ env.REPO_NAME }}" \
-                        -F 'bom=@sbom-report.xml'
-       - uses: 'google-github-actions/auth@v1'
-         with:
-            credentials_json: '${{ secrets.GHA_SA_KEY }}'
-       - uses: 'google-github-actions/upload-cloud-storage@v1'
-         with:
-            process_gcloudignore: false
-            path: '${{ env.REPORT_FOLDER }}/'
-            destination: 'security-sbom'
+    name: Syft SBOM Generator
+    runs-on: ubuntu-20.04
+    env:
+      REPO_NAME: ${{ github.event.repository.name }}
+      REPORT_FOLDER: ${{ github.event.repository.name }}-sbom-report
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-sbom
+      - run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b .
+          mkdir "${{ env.REPORT_FOLDER }}"
+          ./syft .  --scope all-layers -o cyclonedx-xml=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").xml
+          ./syft .  --scope all-layers -o cyclonedx-json=${{ env.REPORT_FOLDER }}/sbom-report.$(date "+%Y.%m.%d-%H.%M").json
+          cp ${{ env.REPORT_FOLDER }}/*.xml sbom-report.xml      
+          curl -X 'POST' 'http://34.149.248.118/api/v1/bom' \
+                      -H 'Content-Type: multipart/form-data' \
+                      -H 'X-API-Key: ${{ secrets.DEPENDENCYTRACK_APIKEY }}' \
+                      -F 'autoCreate=true' \
+                      -F 'projectVersion=1.0' \
+                      -F "projectName=${{ env.REPO_NAME }}" \
+                      -F 'bom=@sbom-report.xml'
+      - uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GHA_SA_KEY }}'
+      - uses: 'google-github-actions/upload-cloud-storage@v1'
+        with:
+          process_gcloudignore: false
+          path: '${{ env.REPORT_FOLDER }}/'
+          destination: 'security-sbom'

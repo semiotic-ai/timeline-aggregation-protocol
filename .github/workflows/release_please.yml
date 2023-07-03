@@ -44,6 +44,13 @@ jobs:
     if: needs.release-please.outputs.releases_created == 'true' || github.event.inputs.force_publish == 'true'
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install cargo-workspaces
         run: cargo install cargo-workspaces
       - name: Publish workspace crates
