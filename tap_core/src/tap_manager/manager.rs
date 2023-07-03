@@ -25,8 +25,6 @@ pub struct Manager<
     receipt_storage_adapter: RSA,
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
     required_checks: Vec<ReceiptCheck>,
-    /// RAV id key needed to access the latest RAV in storage
-    current_rav_id: Option<u64>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<CA, RCA>,
@@ -60,7 +58,6 @@ impl<
             rav_storage_adapter,
             receipt_storage_adapter,
             required_checks,
-            current_rav_id: None,
             receipt_auditor,
         }
     }
@@ -129,14 +126,11 @@ impl<
             });
         }
 
-        let rav_id = self
-            .rav_storage_adapter
-            .store_rav(signed_rav)
+        self.rav_storage_adapter
+            .update_last_rav(signed_rav)
             .map_err(|err| Error::AdapterError {
                 source_error_message: err.to_string(),
             })?;
-
-        self.current_rav_id = Some(rav_id);
 
         Ok(())
     }
@@ -175,17 +169,12 @@ impl<
     }
 
     fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
-        let mut previous_rav: Option<SignedRAV> = None;
-
-        if let Some(current_rav_id) = self.current_rav_id {
-            let stored_previous_rav = self
-                .rav_storage_adapter
-                .retrieve_rav_by_id(current_rav_id)
+        let previous_rav =
+            self.rav_storage_adapter
+                .last_rav()
                 .map_err(|err| Error::AdapterError {
                     source_error_message: err.to_string(),
                 })?;
-            previous_rav = Some(stored_previous_rav);
-        }
         Ok(previous_rav)
     }
 

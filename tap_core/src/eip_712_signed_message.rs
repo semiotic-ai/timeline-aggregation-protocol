@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Error, Result};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct EIP712SignedMessage<M: eip712::Eip712 + Send + Sync> {
     /// Message to be signed
     pub message: M,
