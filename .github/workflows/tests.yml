@@ -8,15 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
-    name: cargo check
-    runs-on: ubuntu-latest
-    container: 
-      image: rust:latest 
-    steps:
-      - uses: actions/checkout@v2
-      - run: cargo check
-        
   test:
     name: cargo test
     runs-on: ubuntu-latest
