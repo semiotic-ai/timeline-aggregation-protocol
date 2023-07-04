@@ -109,36 +109,24 @@ jobs:
       - name: Generate Cargo Audit Report
         id: report
         run: |
-           cargo audit | tee report.xml
+           cargo audit --quiet | tee report.xml
            body="$(cat report.xml)"
            delimiter="$(openssl rand -hex 8)"
            echo "body<<$delimiter" >> $GITHUB_OUTPUT
            echo "$body" >> $GITHUB_OUTPUT
            echo "$delimiter" >> $GITHUB_OUTPUT
 
-      - name: Report Folding
-        uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
-        env:
-          FINALREPORT: "${{ steps.report.outputs.body }}"
+      - name: Comment report
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### 🤖 **** Cargo Audit Report **** 🤖\`
+          hide_and_recreate: true
+          hide_classify: "OUTDATED"
+          message: |
+            <b>🤖 Cargo Audit Report 🤖</b>
 
-            <details><summary>Show Report</summary>
-            \*\*\*\n
-            ${process.env.FINALREPORT}
-            \`\`\`
-            </details>
+            ${{ steps.report.outputs.body }}
 
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
+            (Empty means OK! 👍)
   
   sbom:
     name: Syft SBOM Generator
