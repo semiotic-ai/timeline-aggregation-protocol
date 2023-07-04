@@ -8,24 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: cargo test
-    runs-on: ubuntu-latest
-    container: 
-      image: rust:latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          # We don't use a key based on ${{ hashFiles('**/Cargo.lock') }} because we
-          # ignore Cargo.lock in git
-          key: ${{ runner.os }}-cargo-test
-      - run: cargo test
-        
   fmt:
     name: cargo fmt
     runs-on: ubuntu-latest
@@ -55,7 +37,8 @@ jobs:
            rustup component add clippy
            cargo clippy --all-features -- -D clippy::all
   
-  code-coverage:
+  test-and-coverage:
+    name: cargo test and coverage
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -72,13 +55,10 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-cov
-      - name: Update Rust and Install LLVM Tools
-        run: | 
-            rustup update stable
-            rustup component add llvm-tools-preview
-            cargo install cargo-llvm-cov
-      - name: Generate Code Coverage and PR
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info 
+      - run: rustup component add llvm-tools-preview
+      - run: cargo install cargo-llvm-cov
+      - name: Run tests and generate coverage report
+        run: cargo llvm-cov test --all-features --workspace --lcov --output-path lcov.info 
       - name: Coveralls
         uses: coverallsapp/github-action@v2.2.0
         with:
