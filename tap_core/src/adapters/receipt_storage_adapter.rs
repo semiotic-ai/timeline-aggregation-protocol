@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ops::Range;
+use std::ops::RangeBounds;
 
 use crate::tap_receipt::ReceivedReceipt;
 
@@ -22,9 +22,9 @@ pub trait ReceiptStorageAdapter {
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
-    fn retrieve_receipts_in_timestamp_range(
+    fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64>>(
         &self,
-        timestamp_range_ns: Range<u64>,
+        timestamp_range_ns: R,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
     fn update_receipt_by_id(
         &mut self,
@@ -33,8 +33,8 @@ pub trait ReceiptStorageAdapter {
     ) -> Result<(), Self::AdapterError>;
     fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), Self::AdapterError>;
     fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), Self::AdapterError>;
-    fn remove_receipts_in_timestamp_range(
+    fn remove_receipts_in_timestamp_range<R: RangeBounds<u64>>(
         &mut self,
-        timestamp_ns: Range<u64>,
+        timestamp_ns: R,
     ) -> Result<(), Self::AdapterError>;
 }
