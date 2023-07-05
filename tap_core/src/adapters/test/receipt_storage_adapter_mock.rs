@@ -86,19 +86,7 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
-        Ok(receipt_storage
-            .iter()
-            .filter(|(_, rx_receipt)| {
-                rx_receipt.signed_receipt.message.timestamp_ns <= timestamp_ns
-            })
-            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
-            .collect())
+        self.retrieve_receipts_in_timestamp_range(..=timestamp_ns)
     }
     fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64>>(
         &self,
