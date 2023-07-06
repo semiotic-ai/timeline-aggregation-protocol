@@ -23,6 +23,68 @@ impl ReceiptStorageAdapterMock {
             unique_id: 0u64,
         }
     }
+    pub fn retrieve_receipt_by_id(
+        &self,
+        receipt_id: u64,
+    ) -> Result<ReceivedReceipt, AdpaterErrorMock> {
+        let receipt_storage =
+            self.receipt_storage
+                .read()
+                .map_err(|e| AdpaterErrorMock::AdapterError {
+                    error: e.to_string(),
+                })?;
+
+        receipt_storage
+            .get(&receipt_id)
+            .cloned()
+            .ok_or(AdpaterErrorMock::AdapterError {
+                error: "No receipt found with ID".to_owned(),
+            })
+    }
+    pub fn retrieve_receipts_by_timestamp(
+        &self,
+        timestamp_ns: u64,
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdpaterErrorMock> {
+        let receipt_storage =
+            self.receipt_storage
+                .read()
+                .map_err(|e| AdpaterErrorMock::AdapterError {
+                    error: e.to_string(),
+                })?;
+        Ok(receipt_storage
+            .iter()
+            .filter(|(_, rx_receipt)| {
+                rx_receipt.signed_receipt.message.timestamp_ns == timestamp_ns
+            })
+            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
+            .collect())
+    }
+    pub fn retrieve_receipts_upto_timestamp(
+        &self,
+        timestamp_ns: u64,
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdpaterErrorMock> {
+        self.retrieve_receipts_in_timestamp_range(..=timestamp_ns)
+    }
+    pub fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdpaterErrorMock> {
+        let mut receipt_storage =
+            self.receipt_storage
+                .write()
+                .map_err(|e| AdpaterErrorMock::AdapterError {
+                    error: e.to_string(),
+                })?;
+        receipt_storage
+            .remove(&receipt_id)
+            .map(|_| ())
+            .ok_or(AdpaterErrorMock::AdapterError {
+                error: "No receipt found with ID".to_owned(),
+            })
+    }
+    pub fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), AdpaterErrorMock> {
+        for receipt_id in receipt_ids {
+            self.remove_receipt_by_id(*receipt_id)?;
+        }
+        Ok(())
+    }
 }
 
 use thiserror::Error;
@@ -45,48 +107,6 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
         receipt_storage.insert(id, receipt);
         self.unique_id += 1;
         Ok(id)
-    }
-    fn retrieve_receipt_by_id(
-        &self,
-        receipt_id: u64,
-    ) -> Result<ReceivedReceipt, Self::AdapterError> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
-
-        receipt_storage
-            .get(&receipt_id)
-            .cloned()
-            .ok_or(AdpaterErrorMock::AdapterError {
-                error: "No receipt found with ID".to_owned(),
-            })
-    }
-    fn retrieve_receipts_by_timestamp(
-        &self,
-        timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
-        Ok(receipt_storage
-            .iter()
-            .filter(|(_, rx_receipt)| {
-                rx_receipt.signed_receipt.message.timestamp_ns == timestamp_ns
-            })
-            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
-            .collect())
-    }
-    fn retrieve_receipts_upto_timestamp(
-        &self,
-        timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
-        self.retrieve_receipts_in_timestamp_range(..=timestamp_ns)
     }
     fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64>>(
         &self,
@@ -126,26 +146,6 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
 
         receipt_storage.insert(receipt_id, receipt);
         self.unique_id += 1;
-        Ok(())
-    }
-    fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage =
-            self.receipt_storage
-                .write()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
-        receipt_storage
-            .remove(&receipt_id)
-            .map(|_| ())
-            .ok_or(AdpaterErrorMock::AdapterError {
-                error: "No receipt found with ID".to_owned(),
-            })
-    }
-    fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), Self::AdapterError> {
-        for receipt_id in receipt_ids {
-            self.remove_receipt_by_id(*receipt_id)?;
-        }
         Ok(())
     }
     fn remove_receipts_in_timestamp_range<R: RangeBounds<u64>>(
