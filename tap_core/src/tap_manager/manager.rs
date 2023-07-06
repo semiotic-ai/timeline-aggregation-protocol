@@ -135,6 +135,27 @@ impl<
         Ok(())
     }
 
+    /// Removes all receipts that have a timestamp less or equal than the last RAV timestamp_max.
+    /// No-op if there is no last RAV.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
+    ///
+    pub fn remove_receipts_older_than_last_rav(&mut self) -> Result<(), Error> {
+        match self.get_previous_rav()? {
+            Some(last_rav) => {
+                self.receipt_storage_adapter
+                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp_ns)
+                    .map_err(|err| Error::AdapterError {
+                        source_error: anyhow::Error::new(err),
+                    })?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
     /// for aggregating list of valid receipts.

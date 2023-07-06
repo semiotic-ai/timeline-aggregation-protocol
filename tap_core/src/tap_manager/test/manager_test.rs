@@ -19,6 +19,7 @@ mod manager_test {
             collateral_adapter_mock::CollateralAdapterMock,
             rav_storage_adapter_mock::RAVStorageAdapterMock,
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
+            receipt_storage_adapter::ReceiptStorageAdapter,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,
@@ -336,9 +337,6 @@ mod manager_test {
     }
 
     #[rstest]
-    #[case::full_checks(get_full_list_of_checks())]
-    #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
-    #[case::no_checks(Vec::<ReceiptCheck>::new())]
     async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
         rav_storage_adapter: RAVStorageAdapterMock,
         collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
@@ -349,7 +347,9 @@ mod manager_test {
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
-        #[case] initial_checks: Vec<ReceiptCheck>,
+        #[values(get_full_list_of_checks(), vec![ReceiptCheck::CheckSignature], Vec::<ReceiptCheck>::new())]
+        initial_checks: Vec<ReceiptCheck>,
+        #[values(true, false)] remove_old_receipts: bool,
     ) {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
@@ -385,6 +385,13 @@ mod manager_test {
                 .is_ok());
             expected_accumulated_value += value;
         }
+
+        // Remove old receipts if requested
+        // This shouldn't do anything since there has been no rav created yet
+        if remove_old_receipts {
+            manager.remove_receipts_older_than_last_rav().unwrap();
+        }
+
         let rav_request_1_result = manager.create_rav_request(0);
         assert!(rav_request_1_result.is_ok());
 
@@ -427,6 +434,20 @@ mod manager_test {
                 .is_ok());
             expected_accumulated_value += value;
         }
+
+        // Remove old receipts if requested
+        if remove_old_receipts {
+            manager.remove_receipts_older_than_last_rav().unwrap();
+            // We expect to have 10 receipts left in receipt storage
+            assert_eq!(
+                manager.receipt_storage_adapter
+                    .retrieve_receipts_in_timestamp_range(..)
+                    .unwrap()
+                    .len(),
+                10
+            );
+        }
+
         let rav_request_2_result = manager.create_rav_request(0);
         assert!(rav_request_2_result.is_ok());
 
