@@ -26,29 +26,29 @@ impl ReceiptStorageAdapterMock {
     pub fn retrieve_receipt_by_id(
         &self,
         receipt_id: u64,
-    ) -> Result<ReceivedReceipt, AdpaterErrorMock> {
+    ) -> Result<ReceivedReceipt, AdapterErrorMock> {
         let receipt_storage =
             self.receipt_storage
                 .read()
-                .map_err(|e| AdpaterErrorMock::AdapterError {
+                .map_err(|e| AdapterErrorMock::AdapterError {
                     error: e.to_string(),
                 })?;
 
         receipt_storage
             .get(&receipt_id)
             .cloned()
-            .ok_or(AdpaterErrorMock::AdapterError {
+            .ok_or(AdapterErrorMock::AdapterError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
     pub fn retrieve_receipts_by_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdpaterErrorMock> {
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
         let receipt_storage =
             self.receipt_storage
                 .read()
-                .map_err(|e| AdpaterErrorMock::AdapterError {
+                .map_err(|e| AdapterErrorMock::AdapterError {
                     error: e.to_string(),
                 })?;
         Ok(receipt_storage
@@ -62,24 +62,24 @@ impl ReceiptStorageAdapterMock {
     pub fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdpaterErrorMock> {
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns)
     }
-    pub fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdpaterErrorMock> {
+    pub fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
         let mut receipt_storage =
             self.receipt_storage
                 .write()
-                .map_err(|e| AdpaterErrorMock::AdapterError {
+                .map_err(|e| AdapterErrorMock::AdapterError {
                     error: e.to_string(),
                 })?;
         receipt_storage
             .remove(&receipt_id)
             .map(|_| ())
-            .ok_or(AdpaterErrorMock::AdapterError {
+            .ok_or(AdapterErrorMock::AdapterError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
-    pub fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), AdpaterErrorMock> {
+    pub fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), AdapterErrorMock> {
         for receipt_id in receipt_ids {
             self.remove_receipt_by_id(*receipt_id)?;
         }
@@ -89,13 +89,13 @@ impl ReceiptStorageAdapterMock {
 
 use thiserror::Error;
 #[derive(Debug, Error)]
-pub enum AdpaterErrorMock {
+pub enum AdapterErrorMock {
     #[error("something went wrong: {error}")]
     AdapterError { error: String },
 }
 
 impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
-    type AdapterError = AdpaterErrorMock;
+    type AdapterError = AdapterErrorMock;
     fn store_receipt(&mut self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
         let id = self.unique_id;
         let mut receipt_storage =
@@ -139,7 +139,7 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
                 })?;
 
         if !receipt_storage.contains_key(&receipt_id) {
-            return Err(AdpaterErrorMock::AdapterError {
+            return Err(AdapterErrorMock::AdapterError {
                 error: "Invalid receipt_id".to_owned(),
             });
         };
