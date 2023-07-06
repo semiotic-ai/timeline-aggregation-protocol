@@ -18,6 +18,7 @@ ethers = "2.0.0"
 ethers-core = "2.0.0"
 ethers-contract = "2.0.0"
 ethers-contract-derive = "2.0.0"
+anyhow = "1"
 
 strum = "0.24.1"
 strum_macros = "0.24.3"
