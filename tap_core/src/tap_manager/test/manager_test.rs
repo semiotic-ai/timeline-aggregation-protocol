@@ -334,4 +334,123 @@ mod manager_unit_test {
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
             .is_ok());
     }
+
+    #[rstest]
+    #[case::full_checks(get_full_list_of_checks())]
+    #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
+    #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
+        rav_storage_adapter: RAVStorageAdapterMock,
+        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        receipt_adapters: (
+            ReceiptStorageAdapterMock,
+            ReceiptChecksAdapterMock,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        #[case] initial_checks: Vec<ReceiptCheck>,
+    ) {
+        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
+            receipt_adapters;
+        // give receipt 5 second variance for min start time
+        let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
+
+        let mut manager = Manager::new(
+            collateral_adapter,
+            receipt_checks_adapter,
+            rav_storage_adapter,
+            receipt_storage_adapter,
+            get_full_list_of_checks(),
+            starting_min_timestamp,
+        );
+
+        collateral_storage.write().unwrap().insert(keys.1, 999999);
+
+        let mut stored_signed_receipts = Vec::new();
+        let mut expected_accumulated_value = 0;
+        for query_id in 0..10 {
+            let value = 20u128;
+            let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
+            receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
+            let signed_receipt = EIP712SignedMessage::new(receipt, &keys.0).await.unwrap();
+            stored_signed_receipts.push(signed_receipt.clone());
+            query_appraisal_storage
+                .write()
+                .unwrap()
+                .insert(query_id, value);
+            assert!(manager
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .is_ok());
+            expected_accumulated_value += value;
+        }
+        let rav_request_1_result = manager.create_rav_request(0);
+        assert!(rav_request_1_result.is_ok());
+
+        let rav_request_1 = rav_request_1_result.unwrap();
+        // all receipts passing
+        assert_eq!(
+            rav_request_1.valid_receipts.len(),
+            stored_signed_receipts.len()
+        );
+        // no receipts failing
+        assert_eq!(rav_request_1.invalid_receipts.len(), 0);
+        // accumulated value is correct
+        assert_eq!(
+            rav_request_1.expected_rav.value_aggregate,
+            expected_accumulated_value
+        );
+        // no previous rav
+        assert!(rav_request_1.previous_rav.is_none());
+
+        let signed_rav_1 = EIP712SignedMessage::new(rav_request_1.expected_rav.clone(), &keys.0)
+            .await
+            .unwrap();
+        assert!(manager
+            .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
+            .is_ok());
+
+        stored_signed_receipts.clear();
+        for query_id in 10..20 {
+            let value = 20u128;
+            let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
+            receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
+            let signed_receipt = EIP712SignedMessage::new(receipt, &keys.0).await.unwrap();
+            stored_signed_receipts.push(signed_receipt.clone());
+            query_appraisal_storage
+                .write()
+                .unwrap()
+                .insert(query_id, value);
+            assert!(manager
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .is_ok());
+            expected_accumulated_value += value;
+        }
+        let rav_request_2_result = manager.create_rav_request(0);
+        assert!(rav_request_2_result.is_ok());
+
+        let rav_request_2 = rav_request_2_result.unwrap();
+        // all receipts passing
+        assert_eq!(
+            rav_request_2.valid_receipts.len(),
+            stored_signed_receipts.len()
+        );
+        // no receipts failing
+        assert_eq!(rav_request_2.invalid_receipts.len(), 0);
+        // accumulated value is correct
+        assert_eq!(
+            rav_request_2.expected_rav.value_aggregate,
+            expected_accumulated_value
+        );
+        // Verify there is a previous rav
+        assert!(rav_request_2.previous_rav.is_some());
+
+        let signed_rav_2 = EIP712SignedMessage::new(rav_request_2.expected_rav.clone(), &keys.0)
+            .await
+            .unwrap();
+        assert!(manager
+            .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
+            .is_ok());
+    }
 }
