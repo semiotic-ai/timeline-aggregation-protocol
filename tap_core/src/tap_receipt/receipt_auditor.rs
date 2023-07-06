@@ -30,6 +30,7 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
         }
     }
 
+    /// Updates the minimum timestamp that will be accepted for a receipt (exclusive).
     pub fn update_min_timestamp_ns(&mut self, min_timestamp_ns: u64) {
         self.min_timestamp_ns = min_timestamp_ns;
     }

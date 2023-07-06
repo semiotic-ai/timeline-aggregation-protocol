@@ -158,7 +158,7 @@ impl<
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
         self.receipt_auditor
-            .update_min_timestamp_ns(expected_rav.timestamp_ns + 1);
+            .update_min_timestamp_ns(expected_rav.timestamp_ns);
 
         Ok(RAVRequest {
             valid_receipts,
