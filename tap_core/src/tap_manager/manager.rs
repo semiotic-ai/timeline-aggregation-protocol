@@ -89,7 +89,7 @@ impl<
             .receipt_storage_adapter
             .store_receipt(received_receipt.clone())
             .map_err(|err| Error::AdapterError {
-                source_error_message: err.to_string(),
+                source_error: anyhow::Error::new(err),
             })?;
 
         received_receipt.perform_checks(
@@ -101,7 +101,7 @@ impl<
         self.receipt_storage_adapter
             .update_receipt_by_id(receipt_id, received_receipt)
             .map_err(|err| Error::AdapterError {
-                source_error_message: err.to_string(),
+                source_error: anyhow::Error::new(err),
             })?;
         Ok(())
     }
@@ -129,7 +129,7 @@ impl<
         self.rav_storage_adapter
             .update_last_rav(signed_rav)
             .map_err(|err| Error::AdapterError {
-                source_error_message: err.to_string(),
+                source_error: anyhow::Error::new(err),
             })?;
 
         Ok(())
@@ -173,7 +173,7 @@ impl<
             self.rav_storage_adapter
                 .last_rav()
                 .map_err(|err| Error::AdapterError {
-                    source_error_message: err.to_string(),
+                    source_error: anyhow::Error::new(err),
                 })?;
         Ok(previous_rav)
     }
@@ -195,7 +195,7 @@ impl<
             .receipt_storage_adapter
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns)
             .map_err(|err| Error::AdapterError {
-                source_error_message: err.to_string(),
+                source_error: anyhow::Error::new(err),
             })?;
 
         let mut accepted_signed_receipts = Vec::<SignedReceipt>::new();
