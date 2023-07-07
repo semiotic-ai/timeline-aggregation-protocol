@@ -224,3 +224,7 @@ impl<
         ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)
     }
 }
+
+#[cfg(test)]
+#[path = "test/manager_test.rs"]
+mod manager_test;

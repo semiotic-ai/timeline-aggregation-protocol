@@ -1,8 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 #[cfg(test)]
-mod manager_unit_test {
+
+mod manager_test {
     use std::{
         collections::{HashMap, HashSet},
         str::FromStr,
@@ -13,6 +13,7 @@ mod manager_unit_test {
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
+    use super::super::Manager;
     use crate::{
         adapters::{
             collateral_adapter_mock::CollateralAdapterMock,
@@ -22,7 +23,6 @@ mod manager_unit_test {
         },
         eip_712_signed_message::EIP712SignedMessage,
         get_current_timestamp_u64_ns,
-        tap_manager::Manager,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceiptCheck},
     };
 
