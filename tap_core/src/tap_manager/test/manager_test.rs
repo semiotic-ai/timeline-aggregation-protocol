@@ -389,7 +389,7 @@ mod manager_test {
         // Remove old receipts if requested
         // This shouldn't do anything since there has been no rav created yet
         if remove_old_receipts {
-            manager.remove_receipts_older_than_last_rav().unwrap();
+            manager.remove_obsolete_receipts().unwrap();
         }
 
         let rav_request_1_result = manager.create_rav_request(0);
@@ -437,7 +437,7 @@ mod manager_test {
 
         // Remove old receipts if requested
         if remove_old_receipts {
-            manager.remove_receipts_older_than_last_rav().unwrap();
+            manager.remove_obsolete_receipts().unwrap();
             // We expect to have 10 receipts left in receipt storage
             assert_eq!(
                 manager
