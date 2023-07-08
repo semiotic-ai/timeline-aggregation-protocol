@@ -440,7 +440,8 @@ mod manager_test {
             manager.remove_receipts_older_than_last_rav().unwrap();
             // We expect to have 10 receipts left in receipt storage
             assert_eq!(
-                manager.receipt_storage_adapter
+                manager
+                    .receipt_storage_adapter
                     .retrieve_receipts_in_timestamp_range(..)
                     .unwrap()
                     .len(),
