@@ -135,7 +135,7 @@ impl<
         Ok(())
     }
 
-    /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and 
+    /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
     /// therefore already aggregated into the RAV.
     /// This function should be called after a new RAV is received to limit the number of receipts stored.
     /// No-op if there is no last RAV.
