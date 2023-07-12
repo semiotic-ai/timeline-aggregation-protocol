@@ -1,6 +1,52 @@
 # TAP Aggregator
 
-A JSON-RPC service that lets clients request an aggregate receipt from a list of individual receipts.
+A stateless JSON-RPC service that lets clients request an aggregate receipt from a list of individual receipts.
+
+## Settings
+
+```txt
+A JSON-RPC service for the Timeline Aggregation Protocol that lets clients request an aggregate receipt from a list of
+individual receipts.
+
+Usage: tap_aggregator [OPTIONS] --mnemonic <MNEMONIC>
+
+Options:
+      --port <PORT>
+          Port to listen on for JSON-RPC requests [env: TAP_PORT=] [default: 8080]
+      --mnemonic <MNEMONIC>
+          Gateway mnemonic to be used to sign Receipt Aggregate Vouchers [env: TAP_MNEMONIC=]
+      --max-request-body-size <MAX_REQUEST_BODY_SIZE>
+          Maximum request body size in bytes. Defaults to 10MB [env: TAP_MAX_REQUEST_BODY_SIZE=] [default: 10485760]
+      --max-response-body-size <MAX_RESPONSE_BODY_SIZE>
+          Maximum response body size in bytes. Defaults to 100kB [env: TAP_MAX_RESPONSE_BODY_SIZE=] [default: 102400]
+      --max-connections <MAX_CONNECTIONS>
+          Maximum number of concurrent connections. Defaults to 32 [env: TAP_MAX_CONNECTIONS=] [default: 32]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+```
+
+Please refer to
+[timeline-aggregation-protocol-contracts](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts) for
+more information about Receipt Aggregate Voucher signing keys.
+
+## Operational recommendations
+
+This is just meant to be a non-exhaustive list of reminders for safely operating the TAP Aggregator. It being an HTTP
+service, use your best judgement and apply the industry-standard best practices when serving HTTP to the public
+internet.
+
+- Advertise through a safe DNS service (w/ DNSSEC, etc)
+- Expose through HTTPS only (by reverse-proxying)
+- Use a WAF, to leverage (if available):
+  - DDoS protection, rate limiting, etc.
+  - Geofencing, depending on the operator's jurisdiction.
+  - HTTP response inspection.
+  - JSON request and response inspection. To validate the inputs, as well as parse JSON-RPC error codes in the response.
+
+It is also recommended that clients use HTTP compression for their HTTP requests to the TAP Aggregator, as RAV requests
+can be quite large.
 
 ## JSON-RPC API
 
