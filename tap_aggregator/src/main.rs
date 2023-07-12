@@ -14,26 +14,26 @@ use tap_aggregator::server;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on for JSON-RPC requests.
-    #[arg(short, long, default_value_t = 8080, env = "TAP_PORT")]
+    #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
     /// Gateway mnemonic to be used to sign Receipt Aggregate Vouchers.
-    #[arg(short, long, env = "TAP_MNEMONIC")]
+    #[arg(long, env = "TAP_MNEMONIC")]
     mnemonic: String,
 
     /// Maximum request body size in bytes.
     /// Defaults to 10MB.
-    #[arg(short, long, default_value_t = 10 * 1024 * 1024, env = "TAP_MAX_REQUEST_BODY_SIZE")]
+    #[arg(long, default_value_t = 10 * 1024 * 1024, env = "TAP_MAX_REQUEST_BODY_SIZE")]
     max_request_body_size: u32,
 
     /// Maximum response body size in bytes.
     /// Defaults to 100kB.
-    #[arg(short, long, default_value_t = 100 * 1024, env = "TAP_MAX_RESPONSE_BODY_SIZE")]
+    #[arg(long, default_value_t = 100 * 1024, env = "TAP_MAX_RESPONSE_BODY_SIZE")]
     max_response_body_size: u32,
 
     /// Maximum number of concurrent connections.
     /// Defaults to 32.
-    #[arg(short, long, default_value_t = 32, env = "TAP_MAX_CONNECTIONS")]
+    #[arg(long, default_value_t = 32, env = "TAP_MAX_CONNECTIONS")]
     max_connections: u32,
 }
 
