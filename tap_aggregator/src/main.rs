@@ -8,6 +8,7 @@ use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
+use log::{debug, info, warn};
 use tap_aggregator::server;
 
 #[derive(Parser, Debug)]
@@ -39,7 +40,15 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialize the logger.
+    // Set the log level by setting the RUST_LOG environment variable.
+    // We prefer using tracing_subscriber as the logging backend because jsonrpsee
+    // uses it, and it shows jsonrpsee log spans in the logs (to see client IP, etc).
+    // See https://github.com/paritytech/jsonrpsee/pull/922 for more info.
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
+    debug!("Settings: {:?}", args);
 
     // Create a wallet from the mnemonic.
     let wallet = MnemonicBuilder::<English>::default()
@@ -55,21 +64,23 @@ async fn main() -> Result<()> {
         args.max_connections,
     )
     .await?;
+    info!("Server started. Listening on port {}.", args.port);
 
     // Have tokio wait for SIGTERM or SIGINT.
     let mut signal_sigint = signal(SignalKind::interrupt())?;
     let mut signal_sigterm = signal(SignalKind::terminate())?;
     tokio::select! {
-        _ = signal_sigint.recv() => println!("SIGINT"),
-        _ = signal_sigterm.recv() => println!("SIGTERM"),
+        _ = signal_sigint.recv() => debug!("Received SIGINT."),
+        _ = signal_sigterm.recv() => debug!("Received SIGTERM."),
     }
 
     // If we're here, we've received a signal to exit.
-    println!("Shutting down...");
+    warn!("Shutting down...");
 
     // Stop the server and wait for it to finish gracefully.
     handle.stop()?;
     handle.stopped().await;
 
+    debug!("Goodbye!");
     Ok(())
 }
