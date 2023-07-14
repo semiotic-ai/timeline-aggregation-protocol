@@ -857,8 +857,15 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         &receipts,
         first_rav_response.data
     );
-    let _second_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+    let second_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
         client.request("aggregate_receipts", params).await?;
+
+    // Compute the expected aggregate value and check that it matches the latest RAV.
+    let mut expected_value = 0;
+    for (receipt, _) in first_batch.iter().chain(second_batch.iter()) {
+        expected_value += receipt.message.value;
+    }
+    assert!(expected_value == second_rav_response.data.message.value_aggregate);
 
     gateway_handle.stop()?;
     Ok(())
