@@ -18,11 +18,13 @@ use ethers::{
     signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer},
     types::{Address, H160},
 };
-use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, server::ServerHandle};
+use jsonrpsee::{
+    core::client::ClientT, http_client::HttpClientBuilder, rpc_params, server::ServerHandle,
+};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
 
-use tap_aggregator::server as agg_server;
+use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::{
         collateral_adapter_mock::CollateralAdapterMock,
@@ -31,8 +33,8 @@ use tap_core::{
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     eip_712_signed_message::EIP712SignedMessage,
-    tap_receipt::ReceiptCheck,
-    tap_receipt::{Receipt, ReceivedReceipt},
+    tap_manager::SignedRAV,
+    tap_receipt::{Receipt, ReceiptCheck, ReceivedReceipt},
 };
 
 use crate::indexer_mock;
@@ -720,12 +722,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
     >,
     receipt_threshold_1: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Desired test: Make sure that the TAP core and aggregator follow the same timestamp cutoff.
-    //The current expected is that any receipt that has a timestamp less than or equal to the most
-    //recent previous RAV should not be accepted (as apposed to simply less than).
-    //We need to create a test to make sure both the core and the aggregator each reject receipts
-    //that are equal to a previous RAV timestamp, and accept one where the receipt timestamp is
-    //just one greater than the prev rav timestamp.
+    // This test checks that tap_core is correctly filtering receipts by timestamp.
     let (
         server_handle_1,
         socket_addr_1,
@@ -765,7 +762,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 
     server_handle_1.stop()?;
 
-    // In this test, the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
+    // Here the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
     // No errors are expected.
     let requests = repeated_timestamp_incremented_by_one_request.await?;
     for (receipt_1, id) in requests {
@@ -775,6 +772,95 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
             Err(e) => panic!("Error making receipt request: {:?}", e),
         }
     }
+    Ok(())
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_tap_aggregator_rav_timestamp_cuttoff(
+    keys_gateway: (LocalWallet, Address),
+    http_request_size_limit: u32,
+    http_response_size_limit: u32,
+    http_max_concurrent_connections: u32,
+    #[future] repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    #[future] repeated_timestamp_incremented_by_one_request: Result<
+        Vec<(EIP712SignedMessage<Receipt>, u64)>,
+    >,
+    receipt_threshold_1: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // This test checks that tap_aggregator is correctly rejecting receipts with invalid timestamps
+    let (gateway_handle, gateway_addr) = start_gateway_aggregator(
+        keys_gateway,
+        http_request_size_limit,
+        http_response_size_limit,
+        http_max_concurrent_connections,
+    )
+    .await?;
+    let client =
+        HttpClientBuilder::default().build(format!("http://{}", gateway_addr.to_string()))?;
+
+    // This is the first part of the test, two batches of receipts are sent to the aggregator.
+    // The second batch has one receipt with the same timestamp as the latest receipt in the first batch.
+    // The first RAV will have the same timestamp as one receipt in the second batch.
+    // tap_aggregator should reject the second RAV request due to the repeated timestamp.
+    let requests = repeated_timestamp_request.await?;
+    let first_batch = &requests[0..receipt_threshold_1 as usize];
+    let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
+
+    let receipts = first_batch
+        .iter()
+        .map(|(r, _)| r.clone())
+        .collect::<Vec<_>>();
+    let params = rpc_params!(&aggregate_server_api_version(), &receipts, None::<()>);
+    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+        client.request("aggregate_receipts", params).await?;
+
+    let receipts = second_batch
+        .iter()
+        .map(|(r, _)| r.clone())
+        .collect::<Vec<_>>();
+    let params = rpc_params!(
+        &aggregate_server_api_version(),
+        &receipts,
+        first_rav_response.data
+    );
+    let second_rav_response: Result<
+        jsonrpsee_helpers::JsonRpcResponse<SignedRAV>,
+        jsonrpsee::core::Error,
+    > = client.request("aggregate_receipts", params).await;
+    match second_rav_response {
+        Ok(_) => panic!("Should have failed RAV request"),
+        Err(_) => {}
+    }
+
+    // This is the second part of the test, two batches of receipts are sent to the aggregator.
+    // The second batch has one receipt with the timestamp = timestamp+1 of the latest receipt in the first batch.
+    // tap_aggregator should accept the second RAV request.
+    let requests = repeated_timestamp_incremented_by_one_request.await?;
+    let first_batch = &requests[0..receipt_threshold_1 as usize];
+    let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
+
+    let receipts = first_batch
+        .iter()
+        .map(|(r, _)| r.clone())
+        .collect::<Vec<_>>();
+    let params = rpc_params!(&aggregate_server_api_version(), &receipts, None::<()>);
+    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+        client.request("aggregate_receipts", params).await?;
+
+    let receipts = second_batch
+        .iter()
+        .map(|(r, _)| r.clone())
+        .collect::<Vec<_>>();
+    let params = rpc_params!(
+        &aggregate_server_api_version(),
+        &receipts,
+        first_rav_response.data
+    );
+    let _second_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+        client.request("aggregate_receipts", params).await?;
+
+    gateway_handle.stop()?;
     Ok(())
 }
 
