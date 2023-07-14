@@ -80,7 +80,7 @@ fn receipt_threshold_1(num_queries: u64, num_batches: u64) -> u64 {
 // The number of receipts collected before Indexer 2 sends a RAV request
 #[fixture]
 fn receipt_threshold_2(num_queries: u64, num_batches: u64) -> u64 {
-    num_queries * num_batches
+    num_queries * num_batches / 2
 }
 
 // The private key (LocalWallet) and public key (Address) of a Gateway
@@ -276,6 +276,72 @@ async fn requests_2(
     // Create your Receipt here
     let requests =
         generate_requests(query_price, num_batches, &gateway_key, allocation_ids[1]).await?;
+    Ok(requests)
+}
+
+#[fixture]
+async fn repeated_timestamp_request(
+    keys_gateway: (LocalWallet, Address),
+    query_price: Vec<u128>,
+    allocation_ids: Vec<H160>,
+    num_batches: u64,
+    receipt_threshold_1: u64,
+) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
+    let (gateway_key, _) = keys_gateway;
+
+    // Create signed receipts
+    let mut requests =
+        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+
+    // Create a new receipt with the timestamp equal to the latest receipt in the first RAV request batch
+    let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
+        .0
+        .message
+        .timestamp_ns;
+    let target_receipt = &requests[receipt_threshold_1 as usize].0.message;
+    let repeat_receipt = Receipt {
+        allocation_id: target_receipt.allocation_id,
+        timestamp_ns: repeat_timestamp,
+        nonce: target_receipt.nonce,
+        value: target_receipt.value,
+    };
+
+    // Sign the new receipt and insert it in the second batch
+    requests[receipt_threshold_1 as usize].0 =
+        EIP712SignedMessage::new(repeat_receipt, &gateway_key).await?;
+    Ok(requests)
+}
+
+#[fixture]
+async fn repeated_timestamp_incremented_by_one_request(
+    keys_gateway: (LocalWallet, Address),
+    query_price: Vec<u128>,
+    allocation_ids: Vec<H160>,
+    num_batches: u64,
+    receipt_threshold_1: u64,
+) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
+    let (gateway_key, _) = keys_gateway;
+    // Create your Receipt here
+    let mut requests =
+        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+
+    // Create a new receipt with the timestamp equal to the latest receipt timestamp+1 in the first RAV request batch
+    let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
+        .0
+        .message
+        .timestamp_ns
+        + 1;
+    let target_receipt = &requests[receipt_threshold_1 as usize].0.message;
+    let repeat_receipt = Receipt {
+        allocation_id: target_receipt.allocation_id,
+        timestamp_ns: repeat_timestamp,
+        nonce: target_receipt.nonce,
+        value: target_receipt.value,
+    };
+
+    // Sign the new receipt and insert it in the second batch
+    requests[receipt_threshold_1 as usize].0 =
+        EIP712SignedMessage::new(repeat_receipt, &gateway_key).await?;
     Ok(requests)
 }
 
@@ -631,6 +697,84 @@ async fn test_manager_wrong_requestor_keys(
         counter += 1;
     }
 
+    Ok(())
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_tap_manager_rav_timestamp_cuttoff(
+    #[future] two_indexers_test_servers: Result<
+        (
+            ServerHandle,
+            SocketAddr,
+            ServerHandle,
+            SocketAddr,
+            ServerHandle,
+            SocketAddr,
+        ),
+        Error,
+    >,
+    #[future] repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    #[future] repeated_timestamp_incremented_by_one_request: Result<
+        Vec<(EIP712SignedMessage<Receipt>, u64)>,
+    >,
+    receipt_threshold_1: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Desired test: Make sure that the TAP core and aggregator follow the same timestamp cutoff.
+    //The current expected is that any receipt that has a timestamp less than or equal to the most
+    //recent previous RAV should not be accepted (as apposed to simply less than).
+    //We need to create a test to make sure both the core and the aggregator each reject receipts
+    //that are equal to a previous RAV timestamp, and accept one where the receipt timestamp is
+    //just one greater than the prev rav timestamp.
+    let (
+        server_handle_1,
+        socket_addr_1,
+        _server_handle_2,
+        socket_addr_2,
+        _gateway_handle,
+        _gateway_addr,
+    ) = two_indexers_test_servers.await?;
+
+    let indexer_1_address = "http://".to_string() + &socket_addr_1.to_string();
+    let indexer_2_address = "http://".to_string() + &socket_addr_2.to_string();
+    let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
+    let client_2 = HttpClientBuilder::default().build(indexer_2_address)?;
+    let requests = repeated_timestamp_request.await?;
+
+    let mut counter = 1;
+    for (receipt_1, id) in requests {
+        let result = client_1.request("request", (id, receipt_1)).await;
+
+        // The first receipt in the second batch has the same timestamp as the last receipt in the first batch.
+        // TAP manager should ignore this receipt when creating the second RAV request.
+        // The indexer_mock will throw an error if the number of receipts in RAV request is less than the expected number.
+        // An error is expected when requesting the second RAV.
+        if counter == 2 * receipt_threshold_1 {
+            match result {
+                Ok(()) => panic!("Should have failed RAV request"),
+                Err(_) => {}
+            }
+        } else {
+            match result {
+                Ok(()) => {}
+                Err(e) => panic!("Error making receipt request: {:?}", e),
+            }
+        }
+        counter += 1;
+    }
+
+    server_handle_1.stop()?;
+
+    // In this test, the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
+    // No errors are expected.
+    let requests = repeated_timestamp_incremented_by_one_request.await?;
+    for (receipt_1, id) in requests {
+        let result = client_2.request("request", (id, receipt_1)).await;
+        match result {
+            Ok(()) => {}
+            Err(e) => panic!("Error making receipt request: {:?}", e),
+        }
+    }
     Ok(())
 }
 

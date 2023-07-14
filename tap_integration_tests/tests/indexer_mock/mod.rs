@@ -140,7 +140,14 @@ impl<
 
             // Create the aggregate_receipts request params
             let time_stamp_buffer = 0;
-            match request_rav(&self.manager, time_stamp_buffer, &self.aggregator_client).await {
+            match request_rav(
+                &self.manager,
+                time_stamp_buffer,
+                &self.aggregator_client,
+                self.threshold as usize,
+            )
+            .await
+            {
                 Ok(_) => Ok(()),
                 Err(e) => Err(to_rpc_error(e.into(), "Failed to request rav")),
             }
@@ -208,14 +215,10 @@ async fn request_rav<
     manager: &Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Mutex-protected manager object for thread safety
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
+    threshold: usize,
 ) -> Result<()> {
     // Create the aggregate_receipts request params
     let rav_request = manager.lock().await.create_rav_request(time_stamp_buffer)?;
-
-    match rav_request.invalid_receipts.is_empty() {
-        true => Ok(()),
-        false => Err(Error::msg("Invalid receipts found")),
-    }?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
     let params = rpc_params!(
@@ -234,6 +237,14 @@ async fn request_rav<
         let _result =
             manager_guard.verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)?;
     }
+
+    // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
+    // If there is throw an error.
+    match rav_request.invalid_receipts.is_empty() && (rav_request.valid_receipts.len() == threshold)
+    {
+        true => Ok(()),
+        false => Err(Error::msg("Invalid receipts found")),
+    }?;
     Ok(())
 }
 
