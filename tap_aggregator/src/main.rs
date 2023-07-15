@@ -9,13 +9,14 @@ use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
 use log::{debug, info, warn};
+use tap_aggregator::metrics;
 use tap_aggregator::server;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on for JSON-RPC requests.
-    #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
+    #[arg(long, default_value_t = 8000, env = "TAP_PORT")]
     port: u16,
 
     /// Gateway mnemonic to be used to sign Receipt Aggregate Vouchers.
@@ -36,6 +37,11 @@ struct Args {
     /// Defaults to 32.
     #[arg(long, default_value_t = 32, env = "TAP_MAX_CONNECTIONS")]
     max_connections: u32,
+
+    /// Metrics server port.
+    /// Defaults to 5000.
+    #[arg(long, default_value_t = 5000, env = "TAP_METRICS_PORT")]
+    metrics_port: u16,
 }
 
 #[tokio::main]
@@ -50,12 +56,17 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     debug!("Settings: {:?}", args);
 
+    // Start the metrics server.
+    // We just let it gracelessly get killed at the end of main()
+    tokio::spawn(metrics::run_server(args.metrics_port));
+
     // Create a wallet from the mnemonic.
     let wallet = MnemonicBuilder::<English>::default()
         .phrase(args.mnemonic.as_str())
         .build()?;
 
     // Start the JSON-RPC server.
+    // This await is non-blocking
     let (handle, _) = server::run_server(
         args.port,
         wallet,

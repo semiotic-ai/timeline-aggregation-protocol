@@ -23,6 +23,10 @@ serde_json = { version = "1.0.96", features = ["raw_value"] }
 strum = { version = "0.24.1", features = ["strum_macros", "derive"] }
 tracing-subscriber = { version = "0.3.17" }
 log = "0.4.19"
+prometheus = "0.13.3"
+axum = "0.6.18"
+futures-util = "0.3.28"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }
