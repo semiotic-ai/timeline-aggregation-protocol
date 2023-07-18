@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
     }
 
     // If we're here, we've received a signal to exit.
-    warn!("Shutting down...");
+    info!("Shutting down...");
 
     // Stop the server and wait for it to finish gracefully.
     handle.stop()?;
