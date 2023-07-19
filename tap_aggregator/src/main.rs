@@ -16,7 +16,7 @@ use tap_aggregator::server;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on for JSON-RPC requests.
-    #[arg(long, default_value_t = 8000, env = "TAP_PORT")]
+    #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
     /// Gateway mnemonic to be used to sign Receipt Aggregate Vouchers.
