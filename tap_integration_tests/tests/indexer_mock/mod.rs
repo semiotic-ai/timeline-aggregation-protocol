@@ -96,7 +96,7 @@ impl<
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
             aggregator_client: (
-                HttpClientBuilder::default().build(aggregate_server_address.to_string())?,
+                HttpClientBuilder::default().build(aggregate_server_address)?,
                 aggregate_server_api_version,
             ),
         })
