@@ -35,7 +35,7 @@ jobs:
           key: ${{ runner.os }}-cargo-clippy
       - run: |
            rustup component add clippy
-           cargo clippy --all-features -- -D clippy::all
+           cargo clippy --all-targets --all-features -- -D warnings
   
   test-and-coverage:
     name: cargo test and coverage
