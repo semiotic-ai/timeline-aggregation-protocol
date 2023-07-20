@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.0...tap_aggregator-v0.1.1) (2023-07-20)
+
+
+### Features
+
+* **aggregator:** add basic logging ([117b2f2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/117b2f245f3d967cdc518c9435822a3f1fefdbd6)), closes [#145](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/145)
+* **aggregator:** add prometheus metrics ([054f5bb](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/054f5bb415ad44501ebb3afe8ea31492ed88a130))
+
+
+### Bug Fixes
+
+* **aggregator:** revert default port change ([2f76f95](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2f76f959e7576f32c4052dca94bf6e21a2f7f9eb))
+* **aggregator:** short args removed ([47c7183](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/47c7183d922198b84e09e669cf5a86ed4f3581e2))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 0.1.0 to 0.2.0
+
 ## 0.1.0 (2023-06-29)
 
 
