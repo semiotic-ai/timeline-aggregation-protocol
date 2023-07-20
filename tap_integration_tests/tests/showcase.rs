@@ -639,22 +639,24 @@ async fn test_manager_wrong_aggregator_keys(
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
-        let result = client_1.request("request", (id, receipt_1)).await;
+        let result: Result<(), jsonrpsee::core::Error> =
+            client_1.request("request", (id, receipt_1)).await;
         // The rav request is being made with messages that have been signed with a key that differs from the gateway aggregator's.
         // So the Gateway Aggregator should send an error to the requesting Indexer.
         // And so the Indexer should then return an error to the clinet when a rav request is made.
         // A rav request is made when the number of receipts sent = receipt_threshold_1.
         // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise.
         if (counter % receipt_threshold_1) == 0 {
-            match result {
-                Ok(()) => panic!("Gateway Aggregator should have sent an error to the Indexer."),
-                Err(_) => {}
-            }
+            assert!(
+                result.is_err(),
+                "Gateway Aggregator should have sent an error to the Indexer."
+            );
         } else {
-            match result {
-                Ok(()) => {}
-                Err(e) => panic!("Error making receipt request: {:?}", e),
-            }
+            assert!(
+                result.is_ok(),
+                "Error making receipt request: {:?}",
+                result.unwrap_err()
+            );
         }
         counter += 1;
     }
@@ -680,21 +682,20 @@ async fn test_manager_wrong_requestor_keys(
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
-        let result = client_1.request("request", (id, receipt_1)).await;
+        let result: Result<(), jsonrpsee::core::Error> =
+            client_1.request("request", (id, receipt_1)).await;
         // The receipts have been signed with a key that the Indexer is not expecting.
         // So the Indexer should return an error when a rav request is made, because they will not have any valid receipts for the request.
         // A rav request is made when the number of receipts sent = receipt_threshold_1.
         // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise.
         if (counter % receipt_threshold_1) == 0 {
-            match result {
-                Ok(()) => panic!("Should have failed signature verification"),
-                Err(_) => {}
-            }
+            assert!(result.is_err(), "Should have failed signature verification");
         } else {
-            match result {
-                Ok(()) => {}
-                Err(e) => panic!("Error making receipt request: {:?}", e),
-            }
+            assert!(
+                result.is_ok(),
+                "Error making receipt request: {:?}",
+                result.unwrap_err()
+            );
         }
         counter += 1;
     }
@@ -740,22 +741,21 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
-        let result = client_1.request("request", (id, receipt_1)).await;
+        let result: Result<(), jsonrpsee::core::Error> =
+            client_1.request("request", (id, receipt_1)).await;
 
         // The first receipt in the second batch has the same timestamp as the last receipt in the first batch.
         // TAP manager should ignore this receipt when creating the second RAV request.
         // The indexer_mock will throw an error if the number of receipts in RAV request is less than the expected number.
         // An error is expected when requesting the second RAV.
         if counter == 2 * receipt_threshold_1 {
-            match result {
-                Ok(()) => panic!("Should have failed RAV request"),
-                Err(_) => {}
-            }
+            assert!(result.is_err(), "Should have failed RAV request");
         } else {
-            match result {
-                Ok(()) => {}
-                Err(e) => panic!("Error making receipt request: {:?}", e),
-            }
+            assert!(
+                result.is_ok(),
+                "Error making receipt request: {:?}",
+                result.unwrap_err()
+            );
         }
         counter += 1;
     }
@@ -827,10 +827,10 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         jsonrpsee_helpers::JsonRpcResponse<SignedRAV>,
         jsonrpsee::core::Error,
     > = client.request("aggregate_receipts", params).await;
-    match second_rav_response {
-        Ok(_) => panic!("Should have failed RAV request"),
-        Err(_) => {}
-    }
+    assert!(
+        second_rav_response.is_err(),
+        "Should have failed RAV request"
+    );
 
     // This is the second part of the test, two batches of receipts are sent to the aggregator.
     // The second batch has one receipt with the timestamp = timestamp+1 of the latest receipt in the first batch.
