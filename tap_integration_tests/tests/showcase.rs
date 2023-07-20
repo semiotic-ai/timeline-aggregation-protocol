@@ -796,8 +796,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         http_max_concurrent_connections,
     )
     .await?;
-    let client =
-        HttpClientBuilder::default().build(format!("http://{}", gateway_addr.to_string()))?;
+    let client = HttpClientBuilder::default().build(format!("http://{}", gateway_addr))?;
 
     // This is the first part of the test, two batches of receipts are sent to the aggregator.
     // The second batch has one receipt with the same timestamp as the latest receipt in the first batch.

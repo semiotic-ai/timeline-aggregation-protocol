@@ -68,10 +68,7 @@ mod receipt_checks_adapter_unit_test {
             .await;
         let receipt_storage = Arc::new(RwLock::new(receipts));
 
-        let query_appraisals = (0..11)
-            .into_iter()
-            .map(|id| (id, 100u128))
-            .collect::<HashMap<_, _>>();
+        let query_appraisals = (0..11).map(|id| (id, 100u128)).collect::<HashMap<_, _>>();
 
         let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
 
