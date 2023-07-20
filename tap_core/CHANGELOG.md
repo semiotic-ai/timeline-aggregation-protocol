@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.1.0...tap_core-v0.2.0) (2023-07-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **tap_core:** Preserve adapter error type using anyhow ([#133](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/133))
+* **receipt_storage_adapter:** all functions unnecessary to the TAP manager have been removed from the `ReceiptStorageAdapter` trait.
+* **rav_storage_adapter:** the RavStorageAdapter public trait has changed
+
+### Features
+
+* **manager:** add receipts_auto_delete ([#130](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/130)) ([37bc8e1](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/37bc8e1212fb525e15be465bdc0dba4e5349c025))
+* **receipt_storage_adapter:** Use RangeBounds ([663a8ba](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/663a8ba7f0afb74cc17e4eb58802282771cb0bca))
+* **tap_core:** Preserve adapter error type using anyhow ([#133](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/133)) ([77abbd8](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/77abbd82d5e0c75cd04b1bce55360a312f036bac))
+
+
+### Bug Fixes
+
+* **tap_manager:** receipt auditor min_timestamp set incorrectly ([743ac7c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/743ac7cd252a3723ad01fbd4a1b54cbaf68267af))
+
+
+### Code Refactoring
+
+* **rav_storage_adapter:** simplify trait ([6af9471](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/6af9471bea8aeafd415b4f3e7b92a1eb6bec135b))
+* **receipt_storage_adapter:** prune trait ([caef197](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/caef197261f16187402f69091ffea843e6aef970))
+
 ## 0.1.0 (2023-06-29)
 
 
