@@ -8,7 +8,7 @@ use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder};
 use tokio::signal::unix::{signal, SignalKind};
 
-use log::{debug, info, warn};
+use log::{debug, info};
 use tap_aggregator::metrics;
 use tap_aggregator::server;
 

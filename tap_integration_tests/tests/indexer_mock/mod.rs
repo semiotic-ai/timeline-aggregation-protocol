@@ -96,7 +96,7 @@ impl<
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
             aggregator_client: (
-                HttpClientBuilder::default().build(format!("{}", aggregate_server_address))?,
+                HttpClientBuilder::default().build(aggregate_server_address)?,
                 aggregate_server_api_version,
             ),
         })
@@ -234,8 +234,7 @@ async fn request_rav<
         .await?;
     {
         let mut manager_guard = manager.lock().await;
-        let _result =
-            manager_guard.verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)?;
+        manager_guard.verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)?;
     }
 
     // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
@@ -259,5 +258,5 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
 }
 
 fn to_rpc_error(e: Box<dyn std::error::Error>, msg: &str) -> jsonrpsee::types::ErrorObjectOwned {
-    jsonrpsee::types::ErrorObject::owned(-32000, format!("{} - {}", e.to_string(), msg), None::<()>)
+    jsonrpsee::types::ErrorObject::owned(-32000, format!("{} - {}", e, msg), None::<()>)
 }

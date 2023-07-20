@@ -149,7 +149,7 @@ mod tests {
                 .await
                 .unwrap();
         receipts.push(receipt.clone());
-        receipts.push(receipt.clone());
+        receipts.push(receipt);
 
         let res = aggregator::check_signatures_unique(&receipts);
         assert!(res.is_err());

@@ -1,0 +1,2 @@
+# Since this whole crate is only for testing, we relax some of the clippy rules
+too-many-arguments-threshold = 15
