@@ -30,8 +30,9 @@ async fn handler_404() -> impl IntoResponse {
 }
 
 async fn _run_server(port: u16) {
-    let app = Router::new().route("/metrics", get(handler_metrics));
-    let app = app.fallback(handler_404);
+    let app = Router::new()
+        .route("/metrics", get(handler_metrics))
+        .fallback(handler_404);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let server = Server::bind(&addr).serve(app.into_make_service());
 
