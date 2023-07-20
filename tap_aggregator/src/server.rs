@@ -10,6 +10,8 @@ use jsonrpsee::{
     server::ServerBuilder,
     {core::async_trait, server::ServerHandle},
 };
+use lazy_static::lazy_static;
+use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
 
 use crate::aggregator::check_and_aggregate_receipts;
 use crate::api_versioning::{
@@ -22,6 +24,51 @@ use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
+
+// Register the metrics into the global metrics registry.
+lazy_static! {
+    static ref AGGREGATION_SUCCESS_COUNTER: IntCounter = register_int_counter!(
+        "aggregation_success_count",
+        "Number of successful receipt aggregation requests."
+    )
+    .unwrap();
+}
+lazy_static! {
+    static ref AGGREGATION_FAILURE_COUNTER: IntCounter = register_int_counter!(
+        "aggregation_failure_count",
+        "Number of failed receipt aggregation requests (for any reason)."
+    )
+    .unwrap();
+}
+lazy_static! {
+    static ref DEPRECATION_WARNING_COUNT: IntCounter = register_int_counter!(
+        "deprecation_warning_count",
+        "Number of deprecation warnings sent to clients."
+    )
+    .unwrap();
+}
+lazy_static! {
+    static ref VERSION_ERROR_COUNT: IntCounter = register_int_counter!(
+        "version_error_count",
+        "Number of API version errors sent to clients."
+    )
+    .unwrap();
+}
+lazy_static! {
+    static ref TOTAL_AGGREGATED_RECEIPTS: IntCounter = register_int_counter!(
+        "total_aggregated_receipts",
+        "Total number of receipts successfully aggregated."
+    )
+    .unwrap();
+}
+// Using float for the GRT value because it can somewhat easily exceed the maximum value of int64.
+lazy_static! {
+    static ref TOTAL_GRT_AGGREGATED: Counter = register_counter!(
+        "total_aggregated_grt",
+        "Total successfully aggregated GRT value (wei)."
+    )
+    .unwrap();
+}
 
 /// Generates the `RpcServer` trait that is used to define the JSON-RPC API.
 ///
@@ -80,6 +127,45 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
     }
 }
 
+async fn aggregate_receipts_(
+    api_version: String,
+    wallet: &LocalWallet,
+    receipts: Vec<EIP712SignedMessage<Receipt>>,
+    previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+    // Return an error if the API version is not supported.
+    let api_version = match parse_api_version(api_version.as_str()) {
+        Ok(v) => v,
+        Err(e) => {
+            VERSION_ERROR_COUNT.inc();
+            return Err(e);
+        }
+    };
+
+    // Add a warning if the API version is to be deprecated.
+    let mut warnings: Vec<JsonRpcWarning> = Vec::new();
+    if let Some(w) = check_api_version_deprecation(&api_version) {
+        warnings.push(w);
+        DEPRECATION_WARNING_COUNT.inc();
+    }
+
+    let res = match api_version {
+        TapRpcApiVersion::V0_0 => {
+            check_and_aggregate_receipts(&receipts, previous_rav, wallet).await
+        }
+    };
+
+    // Handle aggregation error
+    match res {
+        Ok(res) => Ok(JsonRpcResponse::warn(res, warnings)),
+        Err(e) => Err(jsonrpsee::types::ErrorObject::owned(
+            JsonRpcErrorCode::Aggregation as i32,
+            e.to_string(),
+            None::<()>,
+        )),
+    }
+}
+
 #[async_trait]
 impl RpcServer for RpcImpl {
     async fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
@@ -92,29 +178,21 @@ impl RpcServer for RpcImpl {
         receipts: Vec<EIP712SignedMessage<Receipt>>,
         previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
-        // Return an error if the API version is not supported.
-        let api_version = parse_api_version(api_version.as_str())?;
+        // Values for Prometheus metrics
+        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_count: u64 = receipts.len() as u64;
 
-        // Add a warning if the API version is to be deprecated.
-        let mut warnings: Vec<JsonRpcWarning> = Vec::new();
-        if let Some(w) = check_api_version_deprecation(&api_version) {
-            warnings.push(w);
-        }
-
-        let res = match api_version {
-            TapRpcApiVersion::V0_0 => {
-                check_and_aggregate_receipts(&receipts, previous_rav, &self.wallet).await
+        match aggregate_receipts_(api_version, &self.wallet, receipts, previous_rav).await {
+            Ok(res) => {
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
+                AGGREGATION_SUCCESS_COUNTER.inc();
+                Ok(res)
             }
-        };
-
-        // Handle aggregation error
-        match res {
-            Ok(res) => Ok(JsonRpcResponse::warn(res, warnings)),
-            Err(e) => Err(jsonrpsee::types::ErrorObject::owned(
-                JsonRpcErrorCode::Aggregation as i32,
-                e.to_string(),
-                None::<()>,
-            )),
+            Err(e) => {
+                AGGREGATION_FAILURE_COUNTER.inc();
+                Err(e)
+            }
         }
     }
 }
