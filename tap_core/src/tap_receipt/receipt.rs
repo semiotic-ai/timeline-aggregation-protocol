@@ -35,7 +35,7 @@ pub struct Receipt {
 }
 
 impl Receipt {
-    /// Returns a receipt with provided values signed with `signing_key`
+    /// Returns a receipt with provided values
     pub fn new(allocation_id: Address, value: u128) -> crate::Result<Self> {
         let timestamp_ns = crate::get_current_timestamp_u64_ns()?;
         let nonce = thread_rng().gen::<u64>();
