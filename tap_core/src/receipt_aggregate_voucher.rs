@@ -38,7 +38,7 @@ pub struct ReceiptAggregateVoucher {
 }
 
 impl ReceiptAggregateVoucher {
-    /// Aggregates a batch of validated receipts with optional validated previous RAV, returning a new signed RAV if all provided items are valid or an error if not.
+    /// Aggregates a batch of validated receipts with optional validated previous RAV, returning a new RAV if all provided items are valid or an error if not.
     ///
     /// # Errors
     ///
