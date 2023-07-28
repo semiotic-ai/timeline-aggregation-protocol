@@ -13,6 +13,7 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
+use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
 use super::{
@@ -26,7 +27,7 @@ use crate::{
     Error, Result,
 };
 
-#[derive(Eq, PartialEq, Debug, Clone, EnumString, Display)]
+#[derive(Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
 /// State of the contained receipt
 pub enum ReceiptState {
     /// Initial state, received with no checks started
@@ -45,7 +46,7 @@ pub enum ReceiptState {
     Complete,
 }
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 
 /// Status of receipt relating to RAV inclusion
 pub enum RAVStatus {
@@ -57,7 +58,7 @@ pub enum RAVStatus {
     IncludedInReceived,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Wrapper class for metadata and state of a received receipt
 pub struct ReceivedReceipt {
     /// An EIP712 signed receipt message
