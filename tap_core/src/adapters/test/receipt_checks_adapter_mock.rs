@@ -3,10 +3,12 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
+use async_trait::async_trait;
 use ethereum_types::Address;
+use tokio::sync::RwLock;
 
 use crate::{
     adapters::receipt_checks_adapter::ReceiptChecksAdapter,
@@ -37,9 +39,10 @@ impl ReceiptChecksAdapterMock {
     }
 }
 
+#[async_trait]
 impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
-    fn is_unique(&self, receipt: &EIP712SignedMessage<Receipt>, receipt_id: u64) -> bool {
-        let receipt_storage = self.receipt_storage.read().unwrap();
+    async fn is_unique(&self, receipt: &EIP712SignedMessage<Receipt>, receipt_id: u64) -> bool {
+        let receipt_storage = self.receipt_storage.read().await;
         receipt_storage
             .iter()
             .all(|(stored_receipt_id, stored_receipt)| {
@@ -48,13 +51,13 @@ impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
             })
     }
 
-    fn is_valid_allocation_id(&self, allocation_id: Address) -> bool {
-        let allocation_ids = self.allocation_ids.read().unwrap();
+    async fn is_valid_allocation_id(&self, allocation_id: Address) -> bool {
+        let allocation_ids = self.allocation_ids.read().await;
         allocation_ids.contains(&allocation_id)
     }
 
-    fn is_valid_value(&self, value: u128, query_id: u64) -> bool {
-        let query_appraisals = self.query_appraisals.read().unwrap();
+    async fn is_valid_value(&self, value: u128, query_id: u64) -> bool {
+        let query_appraisals = self.query_appraisals.read().await;
         let appraised_value = query_appraisals.get(&query_id).unwrap();
 
         if value != *appraised_value {
@@ -63,8 +66,8 @@ impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
         true
     }
 
-    fn is_valid_gateway_id(&self, gateway_id: Address) -> bool {
-        let gateway_ids = self.gateway_ids.read().unwrap();
+    async fn is_valid_gateway_id(&self, gateway_id: Address) -> bool {
+        let gateway_ids = self.gateway_ids.read().await;
         gateway_ids.contains(&gateway_id)
     }
 }

@@ -64,6 +64,7 @@ mod tap_tests {
     #[rstest]
     #[case::basic_rav_test (vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
+    #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -90,6 +91,7 @@ mod tap_tests {
     #[rstest]
     #[case::basic_rav_test(vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
+    #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -127,6 +129,7 @@ mod tap_tests {
     }
 
     #[rstest]
+    #[tokio::test]
     async fn verify_signature(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
         let signed_message =
             EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)

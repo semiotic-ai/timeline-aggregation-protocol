@@ -73,8 +73,8 @@ impl<
     ///
     /// Returns [`Error::InvalidCheckError`] if check in `initial_checks` is not in `required_checks` provided when manager was created
     ///
-    pub fn verify_and_store_receipt(
-        &mut self,
+    pub async fn verify_and_store_receipt(
+        &self,
         signed_receipt: SignedReceipt,
         query_id: u64,
         initial_checks: Vec<ReceiptCheck>,
@@ -88,18 +88,18 @@ impl<
         let receipt_id = self
             .receipt_storage_adapter
             .store_receipt(received_receipt.clone())
+            .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
 
-        received_receipt.perform_checks(
-            initial_checks.as_slice(),
-            receipt_id,
-            &mut self.receipt_auditor,
-        )?;
+        received_receipt
+            .perform_checks(initial_checks.as_slice(), receipt_id, &self.receipt_auditor)
+            .await?;
 
         self.receipt_storage_adapter
             .update_receipt_by_id(receipt_id, received_receipt)
+            .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
@@ -112,12 +112,14 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub fn verify_and_store_rav(
-        &mut self,
+    pub async fn verify_and_store_rav(
+        &self,
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
     ) -> std::result::Result<(), Error> {
-        self.receipt_auditor.check_rav_signature(&signed_rav)?;
+        self.receipt_auditor
+            .check_rav_signature(&signed_rav)
+            .await?;
 
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRAV {
@@ -128,6 +130,7 @@ impl<
 
         self.rav_storage_adapter
             .update_last_rav(signed_rav)
+            .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
@@ -144,11 +147,12 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
     ///
-    pub fn remove_obsolete_receipts(&mut self) -> Result<(), Error> {
-        match self.get_previous_rav()? {
+    pub async fn remove_obsolete_receipts(&mut self) -> Result<(), Error> {
+        match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.receipt_storage_adapter
                     .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp_ns)
+                    .await
                     .map_err(|err| Error::AdapterError {
                         source_error: anyhow::Error::new(err),
                     })?;
@@ -168,20 +172,22 @@ impl<
     ///
     /// Returns [`Error::TimestampRangeError`] if the max timestamp of the previous RAV is greater than the min timestamp. Caused by timestamp buffer being too large, or requests coming too soon.
     ///
-    pub fn create_rav_request(&mut self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
-        let previous_rav = self.get_previous_rav()?;
+    pub async fn create_rav_request(&self, timestamp_buffer_ns: u64) -> Result<RAVRequest, Error> {
+        let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
             .map(|rav| rav.message.timestamp_ns + 1)
             .unwrap_or(0);
 
-        let (valid_receipts, invalid_receipts) =
-            self.collect_receipts(timestamp_buffer_ns, min_timestamp_ns)?;
+        let (valid_receipts, invalid_receipts) = self
+            .collect_receipts(timestamp_buffer_ns, min_timestamp_ns)
+            .await?;
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
         self.receipt_auditor
-            .update_min_timestamp_ns(expected_rav.timestamp_ns);
+            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .await;
 
         Ok(RAVRequest {
             valid_receipts,
@@ -191,18 +197,19 @@ impl<
         })
     }
 
-    fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
+    async fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
         let previous_rav =
             self.rav_storage_adapter
                 .last_rav()
+                .await
                 .map_err(|err| Error::AdapterError {
                     source_error: anyhow::Error::new(err),
                 })?;
         Ok(previous_rav)
     }
 
-    fn collect_receipts(
-        &mut self,
+    async fn collect_receipts(
+        &self,
         timestamp_buffer_ns: u64,
         min_timestamp_ns: u64,
     ) -> Result<(Vec<SignedReceipt>, Vec<SignedReceipt>), Error> {
@@ -217,6 +224,7 @@ impl<
         let received_receipts = self
             .receipt_storage_adapter
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns)
+            .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
@@ -225,7 +233,9 @@ impl<
         let mut failed_signed_receipts = Vec::<SignedReceipt>::new();
 
         for (receipt_id, mut received_receipt) in received_receipts {
-            received_receipt.finalize_receipt_checks(receipt_id, &mut self.receipt_auditor)?;
+            received_receipt
+                .finalize_receipt_checks(receipt_id, &self.receipt_auditor)
+                .await?;
             if received_receipt.is_accepted() {
                 accepted_signed_receipts.push(received_receipt.signed_receipt);
             } else {

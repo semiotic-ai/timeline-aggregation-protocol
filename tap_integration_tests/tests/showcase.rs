@@ -10,7 +10,7 @@ use std::{
     iter::FromIterator,
     net::{SocketAddr, TcpListener},
     str::FromStr,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 use anyhow::{Error, Result};
@@ -23,6 +23,7 @@ use jsonrpsee::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
+use tokio::sync::RwLock;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
@@ -911,7 +912,9 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    collateral_adapter.increase_collateral(gateway_id, available_collateral);
+    collateral_adapter
+        .increase_collateral(gateway_id, available_collateral)
+        .await;
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(

@@ -6,12 +6,13 @@ mod manager_unit_test {
     use std::{
         collections::{HashMap, HashSet},
         str::FromStr,
-        sync::{Arc, RwLock},
+        sync::Arc,
     };
 
     use ethereum_types::Address;
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use super::super::Manager;
     use crate::{
@@ -103,6 +104,7 @@ mod manager_unit_test {
     #[case::full_checks(get_full_list_of_checks())]
     #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
         rav_storage_adapter: RAVStorageAdapterMock,
         collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
@@ -121,7 +123,7 @@ mod manager_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-        let mut manager = Manager::new(
+        let manager = Manager::new(
             collateral_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -138,12 +140,13 @@ mod manager_unit_test {
                 .unwrap();
         query_appraisal_storage
             .write()
-            .unwrap()
+            .await
             .insert(query_id, value);
-        collateral_storage.write().unwrap().insert(keys.1, 999999);
+        collateral_storage.write().await.insert(keys.1, 999999);
 
         assert!(manager
             .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .await
             .is_ok());
     }
 
@@ -151,6 +154,7 @@ mod manager_unit_test {
     #[case::full_checks(get_full_list_of_checks())]
     #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    #[tokio::test]
     async fn manager_create_rav_request_all_valid_receipts(
         rav_storage_adapter: RAVStorageAdapterMock,
         collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
@@ -169,7 +173,7 @@ mod manager_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-        let mut manager = Manager::new(
+        let manager = Manager::new(
             collateral_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -177,7 +181,7 @@ mod manager_unit_test {
             get_full_list_of_checks(),
             starting_min_timestamp,
         );
-        collateral_storage.write().unwrap().insert(keys.1, 999999);
+        collateral_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         for query_id in 0..10 {
@@ -189,13 +193,14 @@ mod manager_unit_test {
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
-                .unwrap()
+                .await
                 .insert(query_id, value);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .await
                 .is_ok());
         }
-        let rav_request_result = manager.create_rav_request(0);
+        let rav_request_result = manager.create_rav_request(0).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -212,6 +217,7 @@ mod manager_unit_test {
             .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+            .await
             .is_ok());
     }
 
@@ -219,6 +225,7 @@ mod manager_unit_test {
     #[case::full_checks(get_full_list_of_checks())]
     #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts(
         rav_storage_adapter: RAVStorageAdapterMock,
         collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
@@ -237,7 +244,7 @@ mod manager_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-        let mut manager = Manager::new(
+        let manager = Manager::new(
             collateral_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -246,7 +253,7 @@ mod manager_unit_test {
             starting_min_timestamp,
         );
 
-        collateral_storage.write().unwrap().insert(keys.1, 999999);
+        collateral_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         let mut expected_accumulated_value = 0;
@@ -259,14 +266,15 @@ mod manager_unit_test {
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
-                .unwrap()
+                .await
                 .insert(query_id, value);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .await
                 .is_ok());
             expected_accumulated_value += value;
         }
-        let rav_request_result = manager.create_rav_request(0);
+        let rav_request_result = manager.create_rav_request(0).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -290,6 +298,7 @@ mod manager_unit_test {
             .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+            .await
             .is_ok());
 
         stored_signed_receipts.clear();
@@ -302,14 +311,15 @@ mod manager_unit_test {
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
-                .unwrap()
+                .await
                 .insert(query_id, value);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .await
                 .is_ok());
             expected_accumulated_value += value;
         }
-        let rav_request_result = manager.create_rav_request(0);
+        let rav_request_result = manager.create_rav_request(0).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -333,10 +343,12 @@ mod manager_unit_test {
             .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+            .await
             .is_ok());
     }
 
     #[rstest]
+    #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
         rav_storage_adapter: RAVStorageAdapterMock,
         collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
@@ -366,7 +378,7 @@ mod manager_unit_test {
             starting_min_timestamp,
         );
 
-        collateral_storage.write().unwrap().insert(keys.1, 999999);
+        collateral_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         let mut expected_accumulated_value = 0;
@@ -378,10 +390,11 @@ mod manager_unit_test {
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
-                .unwrap()
+                .await
                 .insert(query_id, value);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .await
                 .is_ok());
             expected_accumulated_value += value;
         }
@@ -389,10 +402,10 @@ mod manager_unit_test {
         // Remove old receipts if requested
         // This shouldn't do anything since there has been no rav created yet
         if remove_old_receipts {
-            manager.remove_obsolete_receipts().unwrap();
+            manager.remove_obsolete_receipts().await.unwrap();
         }
 
-        let rav_request_1_result = manager.create_rav_request(0);
+        let rav_request_1_result = manager.create_rav_request(0).await;
         assert!(rav_request_1_result.is_ok());
 
         let rav_request_1 = rav_request_1_result.unwrap();
@@ -416,6 +429,7 @@ mod manager_unit_test {
             .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
+            .await
             .is_ok());
 
         stored_signed_receipts.clear();
@@ -427,29 +441,31 @@ mod manager_unit_test {
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
-                .unwrap()
+                .await
                 .insert(query_id, value);
             assert!(manager
                 .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .await
                 .is_ok());
             expected_accumulated_value += value;
         }
 
         // Remove old receipts if requested
         if remove_old_receipts {
-            manager.remove_obsolete_receipts().unwrap();
+            manager.remove_obsolete_receipts().await.unwrap();
             // We expect to have 10 receipts left in receipt storage
             assert_eq!(
                 manager
                     .receipt_storage_adapter
                     .retrieve_receipts_in_timestamp_range(..)
+                    .await
                     .unwrap()
                     .len(),
                 10
             );
         }
 
-        let rav_request_2_result = manager.create_rav_request(0);
+        let rav_request_2_result = manager.create_rav_request(0).await;
         assert!(rav_request_2_result.is_ok());
 
         let rav_request_2 = rav_request_2_result.unwrap();
@@ -473,6 +489,7 @@ mod manager_unit_test {
             .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
+            .await
             .is_ok());
     }
 }

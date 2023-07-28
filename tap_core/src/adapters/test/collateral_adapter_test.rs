@@ -3,20 +3,19 @@
 
 #[cfg(test)]
 mod collateral_adapter_unit_test {
-    use std::{
-        collections::HashMap,
-        sync::{Arc, RwLock},
-    };
+    use std::{collections::HashMap, sync::Arc};
 
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use crate::adapters::{
         collateral_adapter::CollateralAdapter, collateral_adapter_mock::CollateralAdapterMock,
     };
 
     #[rstest]
-    fn collateral_adapter_test() {
+    #[tokio::test]
+    async fn collateral_adapter_test() {
         let collateral_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut collateral_adapter = CollateralAdapterMock::new(collateral_storage);
 
@@ -36,15 +35,19 @@ mod collateral_adapter_unit_test {
 
         let initial_value = 500u128;
 
-        collateral_adapter.increase_collateral(gateway_id, initial_value);
+        collateral_adapter
+            .increase_collateral(gateway_id, initial_value)
+            .await;
 
         // Check that gateway exists and has valid value through adapter
         assert!(collateral_adapter
             .get_available_collateral(gateway_id)
+            .await
             .is_ok());
         assert_eq!(
             collateral_adapter
                 .get_available_collateral(gateway_id)
+                .await
                 .unwrap(),
             initial_value
         );
@@ -52,13 +55,16 @@ mod collateral_adapter_unit_test {
         // Check that subtracting is valid for valid gateway, and results in expected value
         assert!(collateral_adapter
             .subtract_collateral(gateway_id, initial_value)
+            .await
             .is_ok());
         assert!(collateral_adapter
             .get_available_collateral(gateway_id)
+            .await
             .is_ok());
         assert_eq!(
             collateral_adapter
                 .get_available_collateral(gateway_id)
+                .await
                 .unwrap(),
             0
         );
@@ -66,11 +72,13 @@ mod collateral_adapter_unit_test {
         // Check that subtracting to negative collateral results in err
         assert!(collateral_adapter
             .subtract_collateral(gateway_id, initial_value)
+            .await
             .is_err());
 
         // Check that accessing non initialized gateway results in err
         assert!(collateral_adapter
             .get_available_collateral(invalid_gateway_id)
+            .await
             .is_err());
     }
 }

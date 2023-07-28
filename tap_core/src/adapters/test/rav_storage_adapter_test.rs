@@ -3,15 +3,13 @@
 
 #[cfg(test)]
 mod rav_storage_adapter_unit_test {
-    use std::{
-        str::FromStr,
-        sync::{Arc, RwLock},
-    };
+    use std::{str::FromStr, sync::Arc};
 
     use ethereum_types::Address;
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use crate::adapters::{
         rav_storage_adapter::RAVStorageAdapter, rav_storage_adapter_mock::RAVStorageAdapterMock,
@@ -22,9 +20,10 @@ mod rav_storage_adapter_unit_test {
     };
 
     #[rstest]
+    #[tokio::test]
     async fn rav_storage_adapter_test() {
         let rav_storage = Arc::new(RwLock::new(None));
-        let mut rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
+        let rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -53,10 +52,11 @@ mod rav_storage_adapter_unit_test {
 
         rav_storage_adapter
             .update_last_rav(signed_rav.clone())
+            .await
             .unwrap();
 
         // Retreive rav
-        let retrieved_rav = rav_storage_adapter.last_rav();
+        let retrieved_rav = rav_storage_adapter.last_rav().await;
         assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 
         // Testing the last rav update...
@@ -81,10 +81,11 @@ mod rav_storage_adapter_unit_test {
         // Update the last rav
         rav_storage_adapter
             .update_last_rav(signed_rav.clone())
+            .await
             .unwrap();
 
         // Retreive rav
-        let retrieved_rav = rav_storage_adapter.last_rav();
+        let retrieved_rav = rav_storage_adapter.last_rav().await;
         assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
     }
 }

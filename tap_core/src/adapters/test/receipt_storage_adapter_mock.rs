@@ -1,11 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    ops::RangeBounds,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, ops::RangeBounds, sync::Arc};
+
+use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 use crate::{
     adapters::receipt_storage_adapter::ReceiptStorageAdapter, tap_receipt::ReceivedReceipt,
@@ -13,26 +12,21 @@ use crate::{
 
 pub struct ReceiptStorageAdapterMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-    unique_id: u64,
+    unique_id: RwLock<u64>,
 }
 
 impl ReceiptStorageAdapterMock {
     pub fn new(receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>) -> Self {
         Self {
             receipt_storage,
-            unique_id: 0u64,
+            unique_id: RwLock::new(0u64),
         }
     }
-    pub fn retrieve_receipt_by_id(
+    pub async fn retrieve_receipt_by_id(
         &self,
         receipt_id: u64,
     ) -> Result<ReceivedReceipt, AdapterErrorMock> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| AdapterErrorMock::AdapterError {
-                    error: e.to_string(),
-                })?;
+        let receipt_storage = self.receipt_storage.read().await;
 
         receipt_storage
             .get(&receipt_id)
@@ -41,16 +35,11 @@ impl ReceiptStorageAdapterMock {
                 error: "No receipt found with ID".to_owned(),
             })
     }
-    pub fn retrieve_receipts_by_timestamp(
+    pub async fn retrieve_receipts_by_timestamp(
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| AdapterErrorMock::AdapterError {
-                    error: e.to_string(),
-                })?;
+        let receipt_storage = self.receipt_storage.read().await;
         Ok(receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
@@ -59,19 +48,15 @@ impl ReceiptStorageAdapterMock {
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect())
     }
-    pub fn retrieve_receipts_upto_timestamp(
+    pub async fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns)
+            .await
     }
-    pub fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
-        let mut receipt_storage =
-            self.receipt_storage
-                .write()
-                .map_err(|e| AdapterErrorMock::AdapterError {
-                    error: e.to_string(),
-                })?;
+    pub async fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
+        let mut receipt_storage = self.receipt_storage.write().await;
         receipt_storage
             .remove(&receipt_id)
             .map(|_| ())
@@ -79,9 +64,12 @@ impl ReceiptStorageAdapterMock {
                 error: "No receipt found with ID".to_owned(),
             })
     }
-    pub fn remove_receipts_by_ids(&mut self, receipt_ids: &[u64]) -> Result<(), AdapterErrorMock> {
+    pub async fn remove_receipts_by_ids(
+        &mut self,
+        receipt_ids: &[u64],
+    ) -> Result<(), AdapterErrorMock> {
         for receipt_id in receipt_ids {
-            self.remove_receipt_by_id(*receipt_id)?;
+            self.remove_receipt_by_id(*receipt_id).await?;
         }
         Ok(())
     }
@@ -94,30 +82,22 @@ pub enum AdapterErrorMock {
     AdapterError { error: String },
 }
 
+#[async_trait]
 impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
     type AdapterError = AdapterErrorMock;
-    fn store_receipt(&mut self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
-        let id = self.unique_id;
-        let mut receipt_storage =
-            self.receipt_storage
-                .write()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
-        receipt_storage.insert(id, receipt);
-        self.unique_id += 1;
-        Ok(id)
+    async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
+        let mut id_pointer = self.unique_id.write().await;
+        let id_previous = *id_pointer;
+        let mut receipt_storage = self.receipt_storage.write().await;
+        receipt_storage.insert(*id_pointer, receipt);
+        *id_pointer += 1;
+        Ok(id_previous)
     }
-    fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64>>(
+    async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_range_ns: R,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
-        let receipt_storage =
-            self.receipt_storage
-                .read()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
+        let receipt_storage = self.receipt_storage.read().await;
         Ok(receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
@@ -126,17 +106,12 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect())
     }
-    fn update_receipt_by_id(
-        &mut self,
+    async fn update_receipt_by_id(
+        &self,
         receipt_id: u64,
         receipt: ReceivedReceipt,
     ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage =
-            self.receipt_storage
-                .write()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
+        let mut receipt_storage = self.receipt_storage.write().await;
 
         if !receipt_storage.contains_key(&receipt_id) {
             return Err(AdapterErrorMock::AdapterError {
@@ -145,19 +120,14 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
         };
 
         receipt_storage.insert(receipt_id, receipt);
-        self.unique_id += 1;
+        *self.unique_id.write().await += 1;
         Ok(())
     }
-    fn remove_receipts_in_timestamp_range<R: RangeBounds<u64>>(
-        &mut self,
+    async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
+        &self,
         timestamp_ns: R,
     ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage =
-            self.receipt_storage
-                .write()
-                .map_err(|e| Self::AdapterError::AdapterError {
-                    error: e.to_string(),
-                })?;
+        let mut receipt_storage = self.receipt_storage.write().await;
         receipt_storage.retain(|_, rx_receipt| {
             !timestamp_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
         });

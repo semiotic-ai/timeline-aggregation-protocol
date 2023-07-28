@@ -16,7 +16,6 @@ use jsonrpsee::{
     rpc_params,
     server::{ServerBuilder, ServerHandle},
 };
-use tokio::sync::Mutex;
 
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
@@ -44,18 +43,18 @@ pub trait Rpc {
 
 /// RpcManager is a struct that implements the `Rpc` trait and it represents a JSON-RPC server manager.
 /// It includes a manager, initial_checks, receipt_count, threshold and aggregator_client.
-/// Manager holds a Mutex-protected instance of a generic `Manager` object which is shared and can be accessed by multiple threads.
+/// Manager holds an Arc to an instance of a generic `Manager` object which is shared and can be accessed by multiple threads.
 /// initial_checks is a list of checks that needs to be performed for every incoming request.
 /// receipt_count is a thread-safe counter that increments with each receipt verified and stored.
 /// threshold is a limit to which receipt_count can increment, after reaching which RAV request is triggered.
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<
-    CA: CollateralAdapter + Send + 'static, // An instance of CollateralAdapter, marked as thread-safe with Send and given 'static lifetime
-    RCA: ReceiptChecksAdapter + Send + 'static, // An instance of ReceiptChecksAdapter
-    RSA: ReceiptStorageAdapter + Send + 'static, // An instance of ReceiptStorageAdapter
-    RAVSA: RAVStorageAdapter + Send + 'static, // An instance of RAVStorageAdapter
+    CA: CollateralAdapter + Send + Sync + 'static, // An instance of CollateralAdapter, marked as thread-safe with Send and given 'static lifetime
+    RCA: ReceiptChecksAdapter + Send + Sync + 'static, // An instance of ReceiptChecksAdapter
+    RSA: ReceiptStorageAdapter + Send + Sync + 'static, // An instance of ReceiptStorageAdapter
+    RAVSA: RAVStorageAdapter + Send + Sync + 'static, // An instance of RAVStorageAdapter
 > {
-    manager: Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Manager object in a mutex for thread safety, reference counted with an Arc
+    manager: Arc<Manager<CA, RCA, RSA, RAVSA>>, // Manager object reference counted with an Arc
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     receipt_count: Arc<AtomicU64>,     // Thread-safe atomic counter for receipts
     threshold: u64,                    // The count at which a RAV request will be triggered
@@ -66,10 +65,10 @@ pub struct RpcManager<
 /// Constructor initializes a new instance of `RpcManager`.
 /// `request` method handles incoming JSON-RPC requests and it verifies and stores the receipt from the request.
 impl<
-        CA: CollateralAdapter + Send + 'static,
-        RCA: ReceiptChecksAdapter + Send + 'static,
-        RSA: ReceiptStorageAdapter + Send + 'static,
-        RAVSA: RAVStorageAdapter + Send + 'static,
+        CA: CollateralAdapter + Send + Sync + 'static,
+        RCA: ReceiptChecksAdapter + Send + Sync + 'static,
+        RSA: ReceiptStorageAdapter + Send + Sync + 'static,
+        RAVSA: RAVStorageAdapter + Send + Sync + 'static,
     > RpcManager<CA, RCA, RSA, RAVSA>
 {
     pub fn new(
@@ -84,14 +83,14 @@ impl<
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Mutex::new(Manager::<CA, RCA, RSA, RAVSA>::new(
+            manager: Arc::new(Manager::<CA, RCA, RSA, RAVSA>::new(
                 collateral_adapter,
                 receipt_checks_adapter,
                 rav_storage_adapter,
                 receipt_storage_adapter,
                 required_checks,
                 get_current_timestamp_u64_ns()?,
-            ))),
+            )),
             initial_checks,
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
@@ -105,10 +104,10 @@ impl<
 
 #[async_trait]
 impl<
-        CA: CollateralAdapter + Send + 'static,
-        RCA: ReceiptChecksAdapter + Send + 'static,
-        RSA: ReceiptStorageAdapter + Send + 'static,
-        RAVSA: RAVStorageAdapter + Send + 'static,
+        CA: CollateralAdapter + Send + Sync + 'static,
+        RCA: ReceiptChecksAdapter + Send + Sync + 'static,
+        RSA: ReceiptStorageAdapter + Send + Sync + 'static,
+        RAVSA: RAVStorageAdapter + Send + Sync + 'static,
     > RpcServer for RpcManager<CA, RCA, RSA, RAVSA>
 {
     async fn request(
@@ -116,21 +115,17 @@ impl<
         request_id: u64,
         receipt: SignedReceipt,
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
-        let verify_result;
+        let verify_result = match self
+            .manager
+            .verify_and_store_receipt(receipt, request_id, self.initial_checks.clone())
+            .await
         {
-            let mut manager_guard = self.manager.lock().await;
-            verify_result = match manager_guard.verify_and_store_receipt(
-                receipt,
-                request_id,
-                self.initial_checks.clone(),
-            ) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(to_rpc_error(
-                    Box::new(e),
-                    "Failed to verify and store receipt",
-                )),
-            };
-        }
+            Ok(_) => Ok(()),
+            Err(e) => Err(to_rpc_error(
+                Box::new(e),
+                "Failed to verify and store receipt",
+            )),
+        };
 
         // Increment the receipt count
         self.receipt_count.fetch_add(1, Ordering::Relaxed);
@@ -165,10 +160,10 @@ impl<
 
 /// run_server function initializes and starts a JSON-RPC server that handles incoming requests.
 pub async fn run_server<
-    CA: CollateralAdapter + Send + 'static,
-    RCA: ReceiptChecksAdapter + Send + 'static,
-    RSA: ReceiptStorageAdapter + Send + 'static,
-    RAVSA: RAVStorageAdapter + Send + 'static,
+    CA: CollateralAdapter + Send + Sync + 'static,
+    RCA: ReceiptChecksAdapter + Send + Sync + 'static,
+    RSA: ReceiptStorageAdapter + Send + Sync + 'static,
+    RAVSA: RAVStorageAdapter + Send + Sync + 'static,
 >(
     port: u16,                            // Port on which the server will listen
     collateral_adapter: CA,               // CollateralAdapter instance
@@ -207,18 +202,18 @@ pub async fn run_server<
 
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<
-    CA: CollateralAdapter + Send + 'static,
-    RCA: ReceiptChecksAdapter + Send + 'static,
-    RSA: ReceiptStorageAdapter + Send + 'static,
-    RAVSA: RAVStorageAdapter + Send + 'static,
+    CA: CollateralAdapter + Send + Sync + 'static,
+    RCA: ReceiptChecksAdapter + Send + Sync + 'static,
+    RSA: ReceiptStorageAdapter + Send + Sync + 'static,
+    RAVSA: RAVStorageAdapter + Send + Sync + 'static,
 >(
-    manager: &Arc<Mutex<Manager<CA, RCA, RSA, RAVSA>>>, // Mutex-protected manager object for thread safety
+    manager: &Arc<Manager<CA, RCA, RSA, RAVSA>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
 ) -> Result<()> {
     // Create the aggregate_receipts request params
-    let rav_request = manager.lock().await.create_rav_request(time_stamp_buffer)?;
+    let rav_request = manager.create_rav_request(time_stamp_buffer).await?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
     let params = rpc_params!(
@@ -232,10 +227,9 @@ async fn request_rav<
         .0
         .request("aggregate_receipts", params)
         .await?;
-    {
-        let mut manager_guard = manager.lock().await;
-        manager_guard.verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)?;
-    }
+    manager
+        .verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)
+        .await?;
 
     // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
     // If there is throw an error.
