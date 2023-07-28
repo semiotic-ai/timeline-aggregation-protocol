@@ -10,10 +10,11 @@ use ethereum_types::Address;
 pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
 pub use received_receipt::{RAVStatus, ReceiptState, ReceivedReceipt};
+use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
     #[error("invalid allocation ID: {received_allocation_id}")]
     InvalidAllocationID { received_allocation_id: Address },
@@ -36,7 +37,7 @@ pub enum ReceiptError {
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
 pub type ReceiptCheckResults = HashMap<ReceiptCheck, Option<ReceiptResult<()>>>;
-#[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
 pub enum ReceiptCheck {
     CheckUnique,
     CheckAllocationId,
