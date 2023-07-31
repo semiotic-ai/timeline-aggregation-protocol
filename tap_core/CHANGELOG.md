@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.2.0...tap_core-v0.3.0) (2023-07-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** all the traits are now async
+
+### Features
+
+* serde for ReceivedReceipt ([1765b5d](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1765b5d101e73ff0085e6246252b47e4d5e98890))
+
+
+### Code Refactoring
+
+* **core:** make it all async ([30ca4ba](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/30ca4ba7da05959d380b653de0307af273c4733d))
+
 ## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.1.0...tap_core-v0.2.0) (2023-07-20)
 
 
