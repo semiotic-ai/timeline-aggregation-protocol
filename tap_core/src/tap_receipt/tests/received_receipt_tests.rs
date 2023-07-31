@@ -6,12 +6,13 @@ mod received_receipt_unit_test {
     use std::{
         collections::{HashMap, HashSet},
         str::FromStr,
-        sync::{Arc, RwLock},
+        sync::Arc,
     };
 
     use ethereum_types::Address;
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use crate::{
         adapters::{
@@ -94,6 +95,7 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
+    #[tokio::test]
     async fn initialization_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -114,6 +116,7 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
+    #[tokio::test]
     async fn partial_then_full_check_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -128,7 +131,7 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(
+        let receipt_auditor = ReceiptAuditor::new(
             collateral_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -149,12 +152,12 @@ mod received_receipt_unit_test {
         // add collateral for gateway
         collateral_storage
             .write()
-            .unwrap()
+            .await
             .insert(keys.1, query_value + 500);
         // appraise query
         query_appraisal_storage
             .write()
-            .unwrap()
+            .await
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
@@ -167,15 +170,13 @@ mod received_receipt_unit_test {
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
         assert!(received_receipt
-            .perform_check(
-                &arbitrary_check_to_perform,
-                receipt_id,
-                &mut receipt_auditor
-            )
+            .perform_check(&arbitrary_check_to_perform, receipt_id, &receipt_auditor)
+            .await
             .is_ok());
 
         assert!(received_receipt
-            .perform_checks(&checks, receipt_id, &mut receipt_auditor)
+            .perform_checks(&checks, receipt_id, &receipt_auditor)
+            .await
             .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);
@@ -183,6 +184,7 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
+    #[tokio::test]
     async fn partial_then_finalize_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -197,7 +199,7 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(
+        let receipt_auditor = ReceiptAuditor::new(
             collateral_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -218,12 +220,12 @@ mod received_receipt_unit_test {
         // add collateral for gateway
         collateral_storage
             .write()
-            .unwrap()
+            .await
             .insert(keys.1, query_value + 500);
         // appraise query
         query_appraisal_storage
             .write()
-            .unwrap()
+            .await
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
@@ -236,15 +238,13 @@ mod received_receipt_unit_test {
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
         assert!(received_receipt
-            .perform_check(
-                &arbitrary_check_to_perform,
-                receipt_id,
-                &mut receipt_auditor
-            )
+            .perform_check(&arbitrary_check_to_perform, receipt_id, &receipt_auditor)
+            .await
             .is_ok());
 
         assert!(received_receipt
-            .finalize_receipt_checks(receipt_id, &mut receipt_auditor)
+            .finalize_receipt_checks(receipt_id, &receipt_auditor)
+            .await
             .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);
@@ -262,6 +262,7 @@ mod received_receipt_unit_test {
     }
 
     #[rstest]
+    #[tokio::test]
     async fn standard_lifetime_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
@@ -276,7 +277,7 @@ mod received_receipt_unit_test {
         let (collateral_adapter, collateral_storage) = collateral_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let mut receipt_auditor = ReceiptAuditor::new(
+        let receipt_auditor = ReceiptAuditor::new(
             collateral_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -297,12 +298,12 @@ mod received_receipt_unit_test {
         // add collateral for gateway
         collateral_storage
             .write()
-            .unwrap()
+            .await
             .insert(keys.1, query_value + 500);
         // appraise query
         query_appraisal_storage
             .write()
-            .unwrap()
+            .await
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
@@ -313,7 +314,8 @@ mod received_receipt_unit_test {
         assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
 
         assert!(received_receipt
-            .finalize_receipt_checks(receipt_id, &mut receipt_auditor)
+            .finalize_receipt_checks(receipt_id, &receipt_auditor)
+            .await
             .is_ok());
 
         assert_eq!(received_receipt.state, ReceiptState::Accepted);

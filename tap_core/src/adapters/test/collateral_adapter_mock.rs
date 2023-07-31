@@ -1,12 +1,11 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::Arc};
 
+use async_trait::async_trait;
 use ethereum_types::Address;
+use tokio::sync::RwLock;
 
 use crate::adapters::collateral_adapter::CollateralAdapter;
 
@@ -27,8 +26,8 @@ impl CollateralAdapterMock {
             gateway_collateral_storage,
         }
     }
-    pub fn collateral(&self, gateway_id: Address) -> Result<u128, AdpaterErrorMock> {
-        let gateway_collateral_storage = self.gateway_collateral_storage.read().unwrap();
+    pub async fn collateral(&self, gateway_id: Address) -> Result<u128, AdpaterErrorMock> {
+        let gateway_collateral_storage = self.gateway_collateral_storage.read().await;
         if let Some(collateral) = gateway_collateral_storage.get(&gateway_id) {
             return Ok(*collateral);
         }
@@ -37,23 +36,23 @@ impl CollateralAdapterMock {
         })
     }
 
-    pub fn increase_collateral(&mut self, gateway_id: Address, value: u128) {
-        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+    pub async fn increase_collateral(&mut self, gateway_id: Address, value: u128) {
+        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().await;
 
         if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
-            let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+            let mut gateway_collateral_storage = self.gateway_collateral_storage.write().await;
             gateway_collateral_storage.insert(gateway_id, current_value + value);
         } else {
             gateway_collateral_storage.insert(gateway_id, value);
         }
     }
 
-    pub fn reduce_collateral(
-        &mut self,
+    pub async fn reduce_collateral(
+        &self,
         gateway_id: Address,
         value: u128,
     ) -> Result<(), AdpaterErrorMock> {
-        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().unwrap();
+        let mut gateway_collateral_storage = self.gateway_collateral_storage.write().await;
 
         if let Some(current_value) = gateway_collateral_storage.get(&gateway_id) {
             let checked_new_value = current_value.checked_sub(value);
@@ -68,16 +67,20 @@ impl CollateralAdapterMock {
     }
 }
 
+#[async_trait]
 impl CollateralAdapter for CollateralAdapterMock {
     type AdapterError = AdpaterErrorMock;
-    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, Self::AdapterError> {
-        self.collateral(gateway_id)
+    async fn get_available_collateral(
+        &self,
+        gateway_id: Address,
+    ) -> Result<u128, Self::AdapterError> {
+        self.collateral(gateway_id).await
     }
-    fn subtract_collateral(
-        &mut self,
+    async fn subtract_collateral(
+        &self,
         gateway_id: Address,
         value: u128,
     ) -> Result<(), Self::AdapterError> {
-        self.reduce_collateral(gateway_id, value)
+        self.reduce_collateral(gateway_id, value).await
     }
 }

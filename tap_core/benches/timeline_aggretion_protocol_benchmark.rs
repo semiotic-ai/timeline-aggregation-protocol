@@ -10,7 +10,6 @@
 
 use std::str::FromStr;
 
-use async_std::task::block_on;
 use criterion::async_executor::AsyncStdExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ethereum_types::Address;
@@ -21,6 +20,7 @@ use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
+use tokio::runtime::Runtime;
 
 pub async fn create_and_sign_receipt(
     allocation_id: Address,
@@ -33,6 +33,8 @@ pub async fn create_and_sign_receipt(
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
+    let async_runtime = Runtime::new().unwrap();
+
     let wallet = LocalWallet::new(&mut OsRng);
 
     // Arbitrary values wrapped in black box to avoid compiler optimizing them out
@@ -49,7 +51,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    let receipt = block_on(create_and_sign_receipt(allocation_id, value, &wallet));
+    let receipt = async_runtime.block_on(create_and_sign_receipt(allocation_id, value, &wallet));
 
     c.bench_function("Validate Receipt", |b| {
         b.iter(|| {
@@ -63,7 +65,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     for log_number_of_receipts in 10..30 {
         let receipts = (0..2 ^ log_number_of_receipts)
-            .map(|_| block_on(create_and_sign_receipt(allocation_id, value, &wallet)))
+            .map(|_| async_runtime.block_on(create_and_sign_receipt(allocation_id, value, &wallet)))
             .collect::<Vec<_>>();
 
         rav_group.bench_function(
@@ -79,11 +81,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             },
         );
 
-        let signed_rav = block_on(EIP712SignedMessage::new(
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
-            &wallet,
-        ))
-        .unwrap();
+        let signed_rav = async_runtime
+            .block_on(EIP712SignedMessage::new(
+                ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None)
+                    .unwrap(),
+                &wallet,
+            ))
+            .unwrap();
 
         rav_group.bench_function(
             &format!("Validate RAV w/ 2^{} receipt's", log_number_of_receipts),

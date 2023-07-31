@@ -6,13 +6,14 @@ mod receipt_checks_adapter_unit_test {
     use std::{
         collections::{HashMap, HashSet},
         str::FromStr,
-        sync::{Arc, RwLock},
+        sync::Arc,
     };
 
     use ethereum_types::Address;
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
     use futures::{stream, StreamExt};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use crate::{
         adapters::{
@@ -24,6 +25,7 @@ mod receipt_checks_adapter_unit_test {
     };
 
     #[rstest]
+    #[tokio::test]
     async fn receipt_checks_adapter_test() {
         let gateway_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
@@ -93,17 +95,28 @@ mod receipt_checks_adapter_unit_test {
         let unique_receipt_id = 0u64;
         receipt_storage
             .write()
-            .unwrap()
+            .await
             .insert(unique_receipt_id, new_receipt.1.clone());
 
-        assert!(receipt_checks_adapter.is_unique(&new_receipt.1.signed_receipt, unique_receipt_id));
-        assert!(receipt_checks_adapter
-            .is_valid_allocation_id(new_receipt.1.signed_receipt.message.allocation_id));
+        assert!(
+            receipt_checks_adapter
+                .is_unique(&new_receipt.1.signed_receipt, unique_receipt_id)
+                .await
+        );
+        assert!(
+            receipt_checks_adapter
+                .is_valid_allocation_id(new_receipt.1.signed_receipt.message.allocation_id)
+                .await
+        );
         // TODO: Add check when gateway_id is available from received receipt (issue: #56)
         // assert!(receipt_checks_adapter.is_valid_gateway_id(gateway_id));
-        assert!(receipt_checks_adapter.is_valid_value(
-            new_receipt.1.signed_receipt.message.value,
-            new_receipt.1.query_id
-        ));
+        assert!(
+            receipt_checks_adapter
+                .is_valid_value(
+                    new_receipt.1.signed_receipt.message.value,
+                    new_receipt.1.query_id
+                )
+                .await
+        );
     }
 }

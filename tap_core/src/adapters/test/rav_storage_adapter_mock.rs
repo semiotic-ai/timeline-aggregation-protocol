@@ -1,9 +1,11 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::{adapters::rav_storage_adapter::RAVStorageAdapter, tap_manager::SignedRAV};
 
@@ -28,7 +30,8 @@ use crate::{adapters::rav_storage_adapter::RAVStorageAdapter, tap_manager::Signe
 /// `RAVStorageAdapterMock::new()`. Now, it can be used anywhere a `RAVStorageAdapter` is required.
 ///
 /// ```rust
-/// use std::sync::{Arc, RwLock};
+/// use std::sync::{Arc};
+/// use tokio::sync::RwLock;
 /// use tap_core::{tap_manager::SignedRAV, adapters::rav_storage_adapter_mock::RAVStorageAdapterMock};
 ///
 /// let rav_storage: Arc<RwLock<Option<SignedRAV>>> = Arc::new(RwLock::new(None));
@@ -51,15 +54,16 @@ pub enum AdpaterErrorMock {
     AdapterError { error: String },
 }
 
+#[async_trait]
 impl RAVStorageAdapter for RAVStorageAdapterMock {
     type AdapterError = AdpaterErrorMock;
 
-    fn update_last_rav(&mut self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
-        let mut rav_storage = self.rav_storage.write().unwrap();
+    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
+        let mut rav_storage = self.rav_storage.write().await;
         *rav_storage = Some(rav);
         Ok(())
     }
-    fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
-        Ok(self.rav_storage.read().unwrap().clone())
+    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
+        Ok(self.rav_storage.read().await.clone())
     }
 }

@@ -5,12 +5,13 @@
 mod receipt_storage_adapter_unit_test {
     use std::collections::HashMap;
     use std::str::FromStr;
-    use std::sync::{Arc, RwLock};
+    use std::sync::Arc;
 
     use ethereum_types::Address;
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
+    use tokio::sync::RwLock;
 
     use crate::adapters::{
         receipt_storage_adapter::ReceiptStorageAdapter,
@@ -22,6 +23,7 @@ mod receipt_storage_adapter_unit_test {
     };
 
     #[rstest]
+    #[tokio::test]
     async fn receipt_adapter_test() {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
@@ -45,28 +47,41 @@ mod receipt_storage_adapter_unit_test {
             &get_full_list_of_checks(),
         );
 
-        let receipt_store_result = receipt_adapter.store_receipt(received_receipt);
+        let receipt_store_result = receipt_adapter.store_receipt(received_receipt).await;
         assert!(receipt_store_result.is_ok());
         let receipt_id = receipt_store_result.unwrap();
 
         // Retreive receipt with id expected to be valid
-        assert!(receipt_adapter.retrieve_receipt_by_id(receipt_id).is_ok());
+        assert!(receipt_adapter
+            .retrieve_receipt_by_id(receipt_id)
+            .await
+            .is_ok());
         // Retreive receipt with arbitrary id expected to be invalid
-        assert!(receipt_adapter.retrieve_receipt_by_id(999).is_err());
+        assert!(receipt_adapter.retrieve_receipt_by_id(999).await.is_err());
 
         // Remove receipt with id expected to be valid
-        assert!(receipt_adapter.remove_receipt_by_id(receipt_id).is_ok());
+        assert!(receipt_adapter
+            .remove_receipt_by_id(receipt_id)
+            .await
+            .is_ok());
         // Remove receipt with arbitrary id expected to be invalid
-        assert!(receipt_adapter.remove_receipt_by_id(999).is_err());
+        assert!(receipt_adapter.remove_receipt_by_id(999).await.is_err());
 
         // Retreive receipt that was removed previously
-        assert!(receipt_adapter.retrieve_receipt_by_id(receipt_id).is_err());
+        assert!(receipt_adapter
+            .retrieve_receipt_by_id(receipt_id)
+            .await
+            .is_err());
 
         // Remove receipt that was removed previously
-        assert!(receipt_adapter.remove_receipt_by_id(receipt_id).is_err());
+        assert!(receipt_adapter
+            .remove_receipt_by_id(receipt_id)
+            .await
+            .is_err());
     }
 
     #[rstest]
+    #[tokio::test]
     async fn multi_receipt_adapter_test() {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
@@ -96,6 +111,7 @@ mod receipt_storage_adapter_unit_test {
             receipt_ids.push(
                 receipt_adapter
                     .store_receipt(received_receipt.clone())
+                    .await
                     .unwrap(),
             );
             receipt_timestamps.push(received_receipt.signed_receipt.message.timestamp_ns)
@@ -104,19 +120,23 @@ mod receipt_storage_adapter_unit_test {
         // Retreive receipts with timestamp
         assert!(receipt_adapter
             .retrieve_receipts_by_timestamp(receipt_timestamps[0])
+            .await
             .is_ok());
         assert!(!receipt_adapter
             .retrieve_receipts_by_timestamp(receipt_timestamps[0])
+            .await
             .unwrap()
             .is_empty());
 
         // Retreive receipts before timestamp
         assert!(receipt_adapter
             .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
+            .await
             .is_ok());
         assert!(
             receipt_adapter
                 .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
+                .await
                 .unwrap()
                 .len()
                 >= 4
@@ -125,14 +145,19 @@ mod receipt_storage_adapter_unit_test {
         // Remove all receipts with one call
         assert!(receipt_adapter
             .remove_receipts_by_ids(receipt_ids.as_slice())
+            .await
             .is_ok());
         // Removal should no longer be valid
         assert!(receipt_adapter
             .remove_receipts_by_ids(receipt_ids.as_slice())
+            .await
             .is_err());
         // Retrieval should be invalid
         for receipt_id in receipt_ids {
-            assert!(receipt_adapter.retrieve_receipt_by_id(receipt_id).is_err());
+            assert!(receipt_adapter
+                .retrieve_receipt_by_id(receipt_id)
+                .await
+                .is_err());
         }
     }
 }

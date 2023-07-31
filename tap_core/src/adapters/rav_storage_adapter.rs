@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use async_trait::async_trait;
+
 use crate::tap_manager::SignedRAV;
 
 /// `RAVStorageAdapter` defines a trait for storage adapters to handle `SignedRAV` data.
@@ -27,6 +29,7 @@ use crate::tap_manager::SignedRAV;
 ///
 /// For example code see [crate::adapters::rav_storage_adapter_mock]
 
+#[async_trait]
 pub trait RAVStorageAdapter {
     /// Defines the user-specified error type.
     ///
@@ -38,12 +41,12 @@ pub trait RAVStorageAdapter {
     ///
     /// This method should be implemented to store the most recent validated `SignedRAV` into your chosen storage system.
     /// Any errors that occur during this process should be captured and returned as an `AdapterError`.
-    fn update_last_rav(&mut self, rav: SignedRAV) -> Result<(), Self::AdapterError>;
+    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError>;
 
     /// Retrieves the latest `SignedRAV` from the storage.
     ///
     /// This method should be implemented to fetch the latest `SignedRAV` from your storage system.
     /// If no `SignedRAV` is available, this method should return `None`.
     /// Any errors that occur during this process should be captured and returned as an `AdapterError`.
-    fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError>;
+    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError>;
 }

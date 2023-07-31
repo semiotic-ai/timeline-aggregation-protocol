@@ -1,6 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use async_trait::async_trait;
 use ethereum_types::Address;
 
 /// `CollateralAdapter` defines a trait for adapters to handle collateral related operations.
@@ -27,6 +28,7 @@ use ethereum_types::Address;
 ///
 /// For example code see [crate::adapters::collateral_adapter_mock]
 
+#[async_trait]
 pub trait CollateralAdapter {
     /// Defines the user-specified error type.
     ///
@@ -39,15 +41,18 @@ pub trait CollateralAdapter {
     /// This method should be implemented to fetch the local accounting amount of available collateral for a
     /// specified gateway from your system. Any errors that occur during this process should
     /// be captured and returned as an `AdapterError`.
-    fn get_available_collateral(&self, gateway_id: Address) -> Result<u128, Self::AdapterError>;
+    async fn get_available_collateral(
+        &self,
+        gateway_id: Address,
+    ) -> Result<u128, Self::AdapterError>;
 
     /// Deducts a specified value from the local accounting of available collateral for a specified gateway.
     ///
     /// This method should be implemented to deduct a specified value from the local accounting of
     /// available collateral of a specified gateway in your system. Any errors that occur during this
     /// process should be captured and returned as an `AdapterError`.
-    fn subtract_collateral(
-        &mut self,
+    async fn subtract_collateral(
+        &self,
         gateway_id: Address,
         value: u128,
     ) -> Result<(), Self::AdapterError>;

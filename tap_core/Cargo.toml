@@ -12,7 +12,6 @@ rand="0.8.5"
 thiserror="1.0.38"
 ethereum-types={version="0.14.1"}
 rstest = "0.17.0"
-async-std = { version = "1.5", features = ["attributes"] }
 ethers = { version = "2.0.0", default-features = false }
 ethers-core = "2.0.0"
 ethers-contract = "2.0.0"
@@ -21,6 +20,8 @@ anyhow = "1"
 
 strum = "0.24.1"
 strum_macros = "0.24.3"
+async-trait = "0.1.72"
+tokio = { version = "1.29.1", features = ["macros"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }
