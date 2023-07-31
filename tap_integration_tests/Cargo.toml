@@ -1,6 +1,6 @@
 [package]
 name = "tap_integration_tests"
-version = "0.1.2"
+version = "0.1.3"
 edition.workspace = true
 license.workspace = true
 autotests = false
@@ -8,8 +8,8 @@ description = "Integration tests for the Timeline Aggregation Protocol."
 publish = false
 
 [dependencies]
-tap_aggregator = { version = "0.1.1", path = "../tap_aggregator" }
-tap_core = { version = "0.2.0", path = "../tap_core" }
+tap_aggregator = { version = "0.1.2", path = "../tap_aggregator" }
+tap_core = { version = "0.3.0", path = "../tap_core" }
 jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
 ethers = "2.0.0"
 clap = { version = "4.2.4", features = ["derive", "env"] }
