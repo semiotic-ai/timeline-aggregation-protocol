@@ -63,6 +63,9 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             .receipt_checks_adapter
             .is_unique(signed_receipt, receipt_id)
             .await
+            .map_err(|e| ReceiptError::CheckFailedToComplete {
+                source_error_message: e.to_string(),
+            })?
         {
             return Err(ReceiptError::NonUniqueReceipt);
         }
@@ -77,6 +80,9 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             .receipt_checks_adapter
             .is_valid_allocation_id(signed_receipt.message.allocation_id)
             .await
+            .map_err(|e| ReceiptError::CheckFailedToComplete {
+                source_error_message: e.to_string(),
+            })?
         {
             return Err(ReceiptError::InvalidAllocationID {
                 received_allocation_id: signed_receipt.message.allocation_id,
@@ -107,6 +113,9 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             .receipt_checks_adapter
             .is_valid_value(signed_receipt.message.value, query_id)
             .await
+            .map_err(|e| ReceiptError::CheckFailedToComplete {
+                source_error_message: e.to_string(),
+            })?
         {
             return Err(ReceiptError::InvalidValue {
                 received_value: signed_receipt.message.value,
@@ -129,6 +138,9 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             .receipt_checks_adapter
             .is_valid_gateway_id(receipt_signer_address)
             .await
+            .map_err(|e| ReceiptError::CheckFailedToComplete {
+                source_error_message: e.to_string(),
+            })?
         {
             return Err(ReceiptError::InvalidSignature {
                 source_error_message: format!(
@@ -171,6 +183,9 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             .receipt_checks_adapter
             .is_valid_gateway_id(rav_signer_address)
             .await
+            .map_err(|err| Error::AdapterError {
+                source_error: anyhow::Error::new(err),
+            })?
         {
             return Err(Error::InvalidRecoveredSigner {
                 address: rav_signer_address,
