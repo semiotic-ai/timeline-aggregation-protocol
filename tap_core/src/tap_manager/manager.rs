@@ -4,7 +4,7 @@
 use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
     adapters::{
-        collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
+        escrow_adapter::EscrowAdapter, rav_storage_adapter::RAVStorageAdapter,
         receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::ReceiptStorageAdapter,
     },
@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct Manager<
-    CA: CollateralAdapter,
+    CA: EscrowAdapter,
     RCA: ReceiptChecksAdapter,
     RSA: ReceiptStorageAdapter,
     RAVSA: RAVStorageAdapter,
@@ -31,18 +31,18 @@ pub struct Manager<
 }
 
 impl<
-        CA: CollateralAdapter,
+        EA: EscrowAdapter,
         RCA: ReceiptChecksAdapter,
         RSA: ReceiptStorageAdapter,
         RAVSA: RAVStorageAdapter,
-    > Manager<CA, RCA, RSA, RAVSA>
+    > Manager<EA, RCA, RSA, RAVSA>
 {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
     pub fn new(
-        collateral_adapter: CA,
+        escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         rav_storage_adapter: RAVSA,
         receipt_storage_adapter: RSA,
@@ -50,7 +50,7 @@ impl<
         starting_min_timestamp_ns: u64,
     ) -> Self {
         let receipt_auditor = ReceiptAuditor::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp_ns,
         );
@@ -69,7 +69,7 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing receipts
     ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveCollateral`
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveEscrow`
     ///
     /// Returns [`Error::InvalidCheckError`] if check in `initial_checks` is not in `required_checks` provided when manager was created
     ///

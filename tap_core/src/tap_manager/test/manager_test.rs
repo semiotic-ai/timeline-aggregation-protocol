@@ -17,7 +17,7 @@ mod manager_unit_test {
     use super::super::Manager;
     use crate::{
         adapters::{
-            collateral_adapter_mock::CollateralAdapterMock,
+            escrow_adapter_mock::EscrowAdapterMock,
             rav_storage_adapter_mock::RAVStorageAdapterMock,
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
             receipt_storage_adapter::ReceiptStorageAdapter,
@@ -66,11 +66,10 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn collateral_adapters() -> (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
-        let gateway_collateral_storage = Arc::new(RwLock::new(HashMap::new()));
-        let collateral_adapter =
-            CollateralAdapterMock::new(Arc::clone(&gateway_collateral_storage));
-        (collateral_adapter, gateway_collateral_storage)
+    fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
+        let gateway_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+        let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&gateway_escrow_storage));
+        (escrow_adapter, gateway_escrow_storage)
     }
 
     #[fixture]
@@ -107,7 +106,7 @@ mod manager_unit_test {
     #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
         rav_storage_adapter: RAVStorageAdapterMock,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -117,14 +116,14 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
             receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
             receipt_storage_adapter,
@@ -142,7 +141,7 @@ mod manager_unit_test {
             .write()
             .await
             .insert(query_id, value);
-        collateral_storage.write().await.insert(keys.1, 999999);
+        escrow_storage.write().await.insert(keys.1, 999999);
 
         assert!(manager
             .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
@@ -157,7 +156,7 @@ mod manager_unit_test {
     #[tokio::test]
     async fn manager_create_rav_request_all_valid_receipts(
         rav_storage_adapter: RAVStorageAdapterMock,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -167,21 +166,21 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
             receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
             receipt_storage_adapter,
             get_full_list_of_checks(),
             starting_min_timestamp,
         );
-        collateral_storage.write().await.insert(keys.1, 999999);
+        escrow_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         for query_id in 0..10 {
@@ -228,7 +227,7 @@ mod manager_unit_test {
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts(
         rav_storage_adapter: RAVStorageAdapterMock,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -238,14 +237,14 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
             receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
             receipt_storage_adapter,
@@ -253,7 +252,7 @@ mod manager_unit_test {
             starting_min_timestamp,
         );
 
-        collateral_storage.write().await.insert(keys.1, 999999);
+        escrow_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         let mut expected_accumulated_value = 0;
@@ -351,7 +350,7 @@ mod manager_unit_test {
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
         rav_storage_adapter: RAVStorageAdapterMock,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -363,14 +362,14 @@ mod manager_unit_test {
         initial_checks: Vec<ReceiptCheck>,
         #[values(true, false)] remove_old_receipts: bool,
     ) {
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
             receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let mut manager = Manager::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
             receipt_storage_adapter,
@@ -378,7 +377,7 @@ mod manager_unit_test {
             starting_min_timestamp,
         );
 
-        collateral_storage.write().await.insert(keys.1, 999999);
+        escrow_storage.write().await.insert(keys.1, 999999);
 
         let mut stored_signed_receipts = Vec::new();
         let mut expected_accumulated_value = 0;

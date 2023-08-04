@@ -20,7 +20,7 @@ use jsonrpsee::{
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     adapters::{
-        collateral_adapter::CollateralAdapter, rav_storage_adapter::RAVStorageAdapter,
+        escrow_adapter::EscrowAdapter, rav_storage_adapter::RAVStorageAdapter,
         receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::ReceiptStorageAdapter,
     },
@@ -49,12 +49,12 @@ pub trait Rpc {
 /// threshold is a limit to which receipt_count can increment, after reaching which RAV request is triggered.
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<
-    CA: CollateralAdapter + Send + Sync + 'static, // An instance of CollateralAdapter, marked as thread-safe with Send and given 'static lifetime
+    EA: EscrowAdapter + Send + Sync + 'static, // An instance of EscrowAdapter, marked as thread-safe with Send and given 'static lifetime
     RCA: ReceiptChecksAdapter + Send + Sync + 'static, // An instance of ReceiptChecksAdapter
     RSA: ReceiptStorageAdapter + Send + Sync + 'static, // An instance of ReceiptStorageAdapter
     RAVSA: RAVStorageAdapter + Send + Sync + 'static, // An instance of RAVStorageAdapter
 > {
-    manager: Arc<Manager<CA, RCA, RSA, RAVSA>>, // Manager object reference counted with an Arc
+    manager: Arc<Manager<EA, RCA, RSA, RAVSA>>, // Manager object reference counted with an Arc
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     receipt_count: Arc<AtomicU64>,     // Thread-safe atomic counter for receipts
     threshold: u64,                    // The count at which a RAV request will be triggered
@@ -65,14 +65,14 @@ pub struct RpcManager<
 /// Constructor initializes a new instance of `RpcManager`.
 /// `request` method handles incoming JSON-RPC requests and it verifies and stores the receipt from the request.
 impl<
-        CA: CollateralAdapter + Send + Sync + 'static,
+        EA: EscrowAdapter + Send + Sync + 'static,
         RCA: ReceiptChecksAdapter + Send + Sync + 'static,
         RSA: ReceiptStorageAdapter + Send + Sync + 'static,
         RAVSA: RAVStorageAdapter + Send + Sync + 'static,
-    > RpcManager<CA, RCA, RSA, RAVSA>
+    > RpcManager<EA, RCA, RSA, RAVSA>
 {
     pub fn new(
-        collateral_adapter: CA,
+        escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         receipt_storage_adapter: RSA,
         rav_storage_adapter: RAVSA,
@@ -83,8 +83,8 @@ impl<
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Manager::<CA, RCA, RSA, RAVSA>::new(
-                collateral_adapter,
+            manager: Arc::new(Manager::<EA, RCA, RSA, RAVSA>::new(
+                escrow_adapter,
                 receipt_checks_adapter,
                 rav_storage_adapter,
                 receipt_storage_adapter,
@@ -104,7 +104,7 @@ impl<
 
 #[async_trait]
 impl<
-        CA: CollateralAdapter + Send + Sync + 'static,
+        CA: EscrowAdapter + Send + Sync + 'static,
         RCA: ReceiptChecksAdapter + Send + Sync + 'static,
         RSA: ReceiptStorageAdapter + Send + Sync + 'static,
         RAVSA: RAVStorageAdapter + Send + Sync + 'static,
@@ -160,13 +160,13 @@ impl<
 
 /// run_server function initializes and starts a JSON-RPC server that handles incoming requests.
 pub async fn run_server<
-    CA: CollateralAdapter + Send + Sync + 'static,
+    CA: EscrowAdapter + Send + Sync + 'static,
     RCA: ReceiptChecksAdapter + Send + Sync + 'static,
     RSA: ReceiptStorageAdapter + Send + Sync + 'static,
     RAVSA: RAVStorageAdapter + Send + Sync + 'static,
 >(
     port: u16,                            // Port on which the server will listen
-    collateral_adapter: CA,               // CollateralAdapter instance
+    escrow_adapter: CA,                   // EscrowAdapter instance
     receipt_checks_adapter: RCA,          // ReceiptChecksAdapter instance
     receipt_storage_adapter: RSA,         // ReceiptStorageAdapter instance
     rav_storage_adapter: RAVSA,           // RAVStorageAdapter instance
@@ -185,7 +185,7 @@ pub async fn run_server<
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
     let rpc_manager = RpcManager::new(
-        collateral_adapter,
+        escrow_adapter,
         receipt_checks_adapter,
         receipt_storage_adapter,
         rav_storage_adapter,
@@ -202,7 +202,7 @@ pub async fn run_server<
 
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<
-    CA: CollateralAdapter + Send + Sync + 'static,
+    CA: EscrowAdapter + Send + Sync + 'static,
     RCA: ReceiptChecksAdapter + Send + Sync + 'static,
     RSA: ReceiptStorageAdapter + Send + Sync + 'static,
     RAVSA: RAVStorageAdapter + Send + Sync + 'static,

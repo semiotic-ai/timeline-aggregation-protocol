@@ -29,8 +29,8 @@ pub enum ReceiptError {
     InvalidValue { received_value: u128 },
     #[error("Receipt is not unique")]
     NonUniqueReceipt,
-    #[error("Attempt to collect collateral failed")]
-    SubtractCollateralFailed,
+    #[error("Attempt to collect escrow failed")]
+    SubtractEscrowFailed,
     #[error("Issue encountered while performing check: {source_error_message}")]
     CheckFailedToComplete { source_error_message: String },
 }
@@ -44,7 +44,7 @@ pub enum ReceiptCheck {
     CheckTimestamp,
     CheckValue,
     CheckSignature,
-    CheckAndReserveCollateral,
+    CheckAndReserveEscrow,
 }
 
 pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
@@ -54,7 +54,7 @@ pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
     all_checks_list.insert(ReceiptCheck::CheckTimestamp, None);
     all_checks_list.insert(ReceiptCheck::CheckValue, None);
     all_checks_list.insert(ReceiptCheck::CheckSignature, None);
-    all_checks_list.insert(ReceiptCheck::CheckAndReserveCollateral, None);
+    all_checks_list.insert(ReceiptCheck::CheckAndReserveEscrow, None);
 
     all_checks_list
 }
@@ -66,7 +66,7 @@ pub fn get_full_list_of_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckValue,
         ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckAndReserveCollateral,
+        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 

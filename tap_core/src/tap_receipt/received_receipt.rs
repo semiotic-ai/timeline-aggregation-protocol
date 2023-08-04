@@ -20,9 +20,7 @@ use super::{
     receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults, ReceiptError,
 };
 use crate::{
-    adapters::{
-        collateral_adapter::CollateralAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
-    },
+    adapters::{escrow_adapter::EscrowAdapter, receipt_checks_adapter::ReceiptChecksAdapter},
     eip_712_signed_message::EIP712SignedMessage,
     Error, Result,
 };
@@ -36,9 +34,9 @@ pub enum ReceiptState {
     Checking,
     /// Checks completed with at least one check resulting in an error
     Failed,
-    /// Checks completed with all passed, awaiting collateral check and reserve
-    AwaitingReserveCollateral,
-    /// All checks completed with no errors found, Collateral is reserved if requested by user
+    /// Checks completed with all passed, awaiting escrow check and reserve
+    AwaitingReserveEscrow,
+    /// All checks completed with no errors found, escrow is reserved if requested by user
     Accepted,
     /// Receipt was added to a RAV request
     IncludedInRAVRequest,
@@ -67,8 +65,8 @@ pub struct ReceivedReceipt {
     pub(crate) query_id: u64,
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
-    /// Collateral check and reserve, which is performed only after all other checks are complete. `Ok` result means collateral was reserved
-    pub(crate) collateral_reserved: Option<Option<std::result::Result<(), ReceiptError>>>,
+    /// Escrow check and reserve, which is performed only after all other checks are complete. `Ok` result means escrow was reserved
+    pub(crate) escrow_reserved: Option<Option<std::result::Result<(), ReceiptError>>>,
     /// The current RAV status of the receipt (e.g., not included, included in a request, or included in a received RAV)
     pub(crate) rav_status: RAVStatus,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
@@ -83,13 +81,13 @@ impl ReceivedReceipt {
         required_checks: &[ReceiptCheck],
     ) -> Self {
         let mut checks = Self::get_empty_required_checks_hashmap(required_checks);
-        let collateral_reserved = checks.remove(&ReceiptCheck::CheckAndReserveCollateral);
+        let escrow_reserved = checks.remove(&ReceiptCheck::CheckAndReserveEscrow);
 
         let mut received_receipt = Self {
             signed_receipt,
             query_id,
             checks,
-            collateral_reserved,
+            escrow_reserved,
             rav_status: RAVStatus::NotIncluded,
             state: ReceiptState::Received,
         };
@@ -103,11 +101,11 @@ impl ReceivedReceipt {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveCollateral`.
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveEscrow`.
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn perform_check<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
         check: &ReceiptCheck,
         receipt_id: u64,
@@ -115,15 +113,15 @@ impl ReceivedReceipt {
     ) -> crate::Result<()> {
         match self.state {
             ReceiptState::Checking | ReceiptState::Received => {
-                // Cannot do collateral check and reserve until all other checks are complete
-                if check == &ReceiptCheck::CheckAndReserveCollateral {
+                // Cannot do escrow check and reserve until all other checks are complete
+                if check == &ReceiptCheck::CheckAndReserveEscrow {
                     return Err(crate::Error::InvalidStateForRequestedAction {
                         state: self.state.to_string(),
                     });
                 }
             }
             // All checks are valid in this state (although complete ones will be skipped)
-            ReceiptState::AwaitingReserveCollateral => {}
+            ReceiptState::AwaitingReserveEscrow => {}
 
             // If all checks are complete then checking is skipped
             ReceiptState::Accepted
@@ -155,30 +153,30 @@ impl ReceivedReceipt {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveCollateral`.
+    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveEscrow`.
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn perform_checks<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
         checks: &[ReceiptCheck],
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
     ) -> Result<()> {
-        let mut check_and_reserve_collateral_included = false;
+        let mut check_and_reserve_escrow_included = false;
         for check in checks {
-            if *check == ReceiptCheck::CheckAndReserveCollateral {
-                // if checks include check and reserve collateral it needs to be completed last
-                check_and_reserve_collateral_included = true;
+            if *check == ReceiptCheck::CheckAndReserveEscrow {
+                // if checks include check and reserve escrow it needs to be completed last
+                check_and_reserve_escrow_included = true;
                 continue;
             }
             self.perform_check(check, receipt_id, receipt_auditor)
                 .await?;
         }
-        if check_and_reserve_collateral_included && self.state != ReceiptState::Failed {
-            // CheckAndReserveCollateral is only performed after all other checks have passed
+        if check_and_reserve_escrow_included && self.state != ReceiptState::Failed {
+            // CheckAndReserveEscrow is only performed after all other checks have passed
             self.perform_check(
-                &ReceiptCheck::CheckAndReserveCollateral,
+                &ReceiptCheck::CheckAndReserveEscrow,
                 receipt_id,
                 receipt_auditor,
             )
@@ -191,7 +189,7 @@ impl ReceivedReceipt {
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
-    pub async fn finalize_receipt_checks<CA: CollateralAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn finalize_receipt_checks<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
         &mut self,
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
@@ -215,8 +213,8 @@ impl ReceivedReceipt {
         check: &ReceiptCheck,
         result: Option<super::ReceiptResult<()>>,
     ) -> Result<()> {
-        if check == &ReceiptCheck::CheckAndReserveCollateral {
-            return self.update_collateral_reserved_check(check, result);
+        if check == &ReceiptCheck::CheckAndReserveEscrow {
+            return self.update_escrow_reserved_check(check, result);
         }
 
         if !self.checks.contains_key(check) {
@@ -229,19 +227,19 @@ impl ReceivedReceipt {
         Ok(())
     }
 
-    fn update_collateral_reserved_check(
+    fn update_escrow_reserved_check(
         &mut self,
         check: &ReceiptCheck,
         result: Option<super::ReceiptResult<()>>,
     ) -> Result<()> {
-        if !(self.state == ReceiptState::AwaitingReserveCollateral) {
+        if !(self.state == ReceiptState::AwaitingReserveEscrow) {
             return Err(Error::InvalidStateForRequestedAction {
                 state: self.state.to_string(),
             });
         }
 
-        if let Some(ref mut collateral_reserved_check) = self.collateral_reserved {
-            *collateral_reserved_check = result;
+        if let Some(ref mut escrow_reserved_check) = self.escrow_reserved {
+            *escrow_reserved_check = result;
         } else {
             return Err(crate::Error::InvalidCheckError {
                 check_string: check.to_string(),
@@ -273,10 +271,8 @@ impl ReceivedReceipt {
                 }
             })
             .collect();
-        if self.collateral_reserve_attempt_required()
-            && !self.collateral_reserve_attempt_completed()
-        {
-            incomplete_checks.push(ReceiptCheck::CheckAndReserveCollateral);
+        if self.escrow_reserve_attempt_required() && !self.escrow_reserve_attempt_completed() {
+            incomplete_checks.push(ReceiptCheck::CheckAndReserveEscrow);
         }
         incomplete_checks
     }
@@ -310,8 +306,8 @@ impl ReceivedReceipt {
             ReceiptState::Checking => {
                 next_state = self.get_state_of_checks();
             }
-            ReceiptState::AwaitingReserveCollateral => {
-                next_state = self.get_state_of_collateral_reserve();
+            ReceiptState::AwaitingReserveEscrow => {
+                next_state = self.get_state_of_escrow_reserve();
             }
             ReceiptState::Failed => {} // currently no next state from Failed
             ReceiptState::Accepted => {
@@ -334,7 +330,7 @@ impl ReceivedReceipt {
             return ReceiptState::Failed;
         }
         if self.all_checks_passed() {
-            return self.get_state_of_collateral_reserve();
+            return self.get_state_of_escrow_reserve();
         }
         if self.checking_is_in_progress() {
             return ReceiptState::Checking;
@@ -343,33 +339,33 @@ impl ReceivedReceipt {
         ReceiptState::Received
     }
 
-    fn get_state_of_collateral_reserve(&self) -> ReceiptState {
-        if !self.collateral_reserve_attempt_required() {
+    fn get_state_of_escrow_reserve(&self) -> ReceiptState {
+        if !self.escrow_reserve_attempt_required() {
             return ReceiptState::Accepted;
         }
-        if self.collateral_reserve_attempt_completed() {
-            if let Some(Some(collateral_reserve_attempt_result)) = &self.collateral_reserved {
-                if collateral_reserve_attempt_result.is_err() {
+        if self.escrow_reserve_attempt_completed() {
+            if let Some(Some(escrow_reserve_attempt_result)) = &self.escrow_reserved {
+                if escrow_reserve_attempt_result.is_err() {
                     return ReceiptState::Failed;
                 }
-                if collateral_reserve_attempt_result.is_ok() {
+                if escrow_reserve_attempt_result.is_ok() {
                     return ReceiptState::Accepted;
                 }
             }
         }
 
-        ReceiptState::AwaitingReserveCollateral
+        ReceiptState::AwaitingReserveEscrow
     }
 
-    fn collateral_reserve_attempt_completed(&self) -> bool {
-        if let Some(collateral_reserve_attempt) = &self.collateral_reserved {
-            return collateral_reserve_attempt.is_some();
+    fn escrow_reserve_attempt_completed(&self) -> bool {
+        if let Some(escrow_reserve_attempt) = &self.escrow_reserved {
+            return escrow_reserve_attempt.is_some();
         }
         false
     }
 
-    fn collateral_reserve_attempt_required(&self) -> bool {
-        self.collateral_reserved.is_some()
+    fn escrow_reserve_attempt_required(&self) -> bool {
+        self.escrow_reserved.is_some()
     }
 
     fn checking_is_in_progress(&self) -> bool {
