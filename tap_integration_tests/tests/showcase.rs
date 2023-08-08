@@ -28,8 +28,7 @@ use tokio::sync::RwLock;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::{
-        collateral_adapter_mock::CollateralAdapterMock,
-        rav_storage_adapter_mock::RAVStorageAdapterMock,
+        escrow_adapter_mock::EscrowAdapterMock, rav_storage_adapter_mock::RAVStorageAdapterMock,
         receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
@@ -130,16 +129,16 @@ fn query_price() -> Vec<u128> {
     v
 }
 
-// Available collateral is set by a Gateway. It's assumed the Indexer has way of knowing this value.
+// Available escrow is set by a Gateway. It's assumed the Indexer has way of knowing this value.
 #[fixture]
-fn available_collateral(query_price: Vec<u128>, num_batches: u64) -> u128 {
+fn available_escrow(query_price: Vec<u128>, num_batches: u64) -> u128 {
     (num_batches as u128) * query_price.into_iter().sum::<u128>()
 }
 
-// The collateral adapter, a storage struct that the Indexer uses to track the available collateral for each Gateway
+// The escrow adapter, a storage struct that the Indexer uses to track the available escrow for each Gateway
 #[fixture]
-fn collateral_adapter() -> CollateralAdapterMock {
-    CollateralAdapterMock::new(Arc::new(RwLock::new(HashMap::new())))
+fn escrow_adapter() -> EscrowAdapterMock {
+    EscrowAdapterMock::new(Arc::new(RwLock::new(HashMap::new())))
 }
 
 #[fixture]
@@ -194,7 +193,7 @@ fn required_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckUnique,
         ReceiptCheck::CheckValue,
-        ReceiptCheck::CheckAndReserveCollateral,
+        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 
@@ -208,24 +207,24 @@ fn initial_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckUnique,
         ReceiptCheck::CheckValue,
-        ReceiptCheck::CheckAndReserveCollateral,
+        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 
 #[fixture]
 fn indexer_1_adapters(
-    collateral_adapter: CollateralAdapterMock,
+    escrow_adapter: EscrowAdapterMock,
     receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
     rav_storage_adapter: RAVStorageAdapterMock,
 ) -> (
-    CollateralAdapterMock,
+    EscrowAdapterMock,
     ReceiptStorageAdapterMock,
     ReceiptChecksAdapterMock,
     RAVStorageAdapterMock,
 ) {
     (
-        collateral_adapter,
+        escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
         rav_storage_adapter,
@@ -234,18 +233,18 @@ fn indexer_1_adapters(
 
 #[fixture]
 fn indexer_2_adapters(
-    collateral_adapter: CollateralAdapterMock,
+    escrow_adapter: EscrowAdapterMock,
     receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
     rav_storage_adapter: RAVStorageAdapterMock,
 ) -> (
-    CollateralAdapterMock,
+    EscrowAdapterMock,
     ReceiptStorageAdapterMock,
     ReceiptChecksAdapterMock,
     RAVStorageAdapterMock,
 ) {
     (
-        collateral_adapter,
+        escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
         rav_storage_adapter,
@@ -371,12 +370,12 @@ async fn single_indexer_test_server(
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
     indexer_1_adapters: (
-        CollateralAdapterMock,
+        EscrowAdapterMock,
         ReceiptStorageAdapterMock,
         ReceiptChecksAdapterMock,
         RAVStorageAdapterMock,
     ),
-    available_collateral: u128,
+    available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
@@ -389,15 +388,15 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let (collateral_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
+    let (escrow_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
         indexer_1_adapters;
     let (indexer_handle, indexer_addr) = start_indexer_server(
-        collateral_adapter,
+        escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
         rav_storage_adapter,
         gateway_id,
-        available_collateral,
+        available_escrow,
         initial_checks,
         required_checks,
         receipt_threshold_1,
@@ -419,18 +418,18 @@ async fn two_indexers_test_servers(
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
     indexer_1_adapters: (
-        CollateralAdapterMock,
+        EscrowAdapterMock,
         ReceiptStorageAdapterMock,
         ReceiptChecksAdapterMock,
         RAVStorageAdapterMock,
     ),
     indexer_2_adapters: (
-        CollateralAdapterMock,
+        EscrowAdapterMock,
         ReceiptStorageAdapterMock,
         ReceiptChecksAdapterMock,
         RAVStorageAdapterMock,
     ),
-    available_collateral: u128,
+    available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
@@ -451,25 +450,25 @@ async fn two_indexers_test_servers(
     )
     .await?;
     let (
-        collateral_adapter_1,
+        escrow_adapter_1,
         receipt_storage_adapter_1,
         receipt_checks_adapter_1,
         rav_storage_adapter_1,
     ) = indexer_1_adapters;
     let (
-        collateral_adapter_2,
+        escrow_adapter_2,
         receipt_storage_adapter_2,
         receipt_checks_adapter_2,
         rav_storage_adapter_2,
     ) = indexer_2_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
-        collateral_adapter_1,
+        escrow_adapter_1,
         receipt_storage_adapter_1,
         receipt_checks_adapter_1,
         rav_storage_adapter_1,
         gateway_id,
-        available_collateral,
+        available_escrow,
         initial_checks.clone(),
         required_checks.clone(),
         receipt_threshold_1,
@@ -478,12 +477,12 @@ async fn two_indexers_test_servers(
     .await?;
 
     let (indexer_handle_2, indexer_addr_2) = start_indexer_server(
-        collateral_adapter_2,
+        escrow_adapter_2,
         receipt_storage_adapter_2,
         receipt_checks_adapter_2,
         rav_storage_adapter_2,
         gateway_id,
-        available_collateral,
+        available_escrow,
         initial_checks,
         required_checks,
         receipt_threshold_1,
@@ -508,12 +507,12 @@ async fn single_indexer_wrong_gateway_test_server(
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
     indexer_1_adapters: (
-        CollateralAdapterMock,
+        EscrowAdapterMock,
         ReceiptStorageAdapterMock,
         ReceiptChecksAdapterMock,
         RAVStorageAdapterMock,
     ),
-    available_collateral: u128,
+    available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
@@ -526,16 +525,16 @@ async fn single_indexer_wrong_gateway_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let (collateral_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
+    let (escrow_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
         indexer_1_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
-        collateral_adapter,
+        escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
         rav_storage_adapter,
         gateway_id,
-        available_collateral,
+        available_escrow,
         initial_checks,
         required_checks,
         receipt_threshold_1,
@@ -896,12 +895,12 @@ async fn generate_requests(
 
 // Start-up a mock Indexer. Requires a Gateway Aggregator to be running.
 async fn start_indexer_server(
-    mut collateral_adapter: CollateralAdapterMock,
+    mut escrow_adapter: EscrowAdapterMock,
     receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
     rav_storage_adapter: RAVStorageAdapterMock,
     gateway_id: Address,
-    available_collateral: u128,
+    available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold: u64,
@@ -912,14 +911,14 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    collateral_adapter
-        .increase_collateral(gateway_id, available_collateral)
+    escrow_adapter
+        .increase_escrow(gateway_id, available_escrow)
         .await;
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(
         http_port,
-        collateral_adapter,
+        escrow_adapter,
         receipt_checks_adapter,
         receipt_storage_adapter,
         rav_storage_adapter,

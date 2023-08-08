@@ -16,7 +16,7 @@ mod received_receipt_unit_test {
 
     use crate::{
         adapters::{
-            collateral_adapter_mock::CollateralAdapterMock,
+            escrow_adapter_mock::EscrowAdapterMock,
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
@@ -87,11 +87,10 @@ mod received_receipt_unit_test {
     }
 
     #[fixture]
-    fn collateral_adapters() -> (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
-        let gateway_collateral_storage = Arc::new(RwLock::new(HashMap::new()));
-        let collateral_adapter =
-            CollateralAdapterMock::new(Arc::clone(&gateway_collateral_storage));
-        (collateral_adapter, gateway_collateral_storage)
+    fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
+        let gateway_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+        let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&gateway_escrow_storage));
+        (escrow_adapter, gateway_escrow_storage)
     }
 
     #[rstest]
@@ -120,7 +119,7 @@ mod received_receipt_unit_test {
     async fn partial_then_full_check_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -128,11 +127,11 @@ mod received_receipt_unit_test {
         ),
     ) {
         let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
         );
@@ -149,8 +148,8 @@ mod received_receipt_unit_test {
 
         // prepare adapters and storage to correctly validate receipt
 
-        // add collateral for gateway
-        collateral_storage
+        // add escrow for gateway
+        escrow_storage
             .write()
             .await
             .insert(keys.1, query_value + 500);
@@ -188,7 +187,7 @@ mod received_receipt_unit_test {
     async fn partial_then_finalize_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -196,11 +195,11 @@ mod received_receipt_unit_test {
         ),
     ) {
         let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
         );
@@ -217,8 +216,8 @@ mod received_receipt_unit_test {
 
         // prepare adapters and storage to correctly validate receipt
 
-        // add collateral for gateway
-        collateral_storage
+        // add escrow for gateway
+        escrow_storage
             .write()
             .await
             .insert(keys.1, query_value + 500);
@@ -266,7 +265,7 @@ mod received_receipt_unit_test {
     async fn standard_lifetime_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
-        collateral_adapters: (CollateralAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
+        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
             ReceiptChecksAdapterMock,
@@ -274,11 +273,11 @@ mod received_receipt_unit_test {
         ),
     ) {
         let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (collateral_adapter, collateral_storage) = collateral_adapters;
+        let (escrow_adapter, escrow_storage) = escrow_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
         );
@@ -295,8 +294,8 @@ mod received_receipt_unit_test {
 
         // prepare adapters and storage to correctly validate receipt
 
-        // add collateral for gateway
-        collateral_storage
+        // add escrow for gateway
+        escrow_storage
             .write()
             .await
             .insert(keys.1, query_value + 500);

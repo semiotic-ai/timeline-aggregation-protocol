@@ -4,29 +4,27 @@
 use tokio::sync::RwLock;
 
 use crate::{
-    adapters::{
-        collateral_adapter::CollateralAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
-    },
+    adapters::{escrow_adapter::EscrowAdapter, receipt_checks_adapter::ReceiptChecksAdapter},
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{Receipt, ReceiptCheck, ReceiptError, ReceiptResult},
     Error, Result,
 };
 
-pub struct ReceiptAuditor<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> {
-    collateral_adapter: CA,
+pub struct ReceiptAuditor<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> {
+    escrow_adapter: EA,
     receipt_checks_adapter: RCA,
     min_timestamp_ns: RwLock<u64>,
 }
 
-impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
+impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
     pub fn new(
-        collateral_adapter: CA,
+        escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         Self {
-            collateral_adapter,
+            escrow_adapter,
             receipt_checks_adapter,
             min_timestamp_ns: RwLock::new(starting_min_timestamp_ns),
         }
@@ -50,8 +48,8 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
             ReceiptCheck::CheckSignature => self.check_signature(signed_receipt).await,
             ReceiptCheck::CheckTimestamp => self.check_timestamp(signed_receipt).await,
             ReceiptCheck::CheckValue => self.check_value(signed_receipt, query_id).await,
-            ReceiptCheck::CheckAndReserveCollateral => {
-                self.check_and_reserve_collateral(signed_receipt).await
+            ReceiptCheck::CheckAndReserveEscrow => {
+                self.check_and_reserve_escrow(signed_receipt).await
             }
         }
     }
@@ -142,7 +140,7 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
         Ok(())
     }
 
-    async fn check_and_reserve_collateral(
+    async fn check_and_reserve_escrow(
         &self,
         signed_receipt: &EIP712SignedMessage<Receipt>,
     ) -> ReceiptResult<()> {
@@ -153,12 +151,12 @@ impl<CA: CollateralAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<CA, RCA> {
                     source_error_message: err.to_string(),
                 })?;
         if self
-            .collateral_adapter
-            .subtract_collateral(receipt_signer_address, signed_receipt.message.value)
+            .escrow_adapter
+            .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
             .await
             .is_err()
         {
-            return Err(ReceiptError::SubtractCollateralFailed);
+            return Err(ReceiptError::SubtractEscrowFailed);
         }
 
         Ok(())
