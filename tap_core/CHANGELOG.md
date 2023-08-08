@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.3.0...tap_core-v0.4.0) (2023-08-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core:** All ReceiptChecksAdapter trait method now return Result. Makes it possible to return Adapter errors besides just check failures.
+* All instances of the word "collateral" are replaced with "escrow".
+
+### Code Refactoring
+
+* **core:** make ChecksAdapter return Result ([0983c27](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0983c27c40d2061a51687fa0517add2593d3b934))
+* Replace "collateral" with "escrow" ([6f9d0c7](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/6f9d0c7a54fa445f1e058a65bcfccdef06cf9d02))
+
 ## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.2.0...tap_core-v0.3.0) (2023-07-31)
 
 
