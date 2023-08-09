@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use alloy_sol_types::Eip712Domain;
+
 use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
     adapters::{
@@ -42,6 +44,7 @@ impl<
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
     pub fn new(
+        domain_separator: Eip712Domain,
         escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         rav_storage_adapter: RAVSA,
@@ -50,6 +53,7 @@ impl<
         starting_min_timestamp_ns: u64,
     ) -> Self {
         let receipt_auditor = ReceiptAuditor::new(
+            domain_separator,
             escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp_ns,

@@ -6,7 +6,7 @@ mod receipt_unit_test {
     use std::str::FromStr;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
     use rstest::*;
 
     use crate::tap_receipt::Receipt;

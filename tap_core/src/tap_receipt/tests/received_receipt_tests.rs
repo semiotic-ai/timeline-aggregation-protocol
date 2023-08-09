@@ -9,7 +9,8 @@ mod received_receipt_unit_test {
         sync::Arc,
     };
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
     use tokio::sync::RwLock;
@@ -35,8 +36,11 @@ mod received_receipt_unit_test {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let address = wallet.address();
-        (wallet, address)
+        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+        let address: [u8; 20] = wallet.address().into();
+
+        (wallet, address.into())
     }
 
     #[fixture]
@@ -93,16 +97,30 @@ mod received_receipt_unit_test {
         (escrow_adapter, gateway_escrow_storage)
     }
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[tokio::test]
     async fn initialization_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
     ) {
-        let signed_receipt =
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 10).unwrap(), &keys.0)
-                .await
-                .unwrap();
+        let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 10).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
         let query_id = 1;
         let checks = get_full_list_of_checks();
 
@@ -118,6 +136,7 @@ mod received_receipt_unit_test {
     #[tokio::test]
     async fn partial_then_full_check_valid_receipt(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         allocation_ids: Vec<Address>,
         escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
@@ -131,6 +150,7 @@ mod received_receipt_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -138,6 +158,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
@@ -187,6 +208,7 @@ mod received_receipt_unit_test {
     async fn partial_then_finalize_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
@@ -199,6 +221,7 @@ mod received_receipt_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -206,6 +229,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
@@ -265,6 +289,7 @@ mod received_receipt_unit_test {
     async fn standard_lifetime_valid_receipt(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
@@ -277,6 +302,7 @@ mod received_receipt_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
         let receipt_auditor = ReceiptAuditor::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             starting_min_timestamp,
@@ -284,6 +310,7 @@ mod received_receipt_unit_test {
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )

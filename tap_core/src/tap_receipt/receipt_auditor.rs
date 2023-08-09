@@ -1,6 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use alloy_sol_types::Eip712Domain;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
 };
 
 pub struct ReceiptAuditor<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> {
+    domain_separator: Eip712Domain,
     escrow_adapter: EA,
     receipt_checks_adapter: RCA,
     min_timestamp_ns: RwLock<u64>,
@@ -19,11 +21,13 @@ pub struct ReceiptAuditor<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> {
 
 impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
     pub fn new(
+        domain_separator: Eip712Domain,
         escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         Self {
+            domain_separator,
             escrow_adapter,
             receipt_checks_adapter,
             min_timestamp_ns: RwLock::new(starting_min_timestamp_ns),
@@ -128,12 +132,11 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         &self,
         signed_receipt: &EIP712SignedMessage<Receipt>,
     ) -> ReceiptResult<()> {
-        let receipt_signer_address =
-            signed_receipt
-                .recover_signer()
-                .map_err(|err| ReceiptError::InvalidSignature {
-                    source_error_message: err.to_string(),
-                })?;
+        let receipt_signer_address = signed_receipt
+            .recover_signer(&self.domain_separator)
+            .map_err(|err| ReceiptError::InvalidSignature {
+                source_error_message: err.to_string(),
+            })?;
         if !self
             .receipt_checks_adapter
             .is_valid_gateway_id(receipt_signer_address)
@@ -156,12 +159,11 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         &self,
         signed_receipt: &EIP712SignedMessage<Receipt>,
     ) -> ReceiptResult<()> {
-        let receipt_signer_address =
-            signed_receipt
-                .recover_signer()
-                .map_err(|err| ReceiptError::InvalidSignature {
-                    source_error_message: err.to_string(),
-                })?;
+        let receipt_signer_address = signed_receipt
+            .recover_signer(&self.domain_separator)
+            .map_err(|err| ReceiptError::InvalidSignature {
+                source_error_message: err.to_string(),
+            })?;
         if self
             .escrow_adapter
             .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
@@ -178,7 +180,7 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         &self,
         signed_rav: &EIP712SignedMessage<ReceiptAggregateVoucher>,
     ) -> Result<()> {
-        let rav_signer_address = signed_rav.recover_signer()?;
+        let rav_signer_address = signed_rav.recover_signer(&self.domain_separator)?;
         if !self
             .receipt_checks_adapter
             .is_valid_gateway_id(rav_signer_address)

@@ -9,7 +9,8 @@ mod manager_unit_test {
         sync::Arc,
     };
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
     use tokio::sync::RwLock;
@@ -34,8 +35,11 @@ mod manager_unit_test {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let address = wallet.address();
-        (wallet, address)
+        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+        let address: [u8; 20] = wallet.address().into();
+
+        (wallet, address.into())
     }
 
     #[fixture]
@@ -56,6 +60,16 @@ mod manager_unit_test {
             Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
             keys().1,
         ]
+    }
+
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
     }
 
     #[fixture]
@@ -114,6 +128,7 @@ mod manager_unit_test {
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
         let (escrow_adapter, escrow_storage) = escrow_adapters;
@@ -123,6 +138,7 @@ mod manager_unit_test {
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -133,10 +149,13 @@ mod manager_unit_test {
 
         let query_id = 1;
         let value = 20u128;
-        let signed_receipt =
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                .await
-                .unwrap();
+        let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], value).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
         query_appraisal_storage
             .write()
             .await
@@ -164,6 +183,7 @@ mod manager_unit_test {
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
         let (escrow_adapter, escrow_storage) = escrow_adapters;
@@ -173,6 +193,7 @@ mod manager_unit_test {
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -185,10 +206,13 @@ mod manager_unit_test {
         let mut stored_signed_receipts = Vec::new();
         for query_id in 0..10 {
             let value = 20u128;
-            let signed_receipt =
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap();
+            let signed_receipt = EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], value).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -211,9 +235,10 @@ mod manager_unit_test {
         // no failing
         assert_eq!(rav_request.invalid_receipts.len(), 0);
 
-        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
-            .await
-            .unwrap();
+        let signed_rav =
+            EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+                .await
+                .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
             .await
@@ -235,6 +260,7 @@ mod manager_unit_test {
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
         let (escrow_adapter, escrow_storage) = escrow_adapters;
@@ -244,6 +270,7 @@ mod manager_unit_test {
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -258,10 +285,13 @@ mod manager_unit_test {
         let mut expected_accumulated_value = 0;
         for query_id in 0..10 {
             let value = 20u128;
-            let signed_receipt =
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap();
+            let signed_receipt = EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], value).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -292,9 +322,10 @@ mod manager_unit_test {
         // no previous rav
         assert!(rav_request.previous_rav.is_none());
 
-        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
-            .await
-            .unwrap();
+        let signed_rav =
+            EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+                .await
+                .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
             .await
@@ -303,10 +334,13 @@ mod manager_unit_test {
         stored_signed_receipts.clear();
         for query_id in 10..20 {
             let value = 20u128;
-            let signed_receipt =
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap();
+            let signed_receipt = EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], value).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -337,9 +371,10 @@ mod manager_unit_test {
         // Verify there is a previous rav
         assert!(rav_request.previous_rav.is_some());
 
-        let signed_rav = EIP712SignedMessage::new(rav_request.expected_rav.clone(), &keys.0)
-            .await
-            .unwrap();
+        let signed_rav =
+            EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+                .await
+                .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request.expected_rav, signed_rav)
             .await
@@ -358,6 +393,7 @@ mod manager_unit_test {
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[values(get_full_list_of_checks(), vec![ReceiptCheck::CheckSignature], Vec::<ReceiptCheck>::new())]
         initial_checks: Vec<ReceiptCheck>,
         #[values(true, false)] remove_old_receipts: bool,
@@ -369,6 +405,7 @@ mod manager_unit_test {
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let mut manager = Manager::new(
+            domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,
             rav_storage_adapter,
@@ -385,7 +422,9 @@ mod manager_unit_test {
             let value = 20u128;
             let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
             receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-            let signed_receipt = EIP712SignedMessage::new(receipt, &keys.0).await.unwrap();
+            let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0)
+                .await
+                .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -423,9 +462,13 @@ mod manager_unit_test {
         // no previous rav
         assert!(rav_request_1.previous_rav.is_none());
 
-        let signed_rav_1 = EIP712SignedMessage::new(rav_request_1.expected_rav.clone(), &keys.0)
-            .await
-            .unwrap();
+        let signed_rav_1 = EIP712SignedMessage::new(
+            &domain_separator,
+            rav_request_1.expected_rav.clone(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
             .await
@@ -436,7 +479,9 @@ mod manager_unit_test {
             let value = 20u128;
             let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
             receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-            let signed_receipt = EIP712SignedMessage::new(receipt, &keys.0).await.unwrap();
+            let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0)
+                .await
+                .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -483,9 +528,13 @@ mod manager_unit_test {
         // Verify there is a previous rav
         assert!(rav_request_2.previous_rav.is_some());
 
-        let signed_rav_2 = EIP712SignedMessage::new(rav_request_2.expected_rav.clone(), &keys.0)
-            .await
-            .unwrap();
+        let signed_rav_2 = EIP712SignedMessage::new(
+            &domain_separator,
+            rav_request_2.expected_rav.clone(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
         assert!(manager
             .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
             .await

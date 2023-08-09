@@ -5,7 +5,8 @@
 mod rav_storage_adapter_unit_test {
     use std::{str::FromStr, sync::Arc};
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
@@ -19,9 +20,19 @@ mod rav_storage_adapter_unit_test {
         receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
     };
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn rav_storage_adapter_test() {
+    async fn rav_storage_adapter_test(domain_separator: Eip712Domain) {
         let rav_storage = Arc::new(RwLock::new(None));
         let rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
 
@@ -30,20 +41,28 @@ mod rav_storage_adapter_unit_test {
          .build()
          .unwrap();
 
-        let allocation_id =
-            Address::from_str("0xabababababababababababababababababababab").unwrap();
+        let allocation_id: [u8; 20] =
+            Address::from_str("0xabababababababababababababababababababab")
+                .unwrap()
+                .into();
+        let allocation_id = allocation_id.into();
 
         // Create receipts
         let mut receipts = Vec::new();
         for value in 50..60 {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_id, value).unwrap(),
+                    &wallet,
+                )
+                .await
+                .unwrap(),
             );
         }
 
         let signed_rav = EIP712SignedMessage::new(
+            &domain_separator,
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
             &wallet,
         )
@@ -65,13 +84,18 @@ mod rav_storage_adapter_unit_test {
         let mut receipts = Vec::new();
         for value in 60..70 {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_id, value).unwrap(),
+                    &wallet,
+                )
+                .await
+                .unwrap(),
             );
         }
 
         let signed_rav = EIP712SignedMessage::new(
+            &domain_separator,
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
             &wallet,
         )

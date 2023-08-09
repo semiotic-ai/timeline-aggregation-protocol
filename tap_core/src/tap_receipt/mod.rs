@@ -6,7 +6,7 @@ mod receipt_auditor;
 mod received_receipt;
 use std::collections::HashMap;
 
-use ethereum_types::Address;
+use alloy_primitives::Address;
 pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
 pub use received_receipt::{RAVStatus, ReceiptState, ReceivedReceipt};

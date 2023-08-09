@@ -4,37 +4,41 @@
 //! Module containing EIP712 message and signature
 //!
 
-use ethereum_types::Address;
-use ethers::{
-    signers::{LocalWallet, Signer},
-    types::Signature,
-};
-use ethers_core::types::transaction::eip712;
+use alloy_primitives::Address;
+use alloy_sol_types::{Eip712Domain, SolStruct};
+use ethers::{signers::LocalWallet, types::Signature};
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result};
+use crate::Result;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct EIP712SignedMessage<M: eip712::Eip712 + Send + Sync> {
+pub struct EIP712SignedMessage<M: SolStruct> {
     /// Message to be signed
     pub message: M,
     /// ECDSA Signature of eip712 hash of message
     pub signature: Signature,
 }
 
-impl<M: eip712::Eip712 + Send + Sync> EIP712SignedMessage<M> {
+impl<M: SolStruct> EIP712SignedMessage<M> {
     /// creates signed message with signed EIP712 hash of `message` using `signing_wallet`
-    pub async fn new(message: M, signing_wallet: &LocalWallet) -> Result<Self> {
-        let signature = signing_wallet.sign_typed_data(&message).await?;
+    pub async fn new(
+        domain_separator: &Eip712Domain,
+        message: M,
+        signing_wallet: &LocalWallet,
+    ) -> Result<Self> {
+        let recovery_message_hash: [u8; 32] = message.eip712_signing_hash(domain_separator).into();
+
+        let signature = signing_wallet.sign_hash(recovery_message_hash.into())?;
 
         Ok(Self { message, signature })
     }
 
     /// Recovers and returns the signer of the message from the signature.
-    pub fn recover_signer(&self) -> Result<Address> {
-        Ok(self
-            .signature
-            .recover(Self::get_eip712_encoding(&self.message)?)?)
+    pub fn recover_signer(&self, domain_separator: &Eip712Domain) -> Result<Address> {
+        let recovery_message_hash: [u8; 32] =
+            self.message.eip712_signing_hash(domain_separator).into();
+        let recovered_address: [u8; 20] = self.signature.recover(recovery_message_hash)?.into();
+        Ok(recovered_address.into())
     }
 
     /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
@@ -43,19 +47,13 @@ impl<M: eip712::Eip712 + Send + Sync> EIP712SignedMessage<M> {
     ///
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
-    pub fn verify(&self, expected_address: Address) -> Result<()> {
-        self.signature
-            .verify(Self::get_eip712_encoding(&self.message)?, expected_address)?;
-        Ok(())
-    }
+    pub fn verify(&self, domain_separator: &Eip712Domain, expected_address: Address) -> Result<()> {
+        let recovery_message_hash: [u8; 32] =
+            self.message.eip712_signing_hash(domain_separator).into();
+        let expected_address: [u8; 20] = expected_address.into();
 
-    /// Unable to cleanly typecast encode_eip712 associated error type to crate
-    /// error type, so abstract away the error translating to this function
-    fn get_eip712_encoding(message: &M) -> Result<[u8; 32]> {
-        message
-            .encode_eip712()
-            .map_err(|e| Error::EIP712EncodeError {
-                source_error_message: e.to_string(),
-            })
+        self.signature
+            .verify(recovery_message_hash, expected_address)?;
+        Ok(())
     }
 }

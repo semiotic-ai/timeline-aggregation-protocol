@@ -10,31 +10,25 @@
 
 use std::cmp;
 
-use ethereum_types::Address;
-use ethers_contract::EthAbiType;
-use ethers_contract_derive::Eip712;
+use alloy_primitives::Address;
+use alloy_sol_types::sol;
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
-/// Holds information needed for promise of payment signed with ECDSA
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Eip712, EthAbiType)]
-#[eip712(
-    //TODO: Update this info, or make it user defined?
-    name = "tap",
-    version = "1",
-    chain_id = 1,
-    verifying_contract = "0x0000000000000000000000000000000000000000"
-)]
-pub struct ReceiptAggregateVoucher {
-    /// Unique allocation id this RAV belongs to
-    pub allocation_id: Address,
-    /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
-    /// corresponding to max timestamp from receipt batch aggregated
-    pub timestamp_ns: u64,
-    /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
-    pub value_aggregate: u128,
+sol! {
+    /// Holds information needed for promise of payment signed with ECDSA
+    #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+    struct ReceiptAggregateVoucher {
+        /// Unique allocation id this RAV belongs to
+        address allocation_id;
+        /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
+        /// corresponding to max timestamp from receipt batch aggregated
+        uint64 timestamp_ns;
+        /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
+        uint128 value_aggregate;
+    }
 }
 
 impl ReceiptAggregateVoucher {
