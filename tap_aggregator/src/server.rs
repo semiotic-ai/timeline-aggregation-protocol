@@ -3,6 +3,7 @@
 
 use std::str::FromStr;
 
+use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use ethers_signers::LocalWallet;
 use jsonrpsee::{
@@ -95,6 +96,7 @@ pub trait Rpc {
 
 struct RpcImpl {
     wallet: LocalWallet,
+    domain_separator: Eip712Domain,
 }
 
 /// Helper method that checks if the given API version is supported.
@@ -130,6 +132,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
 async fn aggregate_receipts_(
     api_version: String,
     wallet: &LocalWallet,
+    domain_separator: &Eip712Domain,
     receipts: Vec<EIP712SignedMessage<Receipt>>,
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
 ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
@@ -151,7 +154,7 @@ async fn aggregate_receipts_(
 
     let res = match api_version {
         TapRpcApiVersion::V0_0 => {
-            check_and_aggregate_receipts(&receipts, previous_rav, wallet).await
+            check_and_aggregate_receipts(domain_separator, &receipts, previous_rav, wallet).await
         }
     };
 
@@ -182,7 +185,18 @@ impl RpcServer for RpcImpl {
         let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
 
-        match aggregate_receipts_(api_version, &self.wallet, receipts, previous_rav).await {
+        //todo: remove clone from domain separator below. This should be complete before this makes it to code review! If this is still here then I forgot...
+        //      if this makes it into the actual code then the reviewers should be ashamed of themselves for not catching this.(This last part was a suggested comment from Copilot)
+
+        match aggregate_receipts_(
+            api_version,
+            &self.wallet,
+            &self.domain_separator,
+            receipts,
+            previous_rav,
+        )
+        .await
+        {
             Ok(res) => {
                 TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
@@ -200,6 +214,7 @@ impl RpcServer for RpcImpl {
 pub async fn run_server(
     port: u16,
     wallet: LocalWallet,
+    domain_separator: Eip712Domain,
     max_request_body_size: u32,
     max_response_body_size: u32,
     max_concurrent_connections: u32,
@@ -215,7 +230,10 @@ pub async fn run_server(
         .await?;
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
-    let rpc_impl = RpcImpl { wallet };
+    let rpc_impl = RpcImpl {
+        wallet,
+        domain_separator,
+    };
     let handle = server.start(rpc_impl.into_rpc())?;
     Ok((handle, addr))
 }
@@ -224,7 +242,8 @@ pub async fn run_server(
 mod tests {
     use std::str::FromStr;
 
-    use ethers_core::types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
@@ -241,8 +260,11 @@ mod tests {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let address = wallet.address();
-        (wallet, address)
+        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+        let address: [u8; 20] = wallet.address().into();
+
+        (wallet, address.into())
     }
 
     #[fixture]
@@ -253,6 +275,16 @@ mod tests {
             Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
             Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
         ]
+    }
+
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
     }
 
     #[fixture]
@@ -274,6 +306,7 @@ mod tests {
     #[tokio::test]
     async fn protocol_version(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -282,6 +315,7 @@ mod tests {
         let (handle, local_addr) = server::run_server(
             0,
             keys.0,
+            domain_separator,
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -308,6 +342,7 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -319,6 +354,7 @@ mod tests {
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
+            domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -335,9 +371,13 @@ mod tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
             );
         }
 
@@ -361,7 +401,7 @@ mod tests {
         assert!(remote_rav.message.timestamp_ns == local_rav.timestamp_ns);
         assert!(remote_rav.message.value_aggregate == local_rav.value_aggregate);
 
-        assert!(remote_rav.recover_signer().unwrap() == keys.1);
+        assert!(remote_rav.recover_signer(&domain_separator).unwrap() == keys.1);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -373,6 +413,7 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -384,6 +425,7 @@ mod tests {
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
+            domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -400,9 +442,13 @@ mod tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
             );
         }
 
@@ -413,7 +459,9 @@ mod tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).await.unwrap();
+        let signed_prev_rav = EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0)
+            .await
+            .unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
         let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
@@ -430,7 +478,7 @@ mod tests {
 
         let rav = res.data;
 
-        assert!(rav.recover_signer().unwrap() == keys.1);
+        assert!(rav.recover_signer(&domain_separator).unwrap() == keys.1);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -440,6 +488,7 @@ mod tests {
     #[tokio::test]
     async fn invalid_api_version(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -449,6 +498,7 @@ mod tests {
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
+            domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -462,12 +512,13 @@ mod tests {
             .unwrap();
 
         // Create receipts
-        let receipts =
-            vec![
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
-            ];
+        let receipts = vec![EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 42).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap()];
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
@@ -518,6 +569,7 @@ mod tests {
     #[tokio::test]
     async fn request_size_limit(
         keys: (LocalWallet, Address),
+        domain_separator: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
@@ -536,6 +588,7 @@ mod tests {
         let (handle, local_addr) = server::run_server(
             0,
             keys.0.clone(),
+            domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -553,6 +606,7 @@ mod tests {
         for _ in 1..number_of_receipts_to_exceed_limit {
             receipts.push(
                 EIP712SignedMessage::new(
+                    &domain_separator,
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
                     &keys.0,
                 )
@@ -577,7 +631,6 @@ mod tests {
                 ),
             )
             .await;
-
         assert!(res.is_ok());
 
         // Create RAV through the JSON-RPC server.

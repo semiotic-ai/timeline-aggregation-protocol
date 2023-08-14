@@ -3,8 +3,10 @@
 
 use std::collections::hash_set;
 
+use alloy_primitives::Address;
+use alloy_sol_types::Eip712Domain;
 use anyhow::{Ok, Result};
-use ethers_core::types::{Address, Signature};
+use ethers_core::types::Signature;
 use ethers_signers::{LocalWallet, Signer};
 
 use tap_core::{
@@ -13,21 +15,26 @@ use tap_core::{
 };
 
 pub async fn check_and_aggregate_receipts(
+    domain_separator: &Eip712Domain,
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     wallet: &LocalWallet,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+    // Get the address of the wallet
+    let address: [u8; 20] = wallet.address().into();
+    let address: Address = address.into();
+
     // Check that the receipts are unique
     check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by ourselves
     receipts
         .iter()
-        .try_for_each(|receipt| receipt.verify(wallet.address()))?;
+        .try_for_each(|receipt| receipt.verify(domain_separator, address))?;
 
     // Check that the previous rav is signed by ourselves
     if let Some(previous_rav) = &previous_rav {
-        previous_rav.verify(wallet.address())?;
+        previous_rav.verify(domain_separator, address)?;
     }
 
     // Check that the receipts timestamp is greater than the previous rav
@@ -58,7 +65,7 @@ pub async fn check_and_aggregate_receipts(
     let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
 
     // Sign the rav and return
-    Ok(EIP712SignedMessage::new(rav, wallet).await?)
+    Ok(EIP712SignedMessage::new(domain_separator, rav, wallet).await?)
 }
 
 fn check_allocation_id(
@@ -109,7 +116,8 @@ fn check_receipt_timestamps(
 mod tests {
     use std::str::FromStr;
 
-    use ethers_core::types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
@@ -122,8 +130,8 @@ mod tests {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let address = wallet.address();
-        (wallet, address)
+        let address: [u8; 20] = wallet.address().into();
+        (wallet, address.into())
     }
 
     #[fixture]
@@ -136,18 +144,32 @@ mod tests {
         ]
     }
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[tokio::test]
     async fn check_signatures_unique_fail(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
     ) {
         // Create the same receipt twice (replay attack)
         let mut receipts = Vec::new();
-        let receipt =
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap();
+        let receipt = EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 42).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
         receipts.push(receipt.clone());
         receipts.push(receipt);
 
@@ -160,18 +182,27 @@ mod tests {
     async fn check_signatures_unique_ok(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
     ) {
         // Create 2 different receipts
         let mut receipts = Vec::new();
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 42).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 43).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
 
         let res = aggregator::check_signatures_unique(&receipts);
@@ -181,13 +212,18 @@ mod tests {
     #[rstest]
     #[tokio::test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
-    async fn check_receipt_timestamps(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+    async fn check_receipt_timestamps(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
         // Create receipts with consecutive timestamps
         let receipt_timestamp_range = 10..20;
         let mut receipts = Vec::new();
         for i in receipt_timestamp_range.clone() {
             receipts.push(
                 EIP712SignedMessage::new(
+                    &domain_separator,
                     Receipt {
                         allocation_id: allocation_ids[0],
                         timestamp_ns: i,
@@ -203,6 +239,7 @@ mod tests {
 
         // Create rav with max_timestamp below the receipts timestamps
         let rav = EIP712SignedMessage::new(
+            &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
                 timestamp_ns: receipt_timestamp_range.clone().min().unwrap() - 1,
@@ -217,6 +254,7 @@ mod tests {
         // Create rav with max_timestamp equal to the lowest receipt timestamp
         // Aggregation should fail
         let rav = EIP712SignedMessage::new(
+            &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
                 timestamp_ns: receipt_timestamp_range.clone().min().unwrap(),
@@ -231,6 +269,7 @@ mod tests {
         // Create rav with max_timestamp above highest receipt timestamp
         // Aggregation should fail
         let rav = EIP712SignedMessage::new(
+            &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
                 allocation_id: allocation_ids[0],
                 timestamp_ns: receipt_timestamp_range.clone().max().unwrap() + 1,
@@ -247,22 +286,38 @@ mod tests {
     #[tokio::test]
     /// Test check_allocation_id with 2 receipts that have the correct allocation id
     /// and 1 receipt that has the wrong allocation id
-    async fn check_allocation_id_fail(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+    async fn check_allocation_id_fail(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
         let mut receipts = Vec::new();
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 42).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 43).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[1], 44).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[1], 44).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
 
         let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
@@ -273,22 +328,38 @@ mod tests {
     #[rstest]
     #[tokio::test]
     /// Test check_allocation_id with 3 receipts that have the correct allocation id
-    async fn check_allocation_id_ok(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
+    async fn check_allocation_id_ok(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
         let mut receipts = Vec::new();
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 42).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 43).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 43).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
         receipts.push(
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 44).unwrap(), &keys.0)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], 44).unwrap(),
+                &keys.0,
+            )
+            .await
+            .unwrap(),
         );
 
         let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
