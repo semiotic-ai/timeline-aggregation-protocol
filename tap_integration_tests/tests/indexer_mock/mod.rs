@@ -8,6 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use alloy_sol_types::Eip712Domain;
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::{async_trait, client::ClientT},
@@ -72,6 +73,7 @@ impl<
     > RpcManager<EA, RCA, RSA, RAVSA>
 {
     pub fn new(
+        domain_separator: Eip712Domain,
         escrow_adapter: EA,
         receipt_checks_adapter: RCA,
         receipt_storage_adapter: RSA,
@@ -84,6 +86,7 @@ impl<
     ) -> Result<Self> {
         Ok(Self {
             manager: Arc::new(Manager::<EA, RCA, RSA, RAVSA>::new(
+                domain_separator,
                 escrow_adapter,
                 receipt_checks_adapter,
                 rav_storage_adapter,
@@ -166,6 +169,7 @@ pub async fn run_server<
     RAVSA: RAVStorageAdapter + Send + Sync + 'static,
 >(
     port: u16,                            // Port on which the server will listen
+    domain_separator: Eip712Domain,       // EIP712 domain separator
     escrow_adapter: CA,                   // EscrowAdapter instance
     receipt_checks_adapter: RCA,          // ReceiptChecksAdapter instance
     receipt_storage_adapter: RSA,         // ReceiptStorageAdapter instance
@@ -185,6 +189,7 @@ pub async fn run_server<
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
     let rpc_manager = RpcManager::new(
+        domain_separator,
         escrow_adapter,
         receipt_checks_adapter,
         receipt_storage_adapter,
