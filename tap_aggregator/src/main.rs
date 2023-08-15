@@ -91,7 +91,7 @@ async fn main() -> Result<()> {
         .build()?;
 
     // Create the EIP-712 domain separator.
-    let domain_separator = create_eip712_domain(&args);
+    let domain_separator = create_eip712_domain(&args)?;
 
     // Start the JSON-RPC server.
     // This await is non-blocking
@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn create_eip712_domain(args: &Args) -> Eip712Domain {
+fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     // Transfrom the args into the types expected by Eip712Domain::new().
 
     // Transform optional strings into optional Cow<str>.
@@ -133,12 +133,22 @@ fn create_eip712_domain(args: &Args) -> Eip712Domain {
     let version = args.domain_version.clone().map(Cow::Owned);
 
     // Transform optional strings into optional U256.
-    let chain_id: Option<U256> = args.domain_chain_id.as_ref().map(|s| s.parse().unwrap());
-    let salt: Option<FixedBytes<32>> = args.domain_salt.as_ref().map(|s| s.parse().unwrap());
+    let chain_id: Option<U256> = args
+        .domain_chain_id
+        .as_ref()
+        .map(|s| s.parse())
+        .transpose()?;
+    let salt: Option<FixedBytes<32>> = args.domain_salt.as_ref().map(|s| s.parse()).transpose()?;
 
     // Transform optional strings into optional Address.
     let verifying_contract: Option<Address> = args.domain_verifying_contract;
 
     // Create the EIP-712 domain separator.
-    Eip712Domain::new(name, version, chain_id, verifying_contract, salt)
+    Ok(Eip712Domain::new(
+        name,
+        version,
+        chain_id,
+        verifying_contract,
+        salt,
+    ))
 }
