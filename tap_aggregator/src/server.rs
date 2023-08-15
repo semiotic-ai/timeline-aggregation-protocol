@@ -185,9 +185,6 @@ impl RpcServer for RpcImpl {
         let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
 
-        //todo: remove clone from domain separator below. This should be complete before this makes it to code review! If this is still here then I forgot...
-        //      if this makes it into the actual code then the reviewers should be ashamed of themselves for not catching this.(This last part was a suggested comment from Copilot)
-
         match aggregate_receipts_(
             api_version,
             &self.wallet,
