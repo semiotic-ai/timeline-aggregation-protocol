@@ -239,6 +239,7 @@ pub async fn run_server(
 }
 
 #[cfg(test)]
+#[allow(clippy::too_many_arguments)]
 mod tests {
     use std::str::FromStr;
 

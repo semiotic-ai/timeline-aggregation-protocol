@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
 #[cfg(test)]
+#[allow(clippy::too_many_arguments)]
 mod manager_unit_test {
     use std::{
         collections::{HashMap, HashSet},
