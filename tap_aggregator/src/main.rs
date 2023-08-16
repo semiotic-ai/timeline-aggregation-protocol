@@ -133,11 +133,18 @@ fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     let version = args.domain_version.clone().map(Cow::Owned);
 
     // Transform optional strings into optional U256.
+    if args.domain_chain_id.is_some() {
+        debug!("Parsing domain chain ID...");
+    }
     let chain_id: Option<U256> = args
         .domain_chain_id
         .as_ref()
         .map(|s| s.parse())
         .transpose()?;
+
+    if args.domain_salt.is_some() {
+        debug!("Parsing domain salt...");
+    }
     let salt: Option<FixedBytes<32>> = args.domain_salt.as_ref().map(|s| s.parse()).transpose()?;
 
     // Transform optional strings into optional Address.
