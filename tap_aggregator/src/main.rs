@@ -9,7 +9,7 @@ use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use clap::Parser;
-use ethers_signers::{coins_bip39::English, MnemonicBuilder};
+use ethers_signers::{coins_bip39::English, MnemonicBuilder, Signer};
 use tokio::signal::unix::{signal, SignalKind};
 
 use log::{debug, info};
@@ -29,8 +29,8 @@ struct Args {
     mnemonic: String,
 
     /// Gateway key derive path to be used to generate key for signing Receipt Aggregate Vouchers.
-    #[arg(long, env = "TAP_KEY_DERIVE_PATH")]
-    key_derive_path: Option<String>,
+    #[arg(long, default_value = "m/44'/60'/0'/0/0", env = "TAP_KEY_DERIVE_PATH")]
+    key_derive_path: String,
 
     /// Maximum request body size in bytes.
     /// Defaults to 10MB.
@@ -90,18 +90,12 @@ async fn main() -> Result<()> {
     tokio::spawn(metrics::run_server(args.metrics_port));
 
     // Create a wallet from the mnemonic.
-    let wallet = if let Some(key_derive_path) = args.key_derive_path.as_deref() {
-        info!("Creating wallet from mnemonic and key derive path...");
-        MnemonicBuilder::<English>::default()
-            .phrase(args.mnemonic.as_str())
-            .derivation_path(key_derive_path)?
-            .build()?
-    } else {
-        info!("Creating wallet from mnemonic...");
-        MnemonicBuilder::<English>::default()
-            .phrase(args.mnemonic.as_str())
-            .build()?
-    };
+    let wallet = MnemonicBuilder::<English>::default()
+        .phrase(args.mnemonic.as_str())
+        .derivation_path(&args.key_derive_path)?
+        .build()?;
+
+    info!("Wallet address: {:#40x}", wallet.address());
 
     // Create the EIP-712 domain separator.
     let domain_separator = create_eip712_domain(&args)?;
