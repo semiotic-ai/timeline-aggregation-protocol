@@ -21,7 +21,8 @@ mod escrow_adapter_unit_test {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let gateway_id = wallet.address();
+        let gateway_id: [u8; 20] = wallet.address().into();
+        let gateway_id = gateway_id.into();
 
         let invalid_wallet: LocalWallet = MnemonicBuilder::<English>::default()
             .phrase(
@@ -29,7 +30,8 @@ mod escrow_adapter_unit_test {
             )
             .build()
             .unwrap();
-        let invalid_gateway_id = invalid_wallet.address();
+        let invalid_gateway_id: [u8; 20] = invalid_wallet.address().into();
+        let invalid_gateway_id = invalid_gateway_id.into();
 
         let initial_value = 500u128;
 

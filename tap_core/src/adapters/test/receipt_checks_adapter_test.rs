@@ -9,7 +9,8 @@ mod receipt_checks_adapter_unit_test {
         sync::Arc,
     };
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
     use futures::{stream, StreamExt};
     use rstest::*;
@@ -24,9 +25,19 @@ mod receipt_checks_adapter_unit_test {
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn receipt_checks_adapter_test() {
+    async fn receipt_checks_adapter_test(domain_separator: Eip712Domain) {
         let gateway_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
@@ -50,11 +61,13 @@ mod receipt_checks_adapter_unit_test {
         let receipts: HashMap<u64, ReceivedReceipt> = stream::iter(0..10)
             .then(|id| {
                 let wallet = wallet.clone();
+                let domain_separator = &domain_separator;
                 async move {
                     (
                         id,
                         ReceivedReceipt::new(
                             EIP712SignedMessage::new(
+                                domain_separator,
                                 Receipt::new(allocation_ids[0], value).unwrap(),
                                 &wallet,
                             )
@@ -84,9 +97,13 @@ mod receipt_checks_adapter_unit_test {
         let new_receipt = (
             10u64,
             ReceivedReceipt::new(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &wallet)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    &wallet,
+                )
+                .await
+                .unwrap(),
                 10u64,
                 &get_full_list_of_checks(),
             ),

@@ -7,7 +7,8 @@ mod receipt_storage_adapter_unit_test {
     use std::str::FromStr;
     use std::sync::Arc;
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
@@ -22,9 +23,19 @@ mod receipt_storage_adapter_unit_test {
         tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
     };
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn receipt_adapter_test() {
+    async fn receipt_adapter_test(domain_separator: Eip712Domain) {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
@@ -40,9 +51,13 @@ mod receipt_storage_adapter_unit_test {
         let query_id = 10u64;
         let value = 100u128;
         let received_receipt = ReceivedReceipt::new(
-            EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
-                .await
-                .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_id, value).unwrap(),
+                &wallet,
+            )
+            .await
+            .unwrap(),
             query_id,
             &get_full_list_of_checks(),
         );
@@ -82,7 +97,7 @@ mod receipt_storage_adapter_unit_test {
 
     #[rstest]
     #[tokio::test]
-    async fn multi_receipt_adapter_test() {
+    async fn multi_receipt_adapter_test(domain_separator: Eip712Domain) {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
@@ -98,9 +113,13 @@ mod receipt_storage_adapter_unit_test {
         let mut received_receipts = Vec::new();
         for (query_id, value) in (50..60).enumerate() {
             received_receipts.push(ReceivedReceipt::new(
-                EIP712SignedMessage::new(Receipt::new(allocation_id, value).unwrap(), &wallet)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_id, value).unwrap(),
+                    &wallet,
+                )
+                .await
+                .unwrap(),
                 query_id as u64,
                 &get_full_list_of_checks(),
             ));

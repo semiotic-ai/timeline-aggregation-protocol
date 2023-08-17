@@ -6,8 +6,8 @@ use std::{
     sync::Arc,
 };
 
+use alloy_primitives::Address;
 use async_trait::async_trait;
-use ethereum_types::Address;
 use thiserror::Error;
 use tokio::sync::RwLock;
 

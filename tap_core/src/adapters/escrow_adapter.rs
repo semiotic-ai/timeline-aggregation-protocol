@@ -1,8 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use alloy_primitives::Address;
 use async_trait::async_trait;
-use ethereum_types::Address;
 
 /// `EscrowAdapter` defines a trait for adapters to handle escrow related operations.
 ///

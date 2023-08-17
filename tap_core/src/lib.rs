@@ -32,7 +32,8 @@ pub(crate) fn get_current_timestamp_u64_ns() -> Result<u64> {
 mod tap_tests {
     use std::str::FromStr;
 
-    use ethereum_types::Address;
+    use alloy_primitives::Address;
+    use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
 
@@ -47,8 +48,11 @@ mod tap_tests {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let address = wallet.address();
-        (wallet, address)
+        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+        let address: [u8; 20] = wallet.address().into();
+
+        (wallet, address.into())
     }
 
     #[fixture]
@@ -61,6 +65,16 @@ mod tap_tests {
         ]
     }
 
+    #[fixture]
+    fn domain_separator() -> Eip712Domain {
+        eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address::from([0x11u8; 20]),
+        }
+    }
+
     #[rstest]
     #[case::basic_rav_test (vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
@@ -68,15 +82,20 @@ mod tap_tests {
     async fn signed_rav_is_valid_with_no_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
             );
         }
 
@@ -84,8 +103,10 @@ mod tap_tests {
 
         let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
             .unwrap();
-        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).await.unwrap();
-        assert!(signed_rav.recover_signer().unwrap() == keys.1);
+        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0)
+            .await
+            .unwrap();
+        assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
 
     #[rstest]
@@ -95,15 +116,20 @@ mod tap_tests {
     async fn signed_rav_is_valid_with_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(Receipt::new(allocation_ids[0], value).unwrap(), &keys.0)
-                    .await
-                    .unwrap(),
+                EIP712SignedMessage::new(
+                    &domain_separator,
+                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    &keys.0,
+                )
+                .await
+                .unwrap(),
             );
         }
 
@@ -114,7 +140,9 @@ mod tap_tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(prev_rav, &keys.0).await.unwrap();
+        let signed_prev_rav = EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0)
+            .await
+            .unwrap();
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
@@ -123,22 +151,34 @@ mod tap_tests {
             Some(signed_prev_rav),
         )
         .unwrap();
-        let signed_rav = EIP712SignedMessage::new(rav, &keys.0).await.unwrap();
+        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0)
+            .await
+            .unwrap();
 
-        assert!(signed_rav.recover_signer().unwrap() == keys.1);
+        assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
 
     #[rstest]
     #[tokio::test]
-    async fn verify_signature(keys: (LocalWallet, Address), allocation_ids: Vec<Address>) {
-        let signed_message =
-            EIP712SignedMessage::new(Receipt::new(allocation_ids[0], 42).unwrap(), &keys.0)
-                .await
-                .unwrap();
+    async fn verify_signature(
+        keys: (LocalWallet, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
+        let signed_message = EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 42).unwrap(),
+            &keys.0,
+        )
+        .await
+        .unwrap();
 
-        assert!(signed_message.verify(keys.1).is_ok());
+        assert!(signed_message.verify(&domain_separator, keys.1).is_ok());
         assert!(signed_message
-            .verify(Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap())
+            .verify(
+                &domain_separator,
+                Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap()
+            )
             .is_err());
     }
 }

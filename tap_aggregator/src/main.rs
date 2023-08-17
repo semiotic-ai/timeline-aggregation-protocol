@@ -3,6 +3,10 @@
 
 #![doc = include_str!("../README.md")]
 
+use std::borrow::Cow;
+
+use alloy_primitives::{Address, FixedBytes, U256};
+use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder};
@@ -16,6 +20,7 @@ use tap_aggregator::server;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on for JSON-RPC requests.
+    /// Defaults to 8080.
     #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
@@ -42,6 +47,26 @@ struct Args {
     /// Defaults to 5000.
     #[arg(long, default_value_t = 5000, env = "TAP_METRICS_PORT")]
     metrics_port: u16,
+
+    /// Domain name to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_NAME")]
+    domain_name: Option<String>,
+
+    /// Domain version to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_VERSION")]
+    domain_version: Option<String>,
+
+    /// Domain chain ID to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_CHAIN_ID")]
+    domain_chain_id: Option<String>,
+
+    /// Domain verifying contract to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT")]
+    domain_verifying_contract: Option<Address>,
+
+    /// Domain salt to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_SALT")]
+    domain_salt: Option<String>,
 }
 
 #[tokio::main]
@@ -65,11 +90,15 @@ async fn main() -> Result<()> {
         .phrase(args.mnemonic.as_str())
         .build()?;
 
+    // Create the EIP-712 domain separator.
+    let domain_separator = create_eip712_domain(&args)?;
+
     // Start the JSON-RPC server.
     // This await is non-blocking
     let (handle, _) = server::run_server(
         args.port,
         wallet,
+        domain_separator,
         args.max_request_body_size,
         args.max_response_body_size,
         args.max_connections,
@@ -94,4 +123,39 @@ async fn main() -> Result<()> {
 
     debug!("Goodbye!");
     Ok(())
+}
+
+fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
+    // Transfrom the args into the types expected by Eip712Domain::new().
+
+    // Transform optional strings into optional Cow<str>.
+    let name = args.domain_name.clone().map(Cow::Owned);
+    let version = args.domain_version.clone().map(Cow::Owned);
+
+    // Transform optional strings into optional U256.
+    if args.domain_chain_id.is_some() {
+        debug!("Parsing domain chain ID...");
+    }
+    let chain_id: Option<U256> = args
+        .domain_chain_id
+        .as_ref()
+        .map(|s| s.parse())
+        .transpose()?;
+
+    if args.domain_salt.is_some() {
+        debug!("Parsing domain salt...");
+    }
+    let salt: Option<FixedBytes<32>> = args.domain_salt.as_ref().map(|s| s.parse()).transpose()?;
+
+    // Transform optional strings into optional Address.
+    let verifying_contract: Option<Address> = args.domain_verifying_contract;
+
+    // Create the EIP-712 domain separator.
+    Ok(Eip712Domain::new(
+        name,
+        version,
+        chain_id,
+        verifying_contract,
+        salt,
+    ))
 }

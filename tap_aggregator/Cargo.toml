@@ -27,6 +27,10 @@ prometheus = "0.13.3"
 axum = "0.6.18"
 futures-util = "0.3.28"
 lazy_static = "1.4.0"
+alloy-sol-types = { version = "0.3.1", features = ["eip712-serde"]}
+alloy-primitives = { version = "0.3.1", features = ["serde"]}
+ethereum-types = "0.14.1"
+ruint = "1.10.1"
 
 [dev-dependencies]
 jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }

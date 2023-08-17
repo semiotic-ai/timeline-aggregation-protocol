@@ -13,11 +13,10 @@ use std::{
     sync::Arc,
 };
 
+use alloy_primitives::Address;
+use alloy_sol_types::{eip712_domain, Eip712Domain};
 use anyhow::{Error, Result};
-use ethers::{
-    signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer},
-    types::{Address, H160},
-};
+use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use jsonrpsee::{
     core::client::ClientT, http_client::HttpClientBuilder, rpc_params, server::ServerHandle,
 };
@@ -92,8 +91,11 @@ fn keys_gateway() -> (LocalWallet, Address) {
     .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
     .build()
     .unwrap();
-    let address = wallet.address();
-    (wallet, address)
+    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+    let address: [u8; 20] = wallet.address().into();
+
+    (wallet, address.into())
 }
 
 // The private key (LocalWallet) and public key (Address) of a Gateway. This key is used to test when the Gateway's key differs from the Indexer's expectation.
@@ -103,8 +105,11 @@ fn wrong_keys_gateway() -> (LocalWallet, Address) {
         .phrase("devote force reopen galaxy humor virtual hobby chief grit nothing bag pulse")
         .build()
         .unwrap();
-    let address = wallet.address();
-    (wallet, address)
+    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
+    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
+    let address: [u8; 20] = wallet.address().into();
+
+    (wallet, address.into())
 }
 
 // Allocation IDs are used to ensure receipts cannot be double-counted
@@ -114,6 +119,17 @@ fn allocation_ids() -> Vec<Address> {
         Address::from_str("0xabababababababababababababababababababab").unwrap(),
         Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
     ]
+}
+
+// Domain separator is used to sign receipts/RAVs according to EIP-712
+#[fixture]
+fn domain_separator() -> Eip712Domain {
+    eip712_domain! {
+        name: "TAP",
+        version: "1",
+        chain_id: 1,
+        verifying_contract: Address::from([0x11u8; 20]),
+    }
 }
 
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.
@@ -164,9 +180,9 @@ fn receipt_checks_adapter(
     let (_, gateway_address) = keys_gateway;
     let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
     let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
-    let allocation_ids: Arc<RwLock<HashSet<H160>>> =
+    let allocation_ids: Arc<RwLock<HashSet<Address>>> =
         Arc::new(RwLock::new(HashSet::from_iter(allocation_ids)));
-    let gateway_ids: Arc<RwLock<HashSet<H160>>> =
+    let gateway_ids: Arc<RwLock<HashSet<Address>>> =
         Arc::new(RwLock::new(HashSet::from([gateway_address])));
 
     ReceiptChecksAdapterMock::new(
@@ -258,12 +274,19 @@ async fn requests_1(
     keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
-    allocation_ids: Vec<H160>,
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let (gateway_key, _) = keys_gateway;
     // Create your Receipt here
-    let requests =
-        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+    let requests = generate_requests(
+        query_price,
+        num_batches,
+        &gateway_key,
+        allocation_ids[0],
+        &domain_separator,
+    )
+    .await?;
     Ok(requests)
 }
 
@@ -272,12 +295,19 @@ async fn requests_2(
     keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
-    allocation_ids: Vec<H160>,
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let (gateway_key, _) = keys_gateway;
     // Create your Receipt here
-    let requests =
-        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[1]).await?;
+    let requests = generate_requests(
+        query_price,
+        num_batches,
+        &gateway_key,
+        allocation_ids[1],
+        &domain_separator,
+    )
+    .await?;
     Ok(requests)
 }
 
@@ -285,15 +315,22 @@ async fn requests_2(
 async fn repeated_timestamp_request(
     keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
-    allocation_ids: Vec<H160>,
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let (gateway_key, _) = keys_gateway;
 
     // Create signed receipts
-    let mut requests =
-        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+    let mut requests = generate_requests(
+        query_price,
+        num_batches,
+        &gateway_key,
+        allocation_ids[0],
+        &domain_separator,
+    )
+    .await?;
 
     // Create a new receipt with the timestamp equal to the latest receipt in the first RAV request batch
     let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
@@ -310,7 +347,7 @@ async fn repeated_timestamp_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize].0 =
-        EIP712SignedMessage::new(repeat_receipt, &gateway_key).await?;
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &gateway_key).await?;
     Ok(requests)
 }
 
@@ -318,14 +355,21 @@ async fn repeated_timestamp_request(
 async fn repeated_timestamp_incremented_by_one_request(
     keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
-    allocation_ids: Vec<H160>,
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let (gateway_key, _) = keys_gateway;
     // Create your Receipt here
-    let mut requests =
-        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+    let mut requests = generate_requests(
+        query_price,
+        num_batches,
+        &gateway_key,
+        allocation_ids[0],
+        &domain_separator,
+    )
+    .await?;
 
     // Create a new receipt with the timestamp equal to the latest receipt timestamp+1 in the first RAV request batch
     let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
@@ -343,7 +387,7 @@ async fn repeated_timestamp_incremented_by_one_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize].0 =
-        EIP712SignedMessage::new(repeat_receipt, &gateway_key).await?;
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &gateway_key).await?;
     Ok(requests)
 }
 
@@ -352,13 +396,20 @@ async fn wrong_requests(
     wrong_keys_gateway: (LocalWallet, Address),
     query_price: Vec<u128>,
     num_batches: u64,
-    allocation_ids: Vec<H160>,
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let (gateway_key, _) = wrong_keys_gateway;
     // Create your Receipt here
     // Create your Receipt here
-    let requests =
-        generate_requests(query_price, num_batches, &gateway_key, allocation_ids[0]).await?;
+    let requests = generate_requests(
+        query_price,
+        num_batches,
+        &gateway_key,
+        allocation_ids[0],
+        &domain_separator,
+    )
+    .await?;
     Ok(requests)
 }
 
@@ -366,6 +417,7 @@ async fn wrong_requests(
 #[fixture]
 async fn single_indexer_test_server(
     keys_gateway: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -383,6 +435,7 @@ async fn single_indexer_test_server(
     let gateway_id = keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
         keys_gateway,
+        domain_separator.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -391,6 +444,7 @@ async fn single_indexer_test_server(
     let (escrow_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
         indexer_1_adapters;
     let (indexer_handle, indexer_addr) = start_indexer_server(
+        domain_separator.clone(),
         escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
@@ -414,6 +468,7 @@ async fn single_indexer_test_server(
 #[fixture]
 async fn two_indexers_test_servers(
     keys_gateway: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -444,6 +499,7 @@ async fn two_indexers_test_servers(
     let gateway_id = keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
         keys_gateway,
+        domain_separator.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -463,6 +519,7 @@ async fn two_indexers_test_servers(
     ) = indexer_2_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
+        domain_separator.clone(),
         escrow_adapter_1,
         receipt_storage_adapter_1,
         receipt_checks_adapter_1,
@@ -477,6 +534,7 @@ async fn two_indexers_test_servers(
     .await?;
 
     let (indexer_handle_2, indexer_addr_2) = start_indexer_server(
+        domain_separator.clone(),
         escrow_adapter_2,
         receipt_storage_adapter_2,
         receipt_checks_adapter_2,
@@ -503,6 +561,7 @@ async fn two_indexers_test_servers(
 #[fixture]
 async fn single_indexer_wrong_gateway_test_server(
     wrong_keys_gateway: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -520,6 +579,7 @@ async fn single_indexer_wrong_gateway_test_server(
     let gateway_id = wrong_keys_gateway.1;
     let (gateway_aggregator_handle, gateway_aggregator_addr) = start_gateway_aggregator(
         wrong_keys_gateway,
+        domain_separator.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -529,6 +589,7 @@ async fn single_indexer_wrong_gateway_test_server(
         indexer_1_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
+        domain_separator.clone(),
         escrow_adapter,
         receipt_storage_adapter,
         receipt_checks_adapter,
@@ -779,6 +840,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 #[tokio::test]
 async fn test_tap_aggregator_rav_timestamp_cuttoff(
     keys_gateway: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -791,6 +853,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     // This test checks that tap_aggregator is correctly rejecting receipts with invalid timestamps
     let (gateway_handle, gateway_addr) = start_gateway_aggregator(
         keys_gateway,
+        domain_separator,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -874,7 +937,8 @@ async fn generate_requests(
     query_price: Vec<u128>,
     num_batches: u64,
     gateway_key: &LocalWallet,
-    allocation_id: H160,
+    allocation_id: Address,
+    domain_separator: &Eip712Domain,
 ) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
     let mut requests: Vec<(EIP712SignedMessage<Receipt>, u64)> = Vec::new();
 
@@ -882,7 +946,12 @@ async fn generate_requests(
     for _ in 0..num_batches {
         for value in &query_price {
             requests.push((
-                EIP712SignedMessage::new(Receipt::new(allocation_id, *value)?, gateway_key).await?,
+                EIP712SignedMessage::new(
+                    domain_separator,
+                    Receipt::new(allocation_id, *value)?,
+                    gateway_key,
+                )
+                .await?,
                 counter,
             ));
             counter += 1;
@@ -895,6 +964,7 @@ async fn generate_requests(
 
 // Start-up a mock Indexer. Requires a Gateway Aggregator to be running.
 async fn start_indexer_server(
+    domain_separator: Eip712Domain,
     mut escrow_adapter: EscrowAdapterMock,
     receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
@@ -918,6 +988,7 @@ async fn start_indexer_server(
 
     let (server_handle, socket_addr) = indexer_mock::run_server(
         http_port,
+        domain_separator,
         escrow_adapter,
         receipt_checks_adapter,
         receipt_storage_adapter,
@@ -936,6 +1007,7 @@ async fn start_indexer_server(
 // Start-up a Gateway Aggregator.
 async fn start_gateway_aggregator(
     keys: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -948,6 +1020,7 @@ async fn start_gateway_aggregator(
     let (server_handle, socket_addr) = agg_server::run_server(
         http_port,
         keys.0,
+        domain_separator,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
