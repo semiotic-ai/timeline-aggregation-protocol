@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.4.0...tap_core-v0.5.0) (2023-08-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **tap-core:** receipts, RAVs, and eip712-signed-message now use alloy primitive address
+
+### Features
+
+* **tap-core-bench:** update to work with alloy changes ([43c5e6c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/43c5e6c24218b9c5138cabec50262715f6b34124))
+* **tap-core:** changes eip712 and address components to alloy library ([a99af2f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/a99af2f8d64ad2d1a4d175de5e7789254fb2c36f))
+
 ## [0.4.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.3.0...tap_core-v0.4.0) (2023-08-08)
 
 

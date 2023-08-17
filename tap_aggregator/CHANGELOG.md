@@ -8,6 +8,22 @@
   * dependencies
     * tap_core bumped from 0.3.0 to 0.4.0
 
+## [0.1.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.3...tap_aggregator-v0.1.4) (2023-08-17)
+
+
+### Features
+
+* **tap-aggregator:** add default for key derive path arg ([3737f51](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3737f51d5235981c868995e4d5b6798917341123))
+* **tap-aggregator:** allow argument for key derive path to be used with mnemonic ([aec0a66](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/aec0a6628fff813e017c2e30d25530f81038dcd7))
+* **tap-aggregator:** update to work with alloy changes ([9e94403](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/9e9440354ae73cd3491e72552ebc1877c3313509))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 0.4.0 to 0.5.0
+
 ## [0.1.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.0...tap_aggregator-v0.1.1) (2023-07-20)
 
 
