@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.5.0...tap_core-v0.5.1) (2023-08-24)
+
+
+### Bug Fixes
+
+* Update alloy to v0.3.2 ([715a04c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/715a04c1d9b9622e0bb846830f8dd782062901c7))
+
 ## [0.5.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.4.0...tap_core-v0.5.0) (2023-08-17)
 
 
