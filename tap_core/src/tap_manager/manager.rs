@@ -81,7 +81,7 @@ impl<
         &self,
         signed_receipt: SignedReceipt,
         query_id: u64,
-        initial_checks: Vec<ReceiptCheck>,
+        initial_checks: &[ReceiptCheck],
     ) -> std::result::Result<(), Error> {
         let mut received_receipt =
             ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
@@ -98,7 +98,7 @@ impl<
             })?;
 
         received_receipt
-            .perform_checks(initial_checks.as_slice(), receipt_id, &self.receipt_auditor)
+            .perform_checks(initial_checks, receipt_id, &self.receipt_auditor)
             .await?;
 
         self.receipt_storage_adapter
