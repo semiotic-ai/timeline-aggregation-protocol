@@ -120,7 +120,7 @@ impl<
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
         let verify_result = match self
             .manager
-            .verify_and_store_receipt(receipt, request_id, self.initial_checks.clone())
+            .verify_and_store_receipt(receipt, request_id, self.initial_checks.as_slice())
             .await
         {
             Ok(_) => Ok(()),

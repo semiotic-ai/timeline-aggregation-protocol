@@ -163,7 +163,7 @@ mod manager_unit_test {
         escrow_storage.write().await.insert(keys.1, 999999);
 
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
             .await
             .is_ok());
     }
@@ -219,7 +219,7 @@ mod manager_unit_test {
                 .await
                 .insert(query_id, value);
             assert!(manager
-                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
                 .await
                 .is_ok());
         }
@@ -298,7 +298,7 @@ mod manager_unit_test {
                 .await
                 .insert(query_id, value);
             assert!(manager
-                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
                 .await
                 .is_ok());
             expected_accumulated_value += value;
@@ -347,7 +347,7 @@ mod manager_unit_test {
                 .await
                 .insert(query_id, value);
             assert!(manager
-                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
                 .await
                 .is_ok());
             expected_accumulated_value += value;
@@ -431,7 +431,7 @@ mod manager_unit_test {
                 .await
                 .insert(query_id, value);
             assert!(manager
-                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
                 .await
                 .is_ok());
             expected_accumulated_value += value;
@@ -488,7 +488,7 @@ mod manager_unit_test {
                 .await
                 .insert(query_id, value);
             assert!(manager
-                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.clone())
+                .verify_and_store_receipt(signed_receipt, query_id, initial_checks.as_slice())
                 .await
                 .is_ok());
             expected_accumulated_value += value;
