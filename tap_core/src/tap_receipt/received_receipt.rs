@@ -208,7 +208,13 @@ impl ReceivedReceipt {
         self.update_state();
     }
 
-    pub(crate) fn update_check(
+    /// Update the state of a receipt check, should be called when a check is completed.
+    ///
+    /// Note: the function is public to let library users update the state of a check if they are using a different
+    ///     checking mechanism than the one provided by the library, such as running batch checks before a RAV request.
+    ///
+    /// Todo: consider refactoring to make this function private again.
+    pub fn update_check(
         &mut self,
         check: &ReceiptCheck,
         result: Option<super::ReceiptResult<()>>,
