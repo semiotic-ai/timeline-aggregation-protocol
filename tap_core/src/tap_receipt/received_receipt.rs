@@ -293,7 +293,7 @@ impl ReceivedReceipt {
     }
 
     /// Updates receieved receipt state based on internal values, should be called anytime internal state changes
-    fn update_state(&mut self) {
+    pub(crate) fn update_state(&mut self) {
         let mut next_state = self.state.clone();
         match self.state {
             ReceiptState::Received => {
@@ -357,14 +357,14 @@ impl ReceivedReceipt {
         ReceiptState::AwaitingReserveEscrow
     }
 
-    fn escrow_reserve_attempt_completed(&self) -> bool {
+    pub(crate) fn escrow_reserve_attempt_completed(&self) -> bool {
         if let Some(escrow_reserve_attempt) = &self.escrow_reserved {
             return escrow_reserve_attempt.is_some();
         }
         false
     }
 
-    fn escrow_reserve_attempt_required(&self) -> bool {
+    pub(crate) fn escrow_reserve_attempt_required(&self) -> bool {
         self.escrow_reserved.is_some()
     }
 

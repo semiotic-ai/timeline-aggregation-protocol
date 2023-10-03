@@ -236,10 +236,17 @@ impl<
         let mut accepted_signed_receipts = Vec::<SignedReceipt>::new();
         let mut failed_signed_receipts = Vec::<SignedReceipt>::new();
 
-        for (receipt_id, mut received_receipt) in received_receipts {
-            received_receipt
-                .finalize_receipt_checks(receipt_id, &self.receipt_auditor)
-                .await?;
+        let mut received_receipts: Vec<ReceivedReceipt> =
+            received_receipts.into_iter().map(|e| e.1).collect();
+
+        for check in self.required_checks.iter() {
+            self.receipt_auditor
+                .check_bunch(check, &mut received_receipts)
+                .await
+                .unwrap();
+        }
+
+        for received_receipt in received_receipts {
             if received_receipt.is_accepted() {
                 accepted_signed_receipts.push(received_receipt.signed_receipt);
             } else {
