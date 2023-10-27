@@ -147,6 +147,21 @@ impl ReceivedReceipt {
         result
     }
 
+    pub async fn perform_check_batch<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+        batch: &mut [Self],
+        check: &ReceiptCheck,
+        receipt_auditor: &ReceiptAuditor<CA, RCA>,
+    ) -> Result<()> {
+        let results = receipt_auditor.check_batch(check, batch).await;
+
+        for (receipt, result) in batch.iter_mut().zip(results) {
+            receipt.update_check(check, Some(result))?;
+            receipt.update_state();
+        }
+
+        Ok(())
+    }
+
     /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if the checks were completed (*Important:* this is not the result of the check, just the result of _completing_ the check)

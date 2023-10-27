@@ -240,10 +240,12 @@ impl<
             received_receipts.into_iter().map(|e| e.1).collect();
 
         for check in self.required_checks.iter() {
-            self.receipt_auditor
-                .check_bunch(check, &mut received_receipts)
-                .await
-                .unwrap();
+            ReceivedReceipt::perform_check_batch(
+                &mut received_receipts,
+                check,
+                &self.receipt_auditor,
+            )
+            .await?;
         }
 
         for received_receipt in received_receipts {
