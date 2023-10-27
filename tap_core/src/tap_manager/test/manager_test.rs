@@ -404,7 +404,7 @@ mod manager_unit_test {
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-        let manager = Manager::new(
+        let mut manager = Manager::new(
             domain_separator.clone(),
             escrow_adapter,
             receipt_checks_adapter,

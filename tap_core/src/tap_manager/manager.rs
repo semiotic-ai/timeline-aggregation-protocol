@@ -151,7 +151,7 @@ impl<
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
     ///
-    pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
+    pub async fn remove_obsolete_receipts(&mut self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.receipt_storage_adapter
