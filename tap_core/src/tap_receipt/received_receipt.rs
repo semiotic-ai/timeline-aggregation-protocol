@@ -147,6 +147,21 @@ impl ReceivedReceipt {
         result
     }
 
+    pub async fn perform_check_batch<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+        batch: &mut [Self],
+        check: &ReceiptCheck,
+        receipt_auditor: &ReceiptAuditor<CA, RCA>,
+    ) -> Result<()> {
+        let results = receipt_auditor.check_batch(check, batch).await;
+
+        for (receipt, result) in batch.iter_mut().zip(results) {
+            receipt.update_check(check, Some(result))?;
+            receipt.update_state();
+        }
+
+        Ok(())
+    }
+
     /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if the checks were completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
@@ -293,7 +308,7 @@ impl ReceivedReceipt {
     }
 
     /// Updates receieved receipt state based on internal values, should be called anytime internal state changes
-    fn update_state(&mut self) {
+    pub(crate) fn update_state(&mut self) {
         let mut next_state = self.state.clone();
         match self.state {
             ReceiptState::Received => {
@@ -357,14 +372,14 @@ impl ReceivedReceipt {
         ReceiptState::AwaitingReserveEscrow
     }
 
-    fn escrow_reserve_attempt_completed(&self) -> bool {
+    pub(crate) fn escrow_reserve_attempt_completed(&self) -> bool {
         if let Some(escrow_reserve_attempt) = &self.escrow_reserved {
             return escrow_reserve_attempt.is_some();
         }
         false
     }
 
-    fn escrow_reserve_attempt_required(&self) -> bool {
+    pub(crate) fn escrow_reserve_attempt_required(&self) -> bool {
         self.escrow_reserved.is_some()
     }
 
