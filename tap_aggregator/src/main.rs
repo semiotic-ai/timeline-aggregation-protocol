@@ -24,11 +24,11 @@ struct Args {
     #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
-    /// Gateway mnemonic to be used to generate key for signing Receipt Aggregate Vouchers.
+    /// Sender mnemonic to be used to generate key for signing Receipt Aggregate Vouchers.
     #[arg(long, env = "TAP_MNEMONIC")]
     mnemonic: String,
 
-    /// Gateway key derive path to be used to generate key for signing Receipt Aggregate Vouchers.
+    /// Sender key derive path to be used to generate key for signing Receipt Aggregate Vouchers.
     #[arg(long, default_value = "m/44'/60'/0'/0/0", env = "TAP_KEY_DERIVE_PATH")]
     key_derive_path: String,
 

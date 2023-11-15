@@ -53,7 +53,7 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn gateway_ids() -> Vec<Address> {
+    fn sender_ids() -> Vec<Address> {
         vec![
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
@@ -81,9 +81,9 @@ mod manager_unit_test {
 
     #[fixture]
     fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
-        let gateway_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-        let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&gateway_escrow_storage));
-        (escrow_adapter, gateway_escrow_storage)
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+        let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&sender_escrow_storage));
+        (escrow_adapter, sender_escrow_storage)
     }
 
     #[fixture]
@@ -96,14 +96,14 @@ mod manager_unit_test {
         let receipt_storage_adapter = ReceiptStorageAdapterMock::new(Arc::clone(&receipt_storage));
 
         let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
-        let gateway_ids_set = Arc::new(RwLock::new(HashSet::from_iter(gateway_ids())));
+        let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
         let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
 
         let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
             Arc::clone(&receipt_storage),
             Arc::clone(&query_appraisal_storage),
             Arc::clone(&allocation_ids_set),
-            Arc::clone(&gateway_ids_set),
+            Arc::clone(&sender_ids_set),
         );
 
         (

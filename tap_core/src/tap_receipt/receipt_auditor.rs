@@ -251,7 +251,7 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             })?;
         if !self
             .receipt_checks_adapter
-            .is_valid_gateway_id(receipt_signer_address)
+            .is_valid_sender_id(receipt_signer_address)
             .await
             .map_err(|e| ReceiptError::CheckFailedToComplete {
                 source_error_message: e.to_string(),
@@ -259,7 +259,7 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         {
             return Err(ReceiptError::InvalidSignature {
                 source_error_message: format!(
-                    "Recovered gateway id is not valid: {}",
+                    "Recovered sender id is not valid: {}",
                     receipt_signer_address
                 ),
             });
@@ -330,7 +330,7 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         let rav_signer_address = signed_rav.recover_signer(&self.domain_separator)?;
         if !self
             .receipt_checks_adapter
-            .is_valid_gateway_id(rav_signer_address)
+            .is_valid_sender_id(rav_signer_address)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),

@@ -14,11 +14,11 @@ use async_trait::async_trait;
 /// # Usage
 ///
 /// The `get_available_escrow` method should be used to retrieve the local accounting
-///  amount of available escrow for a specified gateway. Any errors during this operation
+///  amount of available escrow for a specified sender. Any errors during this operation
 /// should be captured and returned in the `AdapterError` format.
 ///
 /// The `subtract_escrow` method is used to deduct a specified value from the local accounting
-/// of available escrow of a specified gateway. Any errors during this operation should be captured
+/// of available escrow of a specified sender. Any errors during this operation should be captured
 /// and returned as an `AdapterError`.
 ///
 /// This trait is utilized by [crate::tap_manager], which relies on these
@@ -36,21 +36,21 @@ pub trait EscrowAdapter {
     /// Errors of this type are returned to the user when an operation fails.
     type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 
-    /// Retrieves the local accounting amount of available escrow for a specified gateway.
+    /// Retrieves the local accounting amount of available escrow for a specified sender.
     ///
     /// This method should be implemented to fetch the local accounting amount of available escrow for a
-    /// specified gateway from your system. Any errors that occur during this process should
+    /// specified sender from your system. Any errors that occur during this process should
     /// be captured and returned as an `AdapterError`.
-    async fn get_available_escrow(&self, gateway_id: Address) -> Result<u128, Self::AdapterError>;
+    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError>;
 
-    /// Deducts a specified value from the local accounting of available escrow for a specified gateway.
+    /// Deducts a specified value from the local accounting of available escrow for a specified sender.
     ///
     /// This method should be implemented to deduct a specified value from the local accounting of
-    /// available escrow of a specified gateway in your system. Any errors that occur during this
+    /// available escrow of a specified sender in your system. Any errors that occur during this
     /// process should be captured and returned as an `AdapterError`.
     async fn subtract_escrow(
         &self,
-        gateway_id: Address,
+        sender_id: Address,
         value: u128,
     ) -> Result<(), Self::AdapterError>;
 }
