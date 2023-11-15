@@ -57,10 +57,26 @@ pub trait ReceiptStorageAdapter {
     /// This method should be implemented to fetch all `ReceivedReceipts` within a specific timestamp range
     /// from your storage system. The returned receipts should be in the form of a vector of tuples where
     /// each tuple contains the unique receipt_id and the corresponding `ReceivedReceipt`.
+    ///
+    /// If a limit is specified, the adapter should return at most that many receipts, while making
+    /// sure that that no receipts are left behind for any timestamp that is returned. Examples:
+    ///
+    /// - If the adapter has 10 receipts for timestamp 100, and 5 receipts for timestamp 200, and
+    ///  the limit is 10, the adapter should return all 10 receipts for timestamp 100, and none for
+    /// timestamp 200.
+    /// - If the adapter has 5 receipts for timestamp 100, and 10 receipts for timestamp 200, and
+    /// the limit is 10, the adapter should return all 5 receipts for timestamp 100, and none for
+    /// timestamp 200. (because it would have to leave behind 5 receipts for timestamp 200, which
+    /// is not allowed).
+    ///
+    /// You can use the [`safe_truncate_receipts()`] function to help with this, but feel free to
+    /// implement a more efficient solution for your situation if you can.
+    ///
     /// Any errors that occur during this process should be captured and returned as an `AdapterError`.
     async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_range_ns: R,
+        limit: Option<u64>,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
 
     /// Updates a specific `ReceivedReceipt` identified by a unique receipt_id.
@@ -83,4 +99,43 @@ pub trait ReceiptStorageAdapter {
         &self,
         timestamp_ns: R,
     ) -> Result<(), Self::AdapterError>;
+}
+
+/// See [`ReceiptStorageAdapter::retrieve_receipts_in_timestamp_range()`] for details.
+///
+/// WARNING: Will sort the receipts by timestamp using
+/// [vec::sort_unstable](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort_unstable).
+pub fn safe_truncate_receipts(receipts: &mut Vec<(u64, ReceivedReceipt)>, limit: u64) {
+    if receipts.len() <= limit as usize {
+        return;
+    } else if limit == 0 {
+        receipts.clear();
+        return;
+    }
+
+    receipts.sort_unstable_by_key(|(_, rx_receipt)| rx_receipt.signed_receipt.message.timestamp_ns);
+
+    // This one will be the last timestamp in `receipts` after naive truncation
+    let last_timestamp = receipts[limit as usize - 1]
+        .1
+        .signed_receipt
+        .message
+        .timestamp_ns;
+    // This one is the timestamp that comes just after the one above
+    let after_last_timestamp = receipts[limit as usize]
+        .1
+        .signed_receipt
+        .message
+        .timestamp_ns;
+
+    receipts.truncate(limit as usize);
+
+    if last_timestamp == after_last_timestamp {
+        // If the last timestamp is the same as the one that came after it, we need to
+        // remove all the receipts with the same timestamp as the last one, because
+        // otherwise we would leave behind part of the receipts for that timestamp.
+        receipts.retain(|(_, rx_receipt)| {
+            rx_receipt.signed_receipt.message.timestamp_ns != last_timestamp
+        });
+    }
 }

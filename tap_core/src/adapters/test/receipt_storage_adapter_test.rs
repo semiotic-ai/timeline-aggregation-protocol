@@ -3,6 +3,8 @@
 
 #[cfg(test)]
 mod receipt_storage_adapter_unit_test {
+    use rand::seq::SliceRandom;
+    use rand::thread_rng;
     use std::collections::HashMap;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -177,6 +179,74 @@ mod receipt_storage_adapter_unit_test {
                 .retrieve_receipt_by_id(receipt_id)
                 .await
                 .is_err());
+        }
+    }
+
+    /// The test code will shuffle the input timestamps prior to calling safe_truncate_receipts.
+    #[rstest]
+    #[case(vec![1, 2, 3, 4, 5], 3, vec![1, 2, 3])]
+    #[case(vec![1, 2, 3, 3, 4, 5], 3, vec![1, 2])]
+    #[case(vec![1, 2, 3, 4, 4, 4], 3, vec![1, 2, 3])]
+    #[case(vec![1, 1, 1, 1, 2, 3], 3, vec![])]
+    #[tokio::test]
+    async fn safe_truncate_receipts_test(
+        domain_separator: Eip712Domain,
+        #[case] input: Vec<u64>,
+        #[case] limit: u64,
+        #[case] expected: Vec<u64>,
+    ) {
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .build()
+         .unwrap();
+
+        // Vec of (id, receipt)
+        let mut receipts_orig: Vec<(u64, ReceivedReceipt)> = Vec::new();
+
+        for (i, timestamp) in input.iter().enumerate() {
+            // The contents of the receipt only need to be unique for this test (so we can check)
+            receipts_orig.push((
+                i as u64,
+                ReceivedReceipt::new(
+                    EIP712SignedMessage::new(
+                        &domain_separator,
+                        Receipt {
+                            allocation_id: Address::ZERO,
+                            timestamp_ns: *timestamp,
+                            nonce: 0,
+                            value: 0,
+                        },
+                        &wallet,
+                    )
+                    .await
+                    .unwrap(),
+                    i as u64, // Will use that to check the IDs
+                    &get_full_list_of_checks(),
+                ),
+            ));
+        }
+
+        let mut receipts_truncated = receipts_orig.clone();
+
+        // shuffle the input receipts
+        receipts_truncated.shuffle(&mut thread_rng());
+
+        crate::adapters::receipt_storage_adapter::safe_truncate_receipts(
+            &mut receipts_truncated,
+            limit,
+        );
+
+        assert_eq!(receipts_truncated.len(), expected.len());
+
+        for (elem_trun, expected_timestamp) in receipts_truncated.iter().zip(expected.iter()) {
+            // Check timestamps
+            assert_eq!(
+                elem_trun.1.signed_receipt.message.timestamp_ns,
+                *expected_timestamp
+            );
+
+            // Check that the IDs are fine
+            assert_eq!(elem_trun.0, elem_trun.1.query_id);
         }
     }
 }

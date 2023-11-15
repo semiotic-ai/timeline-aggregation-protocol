@@ -23,7 +23,7 @@ alloy-primitives = { version = "0.5.0", features = ["serde"] }
 strum = "0.24.1"
 strum_macros = "0.24.3"
 async-trait = "0.1.72"
-tokio = { version = "1.29.1", features = ["macros"] }
+tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }
