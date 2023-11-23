@@ -14,7 +14,7 @@ Options:
       --port <PORT>
           Port to listen on for JSON-RPC requests [env: TAP_PORT=] [default: 8080]
       --mnemonic <MNEMONIC>
-          Gateway mnemonic to be used to sign Receipt Aggregate Vouchers [env: TAP_MNEMONIC=]
+          Sender mnemonic to be used to sign Receipt Aggregate Vouchers [env: TAP_MNEMONIC=]
       --max-request-body-size <MAX_REQUEST_BODY_SIZE>
           Maximum request body size in bytes. Defaults to 10MB [env: TAP_MAX_REQUEST_BODY_SIZE=] [default: 10485760]
       --max-response-body-size <MAX_RESPONSE_BODY_SIZE>

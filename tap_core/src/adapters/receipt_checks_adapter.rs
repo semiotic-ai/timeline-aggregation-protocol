@@ -9,7 +9,7 @@ use async_trait::async_trait;
 ///
 /// This trait is designed to be implemented by users of this library who want to
 /// customize the checks done on TAP receipts. This includes ensuring the receipt is unique,
-/// verifying the allocation ID, the value and the gateway ID.
+/// verifying the allocation ID, the value and the sender ID.
 ///
 /// # Usage
 ///
@@ -19,7 +19,7 @@ use async_trait::async_trait;
 ///
 /// The `is_valid_value` method should confirm the value of the receipt is valid for the given query ID.
 ///
-/// The `is_valid_gateway_id` method should confirm the gateway ID is valid.
+/// The `is_valid_sender_id` method should confirm the sender ID is valid.
 ///
 /// This trait is utilized by [crate::tap_manager], which relies on these
 /// operations for managing TAP receipts.
@@ -61,9 +61,9 @@ pub trait ReceiptChecksAdapter {
     /// This method should be implemented to confirm the validity of the given value for a specific query ID.
     async fn is_valid_value(&self, value: u128, query_id: u64) -> Result<bool, Self::AdapterError>;
 
-    /// Confirms the gateway ID is valid.
+    /// Confirms the sender ID is valid.
     ///
-    /// This method should be implemented to validate the given gateway ID is one associated with a gateway the indexer considers valid.
-    /// The provided gateway ID is the address of the gateway that is recovered from the signature of the receipt.
-    async fn is_valid_gateway_id(&self, gateway_id: Address) -> Result<bool, Self::AdapterError>;
+    /// This method should be implemented to validate the given sender ID is one associated with a sender the indexer considers valid.
+    /// The provided sender ID is the address of the sender that is recovered from the signature of the receipt.
+    async fn is_valid_sender_id(&self, sender_id: Address) -> Result<bool, Self::AdapterError>;
 }

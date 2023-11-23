@@ -21,7 +21,7 @@ pub struct ReceiptChecksAdapterMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
     allocation_ids: Arc<RwLock<HashSet<Address>>>,
-    gateway_ids: Arc<RwLock<HashSet<Address>>>,
+    sender_ids: Arc<RwLock<HashSet<Address>>>,
 }
 
 #[derive(Debug, Error)]
@@ -43,13 +43,13 @@ impl ReceiptChecksAdapterMock {
         receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
         query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
         allocation_ids: Arc<RwLock<HashSet<Address>>>,
-        gateway_ids: Arc<RwLock<HashSet<Address>>>,
+        sender_ids: Arc<RwLock<HashSet<Address>>>,
     ) -> Self {
         Self {
             receipt_storage,
             query_appraisals,
             allocation_ids,
-            gateway_ids,
+            sender_ids,
         }
     }
 }
@@ -90,8 +90,8 @@ impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
         Ok(true)
     }
 
-    async fn is_valid_gateway_id(&self, gateway_id: Address) -> Result<bool, Self::AdapterError> {
-        let gateway_ids = self.gateway_ids.read().await;
-        Ok(gateway_ids.contains(&gateway_id))
+    async fn is_valid_sender_id(&self, sender_id: Address) -> Result<bool, Self::AdapterError> {
+        let sender_ids = self.sender_ids.read().await;
+        Ok(sender_ids.contains(&sender_id))
     }
 }

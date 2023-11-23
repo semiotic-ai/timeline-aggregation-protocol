@@ -21,8 +21,8 @@ mod escrow_adapter_unit_test {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let gateway_id: [u8; 20] = wallet.address().into();
-        let gateway_id = gateway_id.into();
+        let sender_id: [u8; 20] = wallet.address().into();
+        let sender_id = sender_id.into();
 
         let invalid_wallet: LocalWallet = MnemonicBuilder::<English>::default()
             .phrase(
@@ -30,40 +30,34 @@ mod escrow_adapter_unit_test {
             )
             .build()
             .unwrap();
-        let invalid_gateway_id: [u8; 20] = invalid_wallet.address().into();
-        let invalid_gateway_id = invalid_gateway_id.into();
+        let invalid_sender_id: [u8; 20] = invalid_wallet.address().into();
+        let invalid_sender_id = invalid_sender_id.into();
 
         let initial_value = 500u128;
 
         escrow_adapter
-            .increase_escrow(gateway_id, initial_value)
+            .increase_escrow(sender_id, initial_value)
             .await;
 
-        // Check that gateway exists and has valid value through adapter
-        assert!(escrow_adapter
-            .get_available_escrow(gateway_id)
-            .await
-            .is_ok());
+        // Check that sender exists and has valid value through adapter
+        assert!(escrow_adapter.get_available_escrow(sender_id).await.is_ok());
         assert_eq!(
             escrow_adapter
-                .get_available_escrow(gateway_id)
+                .get_available_escrow(sender_id)
                 .await
                 .unwrap(),
             initial_value
         );
 
-        // Check that subtracting is valid for valid gateway, and results in expected value
+        // Check that subtracting is valid for valid sender, and results in expected value
         assert!(escrow_adapter
-            .subtract_escrow(gateway_id, initial_value)
+            .subtract_escrow(sender_id, initial_value)
             .await
             .is_ok());
-        assert!(escrow_adapter
-            .get_available_escrow(gateway_id)
-            .await
-            .is_ok());
+        assert!(escrow_adapter.get_available_escrow(sender_id).await.is_ok());
         assert_eq!(
             escrow_adapter
-                .get_available_escrow(gateway_id)
+                .get_available_escrow(sender_id)
                 .await
                 .unwrap(),
             0
@@ -71,13 +65,13 @@ mod escrow_adapter_unit_test {
 
         // Check that subtracting to negative escrow results in err
         assert!(escrow_adapter
-            .subtract_escrow(gateway_id, initial_value)
+            .subtract_escrow(sender_id, initial_value)
             .await
             .is_err());
 
-        // Check that accessing non initialized gateway results in err
+        // Check that accessing non initialized sender results in err
         assert!(escrow_adapter
-            .get_available_escrow(invalid_gateway_id)
+            .get_available_escrow(invalid_sender_id)
             .await
             .is_err());
     }

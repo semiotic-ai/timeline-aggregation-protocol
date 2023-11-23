@@ -38,12 +38,12 @@ mod receipt_checks_adapter_unit_test {
     #[rstest]
     #[tokio::test]
     async fn receipt_checks_adapter_test(domain_separator: Eip712Domain) {
-        let gateway_ids = [
+        let sender_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
             Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
         ];
-        let gateway_ids_set = Arc::new(RwLock::new(HashSet::from(gateway_ids)));
+        let sender_ids_set = Arc::new(RwLock::new(HashSet::from(sender_ids)));
 
         let allocation_ids = [
             Address::from_str("0xabababababababababababababababababababab").unwrap(),
@@ -91,7 +91,7 @@ mod receipt_checks_adapter_unit_test {
             Arc::clone(&receipt_storage),
             query_appraisals_storage,
             allocation_ids_set,
-            gateway_ids_set,
+            sender_ids_set,
         );
 
         let new_receipt = (
@@ -123,8 +123,8 @@ mod receipt_checks_adapter_unit_test {
             .is_valid_allocation_id(new_receipt.1.signed_receipt.message.allocation_id)
             .await
             .unwrap());
-        // TODO: Add check when gateway_id is available from received receipt (issue: #56)
-        // assert!(receipt_checks_adapter.is_valid_gateway_id(gateway_id));
+        // TODO: Add check when sender_id is available from received receipt (issue: #56)
+        // assert!(receipt_checks_adapter.is_valid_sender_id(sender_id));
         assert!(receipt_checks_adapter
             .is_valid_value(
                 new_receipt.1.signed_receipt.message.value,
