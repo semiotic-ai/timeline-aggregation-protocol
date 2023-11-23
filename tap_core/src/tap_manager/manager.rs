@@ -216,7 +216,7 @@ impl<
         &self,
         timestamp_buffer_ns: u64,
         min_timestamp_ns: u64,
-    ) -> Result<(Vec<SignedReceipt>, Vec<SignedReceipt>), Error> {
+    ) -> Result<(Vec<SignedReceipt>, Vec<ReceivedReceipt>), Error> {
         let max_timestamp_ns = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
 
         if min_timestamp_ns > max_timestamp_ns {
@@ -234,7 +234,7 @@ impl<
             })?;
 
         let mut accepted_signed_receipts = Vec::<SignedReceipt>::new();
-        let mut failed_signed_receipts = Vec::<SignedReceipt>::new();
+        let mut failed_signed_receipts = Vec::<ReceivedReceipt>::new();
 
         let mut received_receipts: Vec<ReceivedReceipt> =
             received_receipts.into_iter().map(|e| e.1).collect();
@@ -252,7 +252,7 @@ impl<
             if received_receipt.is_accepted() {
                 accepted_signed_receipts.push(received_receipt.signed_receipt);
             } else {
-                failed_signed_receipts.push(received_receipt.signed_receipt);
+                failed_signed_receipts.push(received_receipt);
             }
         }
 
