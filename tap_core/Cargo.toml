@@ -1,24 +1,24 @@
 [package]
-name="tap_core"
+name = "tap_core"
 version = "0.6.0"
 edition.workspace = true
 license.workspace = true
 description = "Core Timeline Aggregation Protocol library: a fast, efficient and trustless unidirectional micro-payments system."
 
 [dependencies]
-rand_core="0.6.4"
-serde={ version="1.0", features=["derive"] }
-rand="0.8.5"
-thiserror="1.0.38"
-ethereum-types={version="0.14.1"}
+rand_core = "0.6.4"
+serde = { version = "1.0", features = ["derive"] }
+rand = "0.8.5"
+thiserror = "1.0.38"
+ethereum-types = { version = "0.14.1" }
 rstest = "0.17.0"
 ethers = { version = "2.0.0", default-features = false }
 ethers-core = "2.0.0"
 ethers-contract = "2.0.0"
 ethers-contract-derive = "2.0.0"
 anyhow = "1"
-alloy-sol-types = { version = "0.4.2", features = ["eip712-serde"]}
-alloy-primitives = { version = "0.4.2", features = ["serde"]}
+alloy-sol-types = { version = "0.5.0", features = ["eip712-serde"] }
+alloy-primitives = { version = "0.5.0", features = ["serde"] }
 
 strum = "0.24.1"
 strum_macros = "0.24.3"
