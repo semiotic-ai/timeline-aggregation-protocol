@@ -223,7 +223,7 @@ mod manager_unit_test {
                 .await
                 .is_ok());
         }
-        let rav_request_result = manager.create_rav_request(0).await;
+        let rav_request_result = manager.create_rav_request(0, None).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -303,7 +303,7 @@ mod manager_unit_test {
                 .is_ok());
             expected_accumulated_value += value;
         }
-        let rav_request_result = manager.create_rav_request(0).await;
+        let rav_request_result = manager.create_rav_request(0, None).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -352,7 +352,7 @@ mod manager_unit_test {
                 .is_ok());
             expected_accumulated_value += value;
         }
-        let rav_request_result = manager.create_rav_request(0).await;
+        let rav_request_result = manager.create_rav_request(0, None).await;
         assert!(rav_request_result.is_ok());
 
         let rav_request = rav_request_result.unwrap();
@@ -443,7 +443,7 @@ mod manager_unit_test {
             manager.remove_obsolete_receipts().await.unwrap();
         }
 
-        let rav_request_1_result = manager.create_rav_request(0).await;
+        let rav_request_1_result = manager.create_rav_request(0, None).await;
         assert!(rav_request_1_result.is_ok());
 
         let rav_request_1 = rav_request_1_result.unwrap();
@@ -501,7 +501,7 @@ mod manager_unit_test {
             assert_eq!(
                 manager
                     .receipt_storage_adapter
-                    .retrieve_receipts_in_timestamp_range(..)
+                    .retrieve_receipts_in_timestamp_range(.., None)
                     .await
                     .unwrap()
                     .len(),
@@ -509,7 +509,7 @@ mod manager_unit_test {
             );
         }
 
-        let rav_request_2_result = manager.create_rav_request(0).await;
+        let rav_request_2_result = manager.create_rav_request(0, None).await;
         assert!(rav_request_2_result.is_ok());
 
         let rav_request_2 = rav_request_2_result.unwrap();

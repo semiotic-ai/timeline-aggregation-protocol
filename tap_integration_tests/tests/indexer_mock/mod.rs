@@ -218,7 +218,7 @@ async fn request_rav<
     threshold: usize,
 ) -> Result<()> {
     // Create the aggregate_receipts request params
-    let rav_request = manager.create_rav_request(time_stamp_buffer).await?;
+    let rav_request = manager.create_rav_request(time_stamp_buffer, None).await?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
     let params = rpc_params!(
