@@ -12,6 +12,24 @@
   * dependencies
     * tap_core bumped from 0.5.1 to 0.6.0
 
+## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.6...tap_aggregator-v0.2.0) (2023-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename "gateway" to "sender" everywhere
+
+### Code Refactoring
+
+* rename "gateway" to "sender" everywhere ([309f41f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/309f41f879b51a1f2840ef0ed2552d7faa338b86)), closes [#188](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/188)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 0.6.0 to 0.7.0
+
 ## [0.1.5](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.4...tap_aggregator-v0.1.5) (2023-08-24)
 
 
