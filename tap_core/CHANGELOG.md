@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.6.0...tap_core-v0.7.0) (2023-11-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* add limit to receipts retrieve
+* create_rav_request() returns invalid ReceivedReceipt
+* rename "gateway" to "sender" everywhere
+
+### Features
+
+* add limit to receipts retrieve ([0ce2aab](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0ce2aabca5cf20bb531578e3a92d33ed0a2d4c17))
+* create_rav_request() returns invalid ReceivedReceipt ([5bb9001](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/5bb90015dc636aa4c0916e7072724ae7fc03e8e4))
+
+
+### Bug Fixes
+
+* mutable manager.remove_obsolete_receipts ([ca1a01e](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/ca1a01e8571f9c65a6b58efbb4964b568c03e6ac))
+
+
+### Code Refactoring
+
+* rename "gateway" to "sender" everywhere ([309f41f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/309f41f879b51a1f2840ef0ed2552d7faa338b86)), closes [#188](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/188)
+
 ## [0.6.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.5.1...tap_core-v0.6.0) (2023-10-12)
 
 

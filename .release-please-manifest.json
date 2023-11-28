@@ -1,6 +1,6 @@
 {
   ".": "0.0.0",
-  "tap_aggregator": "0.1.6",
-  "tap_core": "0.6.0",
-  "tap_integration_tests": "0.1.7"
+  "tap_aggregator": "0.2.0",
+  "tap_core": "0.7.0",
+  "tap_integration_tests": "0.1.8"
 }
