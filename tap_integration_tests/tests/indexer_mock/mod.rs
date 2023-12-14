@@ -21,9 +21,10 @@ use jsonrpsee::{
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     adapters::{
-        escrow_adapter::EscrowAdapter, rav_storage_adapter::RAVStorageAdapter,
+        escrow_adapter::EscrowAdapter,
+        rav_storage_adapter::{RAVRead, RAVStore},
         receipt_checks_adapter::ReceiptChecksAdapter,
-        receipt_storage_adapter::ReceiptStorageAdapter,
+        receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
     tap_manager::{Manager, SignedRAV, SignedReceipt},
     tap_receipt::ReceiptCheck,
@@ -52,8 +53,8 @@ pub trait Rpc {
 pub struct RpcManager<
     EA: EscrowAdapter + Send + Sync + 'static, // An instance of EscrowAdapter, marked as thread-safe with Send and given 'static lifetime
     RCA: ReceiptChecksAdapter + Send + Sync + 'static, // An instance of ReceiptChecksAdapter
-    RSA: ReceiptStorageAdapter + Send + Sync + 'static, // An instance of ReceiptStorageAdapter
-    RAVSA: RAVStorageAdapter + Send + Sync + 'static, // An instance of RAVStorageAdapter
+    RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static, // An instance of ReceiptStorageAdapter
+    RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 > {
     manager: Arc<Manager<EA, RCA, RSA, RAVSA>>, // Manager object reference counted with an Arc
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
@@ -68,8 +69,8 @@ pub struct RpcManager<
 impl<
         EA: EscrowAdapter + Send + Sync + 'static,
         RCA: ReceiptChecksAdapter + Send + Sync + 'static,
-        RSA: ReceiptStorageAdapter + Send + Sync + 'static,
-        RAVSA: RAVStorageAdapter + Send + Sync + 'static,
+        RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
+        RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
     > RpcManager<EA, RCA, RSA, RAVSA>
 {
     pub fn new(
@@ -109,8 +110,8 @@ impl<
 impl<
         CA: EscrowAdapter + Send + Sync + 'static,
         RCA: ReceiptChecksAdapter + Send + Sync + 'static,
-        RSA: ReceiptStorageAdapter + Send + Sync + 'static,
-        RAVSA: RAVStorageAdapter + Send + Sync + 'static,
+        RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
+        RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
     > RpcServer for RpcManager<CA, RCA, RSA, RAVSA>
 {
     async fn request(
@@ -165,8 +166,8 @@ impl<
 pub async fn run_server<
     CA: EscrowAdapter + Send + Sync + 'static,
     RCA: ReceiptChecksAdapter + Send + Sync + 'static,
-    RSA: ReceiptStorageAdapter + Send + Sync + 'static,
-    RAVSA: RAVStorageAdapter + Send + Sync + 'static,
+    RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
+    RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 >(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
@@ -209,8 +210,8 @@ pub async fn run_server<
 async fn request_rav<
     CA: EscrowAdapter + Send + Sync + 'static,
     RCA: ReceiptChecksAdapter + Send + Sync + 'static,
-    RSA: ReceiptStorageAdapter + Send + Sync + 'static,
-    RAVSA: RAVStorageAdapter + Send + Sync + 'static,
+    RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
+    RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 >(
     manager: &Arc<Manager<CA, RCA, RSA, RAVSA>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details

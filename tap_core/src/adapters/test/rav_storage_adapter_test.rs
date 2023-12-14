@@ -12,8 +12,9 @@ mod rav_storage_adapter_unit_test {
     use rstest::*;
     use tokio::sync::RwLock;
 
+    use crate::adapters::rav_storage_adapter::RAVRead;
     use crate::adapters::{
-        rav_storage_adapter::RAVStorageAdapter, rav_storage_adapter_mock::RAVStorageAdapterMock,
+        rav_storage_adapter::RAVStore, rav_storage_adapter_mock::RAVStorageAdapterMock,
     };
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,

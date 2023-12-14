@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
-    adapters::receipt_storage_adapter::{safe_truncate_receipts, ReceiptStorageAdapter},
+    adapters::receipt_storage_adapter::{safe_truncate_receipts, ReceiptRead, ReceiptStore},
     tap_receipt::ReceivedReceipt,
 };
 
@@ -84,7 +84,7 @@ pub enum AdapterErrorMock {
 }
 
 #[async_trait]
-impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
+impl ReceiptStore for ReceiptStorageAdapterMock {
     type AdapterError = AdapterErrorMock;
     async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().await;
@@ -93,28 +93,6 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
         receipt_storage.insert(*id_pointer, receipt);
         *id_pointer += 1;
         Ok(id_previous)
-    }
-    async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
-        &self,
-        timestamp_range_ns: R,
-        limit: Option<u64>,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
-        let receipt_storage = self.receipt_storage.read().await;
-        let mut receipts_in_range: Vec<(u64, ReceivedReceipt)> = receipt_storage
-            .iter()
-            .filter(|(_, rx_receipt)| {
-                timestamp_range_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
-            })
-            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
-            .collect();
-
-        if limit.is_some_and(|limit| receipts_in_range.len() > limit as usize) {
-            safe_truncate_receipts(&mut receipts_in_range, limit.unwrap());
-
-            Ok(receipts_in_range)
-        } else {
-            Ok(receipts_in_range)
-        }
     }
     async fn update_receipt_by_id(
         &self,
@@ -142,5 +120,32 @@ impl ReceiptStorageAdapter for ReceiptStorageAdapterMock {
             !timestamp_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
         });
         Ok(())
+    }
+}
+
+#[async_trait]
+impl ReceiptRead for ReceiptStorageAdapterMock {
+    type AdapterError = AdapterErrorMock;
+    async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
+        &self,
+        timestamp_range_ns: R,
+        limit: Option<u64>,
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
+        let receipt_storage = self.receipt_storage.read().await;
+        let mut receipts_in_range: Vec<(u64, ReceivedReceipt)> = receipt_storage
+            .iter()
+            .filter(|(_, rx_receipt)| {
+                timestamp_range_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
+            })
+            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
+            .collect();
+
+        if limit.is_some_and(|limit| receipts_in_range.len() > limit as usize) {
+            safe_truncate_receipts(&mut receipts_in_range, limit.unwrap());
+
+            Ok(receipts_in_range)
+        } else {
+            Ok(receipts_in_range)
+        }
     }
 }
