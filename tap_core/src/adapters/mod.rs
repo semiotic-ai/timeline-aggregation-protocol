@@ -20,9 +20,11 @@ pub mod rav_storage_adapter;
 pub mod receipt_checks_adapter;
 pub mod receipt_storage_adapter;
 
-mod test;
+#[cfg(feature = "mock")]
+mod mock;
 
-pub use test::escrow_adapter_mock;
-pub use test::rav_storage_adapter_mock;
-pub use test::receipt_checks_adapter_mock;
-pub use test::receipt_storage_adapter_mock;
+#[cfg(feature = "mock")]
+pub use mock::*;
+
+#[cfg(test)]
+mod test;

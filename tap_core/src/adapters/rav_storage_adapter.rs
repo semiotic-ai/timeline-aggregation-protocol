@@ -40,7 +40,6 @@ pub trait RAVStore {
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError>;
 }
 
-
 /// `RAVRead` defines a trait for read storage adapters to handle `SignedRAV` data.
 ///
 /// This trait is designed to be implemented by users of this library who want to

@@ -116,7 +116,6 @@ where
     EA: EscrowAdapter,
     RCA: ReceiptChecksAdapter,
     RSA: ReceiptRead,
-    // RAVSA: RAVRead,
 {
     async fn collect_receipts(
         &self,

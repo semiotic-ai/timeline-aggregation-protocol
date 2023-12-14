@@ -70,8 +70,6 @@ pub trait ReceiptStore {
     ) -> Result<(), Self::AdapterError>;
 }
 
-
-
 /// `ReceiptRead` defines a trait for read storage adapters to manage `ReceivedReceipt` data.
 ///
 /// This trait is designed to be implemented by users of this library who want to
@@ -118,11 +116,7 @@ pub trait ReceiptRead {
         timestamp_range_ns: R,
         limit: Option<u64>,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
-
 }
-
-
-
 
 /// See [`ReceiptStorageAdapter::retrieve_receipts_in_timestamp_range()`] for details.
 ///
