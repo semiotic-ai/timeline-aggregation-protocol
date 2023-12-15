@@ -17,7 +17,7 @@ mod receipt_storage_adapter_unit_test {
     use tokio::sync::RwLock;
 
     use crate::adapters::{
-        receipt_storage_adapter::ReceiptStorageAdapter,
+        receipt_storage_adapter::ReceiptStore,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
     use crate::{

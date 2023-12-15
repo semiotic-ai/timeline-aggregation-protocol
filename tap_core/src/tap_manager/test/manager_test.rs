@@ -21,7 +21,7 @@ mod manager_unit_test {
             escrow_adapter_mock::EscrowAdapterMock,
             rav_storage_adapter_mock::RAVStorageAdapterMock,
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
-            receipt_storage_adapter::ReceiptStorageAdapter,
+            receipt_storage_adapter::ReceiptRead,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,

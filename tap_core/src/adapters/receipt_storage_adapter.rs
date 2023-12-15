@@ -7,10 +7,10 @@ use async_trait::async_trait;
 
 use crate::tap_receipt::ReceivedReceipt;
 
-/// `ReceiptStorageAdapter` defines a trait for storage adapters to manage `ReceivedReceipt` data.
+/// `ReceiptStore` defines a trait for write storage adapters to manage `ReceivedReceipt` data.
 ///
 /// This trait is designed to be implemented by users of this library who want to
-/// customize the storage behavior of `ReceivedReceipt` data. The error handling is also
+/// customize the write storage behavior of `ReceivedReceipt` data. The error handling is also
 /// customizable by defining an `AdapterError` type, which must implement both `Error`
 /// and `Debug` from the standard library.
 ///
@@ -19,10 +19,6 @@ use crate::tap_receipt::ReceivedReceipt;
 /// The `store_receipt` method should be used to store a new `ReceivedReceipt` in the storage
 /// managed by the adapter. It returns a unique receipt_id associated with the stored receipt.
 /// Any errors during this operation should be captured and returned in the `AdapterError` format.
-///
-/// The `retrieve_receipts_in_timestamp_range` method should be implemented to fetch all `ReceivedReceipts`
-/// within a specific timestamp range from the storage. The returned receipts should be in the form of a vector
-/// of tuples where each tuple contains the unique receipt_id and the corresponding `ReceivedReceipt`.
 ///
 /// The `update_receipt_by_id` method is designed to update a specific `ReceivedReceipt` identified by a unique
 /// receipt_id. Any errors during this operation should be captured and returned as an `AdapterError`.
@@ -38,7 +34,7 @@ use crate::tap_receipt::ReceivedReceipt;
 /// For example code see [crate::adapters::receipt_storage_adapter_mock]
 
 #[async_trait]
-pub trait ReceiptStorageAdapter {
+pub trait ReceiptStore {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from the standard library.
@@ -51,6 +47,48 @@ pub trait ReceiptStorageAdapter {
     /// It returns a unique receipt_id associated with the stored receipt. Any errors that occur during
     /// this process should be captured and returned as an `AdapterError`.
     async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError>;
+
+    /// Updates a specific `ReceivedReceipt` identified by a unique receipt_id.
+    ///
+    /// This method should be implemented to update a specific `ReceivedReceipt` identified by a unique
+    /// receipt_id in your storage system. Any errors that occur during this process should be captured
+    /// and returned as an `AdapterError`.
+    async fn update_receipt_by_id(
+        &self,
+        receipt_id: u64,
+        receipt: ReceivedReceipt,
+    ) -> Result<(), Self::AdapterError>;
+
+    /// Removes all `ReceivedReceipts` within a specific timestamp range from the storage.
+    ///
+    /// This method should be implemented to remove all `ReceivedReceipts` within a specific timestamp
+    /// range from your storage system. Any errors that occur during this process should be captured and
+    /// returned as an `AdapterError`.
+    async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
+        &self,
+        timestamp_ns: R,
+    ) -> Result<(), Self::AdapterError>;
+}
+
+/// `ReceiptRead` defines a trait for read storage adapters to manage `ReceivedReceipt` data.
+///
+/// This trait is designed to be implemented by users of this library who want to
+/// customize the read storage behavior of `ReceivedReceipt` data. The error handling is also
+/// customizable by defining an `AdapterError` type, which must implement both `Error`
+/// and `Debug` from the standard library.
+///
+/// # Usage
+///
+/// The `retrieve_receipts_in_timestamp_range` method should be implemented to fetch all `ReceivedReceipts`
+/// within a specific timestamp range from the storage. The returned receipts should be in the form of a vector
+/// of tuples where each tuple contains the unique receipt_id and the corresponding `ReceivedReceipt`.
+#[async_trait]
+pub trait ReceiptRead {
+    /// Defines the user-specified error type.
+    ///
+    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// Errors of this type are returned to the user when an operation fails.
+    type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 
     /// Retrieves all `ReceivedReceipts` within a specific timestamp range.
     ///
@@ -78,27 +116,6 @@ pub trait ReceiptStorageAdapter {
         timestamp_range_ns: R,
         limit: Option<u64>,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
-
-    /// Updates a specific `ReceivedReceipt` identified by a unique receipt_id.
-    ///
-    /// This method should be implemented to update a specific `ReceivedReceipt` identified by a unique
-    /// receipt_id in your storage system. Any errors that occur during this process should be captured
-    /// and returned as an `AdapterError`.
-    async fn update_receipt_by_id(
-        &self,
-        receipt_id: u64,
-        receipt: ReceivedReceipt,
-    ) -> Result<(), Self::AdapterError>;
-
-    /// Removes all `ReceivedReceipts` within a specific timestamp range from the storage.
-    ///
-    /// This method should be implemented to remove all `ReceivedReceipts` within a specific timestamp
-    /// range from your storage system. Any errors that occur during this process should be captured and
-    /// returned as an `AdapterError`.
-    async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
-        &self,
-        timestamp_ns: R,
-    ) -> Result<(), Self::AdapterError>;
 }
 
 /// See [`ReceiptStorageAdapter::retrieve_receipts_in_timestamp_range()`] for details.

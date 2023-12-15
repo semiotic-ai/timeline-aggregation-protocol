@@ -17,14 +17,14 @@ use crate::{
 
 use super::ReceivedReceipt;
 
-pub struct ReceiptAuditor<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> {
+pub struct ReceiptAuditor<EA, RCA> {
     domain_separator: Eip712Domain,
     escrow_adapter: EA,
     receipt_checks_adapter: RCA,
     min_timestamp_ns: RwLock<u64>,
 }
 
-impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
+impl<EA, RCA> ReceiptAuditor<EA, RCA> {
     pub fn new(
         domain_separator: Eip712Domain,
         escrow_adapter: EA,
@@ -44,6 +44,72 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         *self.min_timestamp_ns.write().await = min_timestamp_ns;
     }
 
+    async fn check_timestamp(
+        &self,
+        signed_receipt: &EIP712SignedMessage<Receipt>,
+    ) -> ReceiptResult<()> {
+        let min_timestamp_ns = *self.min_timestamp_ns.read().await;
+        if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
+            return Err(ReceiptError::InvalidTimestamp {
+                received_timestamp: signed_receipt.message.timestamp_ns,
+                timestamp_min: min_timestamp_ns,
+            });
+        }
+        Ok(())
+    }
+
+    async fn check_timestamp_batch(
+        &self,
+        received_receipts: &mut [ReceivedReceipt],
+    ) -> Vec<ReceiptResult<()>> {
+        let mut results = Vec::new();
+
+        for received_receipt in received_receipts
+            .iter_mut()
+            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckTimestamp))
+        {
+            if received_receipt.checks[&ReceiptCheck::CheckTimestamp].is_none() {
+                let signed_receipt = &received_receipt.signed_receipt;
+                results.push(self.check_timestamp(signed_receipt).await);
+            }
+        }
+
+        results
+    }
+
+    async fn check_uniqueness_batch(
+        &self,
+        received_receipts: &mut [ReceivedReceipt],
+    ) -> Vec<ReceiptResult<()>> {
+        let mut results = Vec::new();
+
+        // If at least one of the receipts in the batch hasn't been checked for uniqueness yet, check the whole batch.
+        if received_receipts
+            .iter()
+            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckUnique))
+            .any(|r| r.checks[&ReceiptCheck::CheckUnique].is_none())
+        {
+            let mut signatures: HashSet<Signature> = HashSet::new();
+
+            for received_receipt in received_receipts {
+                let signature = received_receipt.signed_receipt.signature;
+                if signatures.insert(signature) {
+                    results.push(Ok(()));
+                } else {
+                    results.push(Err(ReceiptError::NonUniqueReceipt));
+                }
+            }
+        }
+
+        results
+    }
+}
+
+impl<EA, RCA> ReceiptAuditor<EA, RCA>
+where
+    EA: EscrowAdapter,
+    RCA: ReceiptChecksAdapter,
+{
     pub async fn check(
         &self,
         receipt_check: &ReceiptCheck,
@@ -81,7 +147,12 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             }
         }
     }
+}
 
+impl<EA, RCA> ReceiptAuditor<EA, RCA>
+where
+    RCA: ReceiptChecksAdapter,
+{
     async fn check_uniqueness(
         &self,
         signed_receipt: &EIP712SignedMessage<Receipt>,
@@ -98,33 +169,6 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             return Err(ReceiptError::NonUniqueReceipt);
         }
         Ok(())
-    }
-
-    async fn check_uniqueness_batch(
-        &self,
-        received_receipts: &mut [ReceivedReceipt],
-    ) -> Vec<ReceiptResult<()>> {
-        let mut results = Vec::new();
-
-        // If at least one of the receipts in the batch hasn't been checked for uniqueness yet, check the whole batch.
-        if received_receipts
-            .iter()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckUnique))
-            .any(|r| r.checks[&ReceiptCheck::CheckUnique].is_none())
-        {
-            let mut signatures: HashSet<Signature> = HashSet::new();
-
-            for received_receipt in received_receipts {
-                let signature = received_receipt.signed_receipt.signature;
-                if signatures.insert(signature) {
-                    results.push(Ok(()));
-                } else {
-                    results.push(Err(ReceiptError::NonUniqueReceipt));
-                }
-            }
-        }
-
-        results
     }
 
     async fn check_allocation_id(
@@ -159,39 +203,6 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
             if received_receipt.checks[&ReceiptCheck::CheckAllocationId].is_none() {
                 let signed_receipt = &received_receipt.signed_receipt;
                 results.push(self.check_allocation_id(signed_receipt).await);
-            }
-        }
-
-        results
-    }
-
-    async fn check_timestamp(
-        &self,
-        signed_receipt: &EIP712SignedMessage<Receipt>,
-    ) -> ReceiptResult<()> {
-        let min_timestamp_ns = *self.min_timestamp_ns.read().await;
-        if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
-            return Err(ReceiptError::InvalidTimestamp {
-                received_timestamp: signed_receipt.message.timestamp_ns,
-                timestamp_min: min_timestamp_ns,
-            });
-        }
-        Ok(())
-    }
-
-    async fn check_timestamp_batch(
-        &self,
-        received_receipts: &mut [ReceivedReceipt],
-    ) -> Vec<ReceiptResult<()>> {
-        let mut results = Vec::new();
-
-        for received_receipt in received_receipts
-            .iter_mut()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckTimestamp))
-        {
-            if received_receipt.checks[&ReceiptCheck::CheckTimestamp].is_none() {
-                let signed_receipt = &received_receipt.signed_receipt;
-                results.push(self.check_timestamp(signed_receipt).await);
             }
         }
 
@@ -286,6 +297,31 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         results
     }
 
+    pub async fn check_rav_signature(
+        &self,
+        signed_rav: &EIP712SignedMessage<ReceiptAggregateVoucher>,
+    ) -> Result<()> {
+        let rav_signer_address = signed_rav.recover_signer(&self.domain_separator)?;
+        if !self
+            .receipt_checks_adapter
+            .is_valid_sender_id(rav_signer_address)
+            .await
+            .map_err(|err| Error::AdapterError {
+                source_error: anyhow::Error::new(err),
+            })?
+        {
+            return Err(Error::InvalidRecoveredSigner {
+                address: rav_signer_address,
+            });
+        }
+        Ok(())
+    }
+}
+
+impl<EA, RCA> ReceiptAuditor<EA, RCA>
+where
+    EA: EscrowAdapter,
+{
     async fn check_and_reserve_escrow(
         &self,
         signed_receipt: &EIP712SignedMessage<Receipt>,
@@ -321,25 +357,5 @@ impl<EA: EscrowAdapter, RCA: ReceiptChecksAdapter> ReceiptAuditor<EA, RCA> {
         }
 
         results
-    }
-
-    pub async fn check_rav_signature(
-        &self,
-        signed_rav: &EIP712SignedMessage<ReceiptAggregateVoucher>,
-    ) -> Result<()> {
-        let rav_signer_address = signed_rav.recover_signer(&self.domain_separator)?;
-        if !self
-            .receipt_checks_adapter
-            .is_valid_sender_id(rav_signer_address)
-            .await
-            .map_err(|err| Error::AdapterError {
-                source_error: anyhow::Error::new(err),
-            })?
-        {
-            return Err(Error::InvalidRecoveredSigner {
-                address: rav_signer_address,
-            });
-        }
-        Ok(())
     }
 }
