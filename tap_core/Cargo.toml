@@ -28,10 +28,10 @@ tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }
 futures = "0.3.17"
-tap_core = { path = ".", features = ["mock"] }
 
 
 [features]
+default = ["mock"]
 mock = []
 
 [[bench]]
