@@ -14,7 +14,7 @@ use crate::{
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId, ReceiptWithState, ReceivedReceipt,
-        Reserved, ResultReceipt, StatefulVec,
+        Reserved, SplittedReceiptWithState,
     },
     Error,
 };
@@ -148,7 +148,7 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let StatefulVec {
+        let SplittedReceiptWithState {
             checking_receipts,
             mut awaiting_reserve_receipts,
             mut failed_receipts,
@@ -162,11 +162,11 @@ where
             } = received_receipt;
             let receipt = receipt
                 .finalize_receipt_checks(receipt_id, &self.receipt_auditor)
-                .await?;
+                .await;
 
             match receipt {
-                ResultReceipt::Success(checked) => awaiting_reserve_receipts.push(checked),
-                ResultReceipt::Failed(failed) => failed_receipts.push(failed),
+                Ok(checked) => awaiting_reserve_receipts.push(checked),
+                Err(failed) => failed_receipts.push(failed),
             }
         }
         for checked in awaiting_reserve_receipts {
@@ -174,8 +174,8 @@ where
                 .check_and_reserve_escrow(&self.receipt_auditor)
                 .await
             {
-                ResultReceipt::Success(reserved) => reserved_receipts.push(reserved),
-                ResultReceipt::Failed(failed) => failed_receipts.push(failed),
+                Ok(reserved) => reserved_receipts.push(reserved),
+                Err(failed) => failed_receipts.push(failed),
             }
         }
 
@@ -222,7 +222,7 @@ where
             .await;
         let valid_receipts = valid_receipts
             .into_iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt())
+            .map(|rx_receipt| rx_receipt.signed_receipt)
             .collect::<Vec<_>>();
 
         Ok(RAVRequest {
@@ -243,7 +243,7 @@ where
         let allocation_id = receipts[0].signed_receipt().message.allocation_id;
         let receipts = receipts
             .iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt())
+            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
             .collect::<Vec<_>>();
         ReceiptAggregateVoucher::aggregate_receipts(
             allocation_id,

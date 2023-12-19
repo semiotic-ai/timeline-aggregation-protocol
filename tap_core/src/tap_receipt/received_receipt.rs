@@ -52,13 +52,7 @@ pub enum ReceivedReceipt {
     Reserved(ReceiptWithState<Reserved>),
 }
 
-pub enum ResultReceipt<S>
-where
-    S: ReceiptState,
-{
-    Success(ReceiptWithState<S>),
-    Failed(ReceiptWithState<Failed>),
-}
+pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
 
 pub struct ReceiptWithId<T>
 where
@@ -80,47 +74,47 @@ where
     }
 }
 
-pub struct StatefulVec {
+pub struct SplittedReceiptWithState {
     pub(crate) awaiting_reserve_receipts: Vec<ReceiptWithState<AwaitingReserve>>,
     pub(crate) checking_receipts: Vec<ReceiptWithId<Checking>>,
     pub(crate) failed_receipts: Vec<ReceiptWithState<Failed>>,
     pub(crate) reserved_receipts: Vec<ReceiptWithState<Reserved>>,
 }
 
-impl ResultReceipt<AwaitingReserve> {
-    pub fn into_stateful(self) -> ReceivedReceipt {
-        match self {
-            ResultReceipt::Success(checked) => ReceivedReceipt::AwaitingReserve(checked),
-            ResultReceipt::Failed(failed) => ReceivedReceipt::Failed(failed),
+impl From<ResultReceipt<AwaitingReserve>> for ReceivedReceipt {
+    fn from(val: ResultReceipt<AwaitingReserve>) -> Self {
+        match val {
+            Ok(checked) => ReceivedReceipt::AwaitingReserve(checked),
+            Err(failed) => ReceivedReceipt::Failed(failed),
         }
     }
 }
 
-impl ReceiptWithState<AwaitingReserve> {
-    pub fn into_stateful(self) -> ReceivedReceipt {
-        ReceivedReceipt::AwaitingReserve(self)
+impl From<ReceiptWithState<AwaitingReserve>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<AwaitingReserve>) -> Self {
+        ReceivedReceipt::AwaitingReserve(val)
     }
 }
 
-impl ReceiptWithState<Checking> {
-    pub fn into_stateful(self) -> ReceivedReceipt {
-        ReceivedReceipt::Checking(self)
+impl From<ReceiptWithState<Checking>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Checking>) -> Self {
+        ReceivedReceipt::Checking(val)
     }
 }
 
-impl ReceiptWithState<Failed> {
-    pub fn into_stateful(self) -> ReceivedReceipt {
-        ReceivedReceipt::Failed(self)
+impl From<ReceiptWithState<Failed>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Failed>) -> Self {
+        ReceivedReceipt::Failed(val)
     }
 }
 
-impl ReceiptWithState<Reserved> {
-    pub fn into_stateful(self) -> ReceivedReceipt {
-        ReceivedReceipt::Reserved(self)
+impl From<ReceiptWithState<Reserved>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Reserved>) -> Self {
+        ReceivedReceipt::Reserved(val)
     }
 }
 
-impl From<Vec<StoredReceipt>> for StatefulVec {
+impl From<Vec<StoredReceipt>> for SplittedReceiptWithState {
     fn from(value: Vec<StoredReceipt>) -> Self {
         let mut awaiting_reserve_receipts = Vec::new();
         let mut checking_receipts = Vec::new();
@@ -166,16 +160,14 @@ impl ReceivedReceipt {
             query_id,
             state: Checking { checks },
         };
-        received_receipt.into_stateful()
+        received_receipt.into()
     }
-    pub fn signed_receipt(&self) -> EIP712SignedMessage<Receipt> {
+    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
         match self {
             ReceivedReceipt::AwaitingReserve(ReceiptWithState { signed_receipt, .. })
             | ReceivedReceipt::Checking(ReceiptWithState { signed_receipt, .. })
             | ReceivedReceipt::Failed(ReceiptWithState { signed_receipt, .. })
-            | ReceivedReceipt::Reserved(ReceiptWithState { signed_receipt, .. }) => {
-                signed_receipt.clone()
-            }
+            | ReceivedReceipt::Reserved(ReceiptWithState { signed_receipt, .. }) => signed_receipt,
         }
     }
 
@@ -213,8 +205,8 @@ impl ReceiptWithState<AwaitingReserve> {
         RCA: ReceiptChecksAdapter,
     {
         match auditor.check_and_reserve_escrow(&self).await {
-            Ok(_) => ResultReceipt::Success(self.perform_state_changes(Reserved)),
-            Err(_) => ResultReceipt::Failed(self.perform_state_changes(Failed)),
+            Ok(_) => Ok(self.perform_state_changes(Reserved)),
+            Err(_) => Err(self.perform_state_changes(Failed)),
         }
     }
 }
@@ -293,7 +285,7 @@ impl ReceiptWithState<Checking> {
         mut self,
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> Result<ResultReceipt<AwaitingReserve>> {
+    ) -> ResultReceipt<AwaitingReserve> {
         let incomplete_checks = self.incomplete_checks();
 
         self.perform_checks(incomplete_checks.as_slice(), receipt_id, receipt_auditor)
@@ -301,10 +293,10 @@ impl ReceiptWithState<Checking> {
 
         if self.any_check_resulted_in_error() {
             let failed = self.perform_state_changes(Failed);
-            Ok(ResultReceipt::Failed(failed))
+            Err(failed)
         } else {
             let checked = self.perform_state_changes(AwaitingReserve);
-            Ok(ResultReceipt::Success(checked))
+            Ok(checked)
         }
     }
 
@@ -395,8 +387,8 @@ where
         }
     }
 
-    pub fn signed_receipt(&self) -> EIP712SignedMessage<Receipt> {
-        self.signed_receipt.clone()
+    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
+        &self.signed_receipt
     }
 
     pub fn query_id(&self) -> u64 {

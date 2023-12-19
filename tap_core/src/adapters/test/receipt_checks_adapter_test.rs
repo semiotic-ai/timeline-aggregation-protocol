@@ -116,7 +116,7 @@ mod receipt_checks_adapter_unit_test {
             .insert(unique_receipt_id, new_receipt.1.clone());
 
         assert!(receipt_checks_adapter
-            .is_unique(&new_receipt.1.signed_receipt(), unique_receipt_id)
+            .is_unique(new_receipt.1.signed_receipt(), unique_receipt_id)
             .await
             .unwrap());
         assert!(receipt_checks_adapter

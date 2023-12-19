@@ -11,7 +11,7 @@ pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
 pub use received_receipt::{
     AwaitingReserve, Checking, Failed, ReceiptState, ReceiptWithId, ReceiptWithState,
-    ReceivedReceipt, Reserved, ResultReceipt, StatefulVec,
+    ReceivedReceipt, Reserved, ResultReceipt, SplittedReceiptWithState,
 };
 
 use serde::{Deserialize, Serialize};
