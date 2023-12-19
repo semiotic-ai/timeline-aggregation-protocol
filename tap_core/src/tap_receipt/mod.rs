@@ -9,7 +9,11 @@ use std::collections::HashMap;
 use alloy_primitives::Address;
 pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
-pub use received_receipt::{RAVStatus, ReceiptState, ReceivedReceipt};
+pub use received_receipt::{
+    AwaitingReserve, Checking, Failed, ReceiptState, ReceiptWithId, ReceiptWithState,
+    ReceivedReceipt, Reserved, ResultReceipt, StatefulVec,
+};
+
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
@@ -44,7 +48,6 @@ pub enum ReceiptCheck {
     CheckTimestamp,
     CheckValue,
     CheckSignature,
-    CheckAndReserveEscrow,
 }
 
 pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
@@ -54,7 +57,6 @@ pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
     all_checks_list.insert(ReceiptCheck::CheckTimestamp, None);
     all_checks_list.insert(ReceiptCheck::CheckValue, None);
     all_checks_list.insert(ReceiptCheck::CheckSignature, None);
-    all_checks_list.insert(ReceiptCheck::CheckAndReserveEscrow, None);
 
     all_checks_list
 }
@@ -66,7 +68,6 @@ pub fn get_full_list_of_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckValue,
         ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 

@@ -7,7 +7,9 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
-    adapters::receipt_storage_adapter::{safe_truncate_receipts, ReceiptRead, ReceiptStore},
+    adapters::receipt_storage_adapter::{
+        safe_truncate_receipts, ReceiptRead, ReceiptStore, StoredReceipt,
+    },
     tap_receipt::ReceivedReceipt,
 };
 
@@ -44,7 +46,7 @@ impl ReceiptStorageAdapterMock {
         Ok(receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
-                rx_receipt.signed_receipt.message.timestamp_ns == timestamp_ns
+                rx_receipt.signed_receipt().message.timestamp_ns == timestamp_ns
             })
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect())
@@ -52,7 +54,7 @@ impl ReceiptStorageAdapterMock {
     pub async fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
+    ) -> Result<Vec<StoredReceipt>, AdapterErrorMock> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns, None)
             .await
     }
@@ -117,7 +119,7 @@ impl ReceiptStore for ReceiptStorageAdapterMock {
     ) -> Result<(), Self::AdapterError> {
         let mut receipt_storage = self.receipt_storage.write().await;
         receipt_storage.retain(|_, rx_receipt| {
-            !timestamp_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
+            !timestamp_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
         });
         Ok(())
     }
@@ -130,12 +132,12 @@ impl ReceiptRead for ReceiptStorageAdapterMock {
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError> {
+    ) -> Result<Vec<StoredReceipt>, Self::AdapterError> {
         let receipt_storage = self.receipt_storage.read().await;
         let mut receipts_in_range: Vec<(u64, ReceivedReceipt)> = receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
-                timestamp_range_ns.contains(&rx_receipt.signed_receipt.message.timestamp_ns)
+                timestamp_range_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
             })
             .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
             .collect();
@@ -143,9 +145,9 @@ impl ReceiptRead for ReceiptStorageAdapterMock {
         if limit.is_some_and(|limit| receipts_in_range.len() > limit as usize) {
             safe_truncate_receipts(&mut receipts_in_range, limit.unwrap());
 
-            Ok(receipts_in_range)
+            Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
         } else {
-            Ok(receipts_in_range)
+            Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
         }
     }
 }

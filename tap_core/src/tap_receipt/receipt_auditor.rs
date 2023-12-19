@@ -15,7 +15,7 @@ use crate::{
     Error, Result,
 };
 
-use super::ReceivedReceipt;
+use super::{received_receipt::Checking, AwaitingReserve, ReceiptWithState};
 
 pub struct ReceiptAuditor<EA, RCA> {
     domain_separator: Eip712Domain,
@@ -60,15 +60,15 @@ impl<EA, RCA> ReceiptAuditor<EA, RCA> {
 
     async fn check_timestamp_batch(
         &self,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         let mut results = Vec::new();
 
         for received_receipt in received_receipts
             .iter_mut()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckTimestamp))
+            .filter(|r| r.state.checks.contains_key(&ReceiptCheck::CheckTimestamp))
         {
-            if received_receipt.checks[&ReceiptCheck::CheckTimestamp].is_none() {
+            if received_receipt.state.checks[&ReceiptCheck::CheckTimestamp].is_none() {
                 let signed_receipt = &received_receipt.signed_receipt;
                 results.push(self.check_timestamp(signed_receipt).await);
             }
@@ -79,15 +79,15 @@ impl<EA, RCA> ReceiptAuditor<EA, RCA> {
 
     async fn check_uniqueness_batch(
         &self,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         let mut results = Vec::new();
 
         // If at least one of the receipts in the batch hasn't been checked for uniqueness yet, check the whole batch.
         if received_receipts
             .iter()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckUnique))
-            .any(|r| r.checks[&ReceiptCheck::CheckUnique].is_none())
+            .filter(|r| r.state.checks.contains_key(&ReceiptCheck::CheckUnique))
+            .any(|r| r.state.checks[&ReceiptCheck::CheckUnique].is_none())
         {
             let mut signatures: HashSet<Signature> = HashSet::new();
 
@@ -123,16 +123,13 @@ where
             ReceiptCheck::CheckSignature => self.check_signature(signed_receipt).await,
             ReceiptCheck::CheckTimestamp => self.check_timestamp(signed_receipt).await,
             ReceiptCheck::CheckValue => self.check_value(signed_receipt, query_id).await,
-            ReceiptCheck::CheckAndReserveEscrow => {
-                self.check_and_reserve_escrow(signed_receipt).await
-            }
         }
     }
 
     pub async fn check_batch(
         &self,
         receipt_check: &ReceiptCheck,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         match receipt_check {
             ReceiptCheck::CheckUnique => self.check_uniqueness_batch(received_receipts).await,
@@ -142,9 +139,6 @@ where
             ReceiptCheck::CheckSignature => self.check_signature_batch(received_receipts).await,
             ReceiptCheck::CheckTimestamp => self.check_timestamp_batch(received_receipts).await,
             ReceiptCheck::CheckValue => self.check_value_batch(received_receipts).await,
-            ReceiptCheck::CheckAndReserveEscrow => {
-                self.check_and_reserve_escrow_batch(received_receipts).await
-            }
         }
     }
 }
@@ -192,15 +186,16 @@ where
 
     async fn check_allocation_id_batch(
         &self,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         let mut results = Vec::new();
 
-        for received_receipt in received_receipts
-            .iter_mut()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckAllocationId))
-        {
-            if received_receipt.checks[&ReceiptCheck::CheckAllocationId].is_none() {
+        for received_receipt in received_receipts.iter_mut().filter(|r| {
+            r.state
+                .checks
+                .contains_key(&ReceiptCheck::CheckAllocationId)
+        }) {
+            if received_receipt.state.checks[&ReceiptCheck::CheckAllocationId].is_none() {
                 let signed_receipt = &received_receipt.signed_receipt;
                 results.push(self.check_allocation_id(signed_receipt).await);
             }
@@ -231,15 +226,15 @@ where
 
     async fn check_value_batch(
         &self,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         let mut results = Vec::new();
 
         for received_receipt in received_receipts
             .iter_mut()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckValue))
+            .filter(|r| r.state.checks.contains_key(&ReceiptCheck::CheckValue))
         {
-            if received_receipt.checks[&ReceiptCheck::CheckValue].is_none() {
+            if received_receipt.state.checks[&ReceiptCheck::CheckValue].is_none() {
                 let signed_receipt = &received_receipt.signed_receipt;
                 results.push(
                     self.check_value(signed_receipt, received_receipt.query_id)
@@ -280,15 +275,15 @@ where
 
     async fn check_signature_batch(
         &self,
-        received_receipts: &mut [ReceivedReceipt],
+        received_receipts: &mut [ReceiptWithState<Checking>],
     ) -> Vec<ReceiptResult<()>> {
         let mut results = Vec::new();
 
         for received_receipt in received_receipts
             .iter_mut()
-            .filter(|r| r.checks.contains_key(&ReceiptCheck::CheckSignature))
+            .filter(|r| r.state.checks.contains_key(&ReceiptCheck::CheckSignature))
         {
-            if received_receipt.checks[&ReceiptCheck::CheckSignature].is_none() {
+            if received_receipt.state.checks[&ReceiptCheck::CheckSignature].is_none() {
                 let signed_receipt = &received_receipt.signed_receipt;
                 results.push(self.check_signature(signed_receipt).await);
             }
@@ -322,10 +317,11 @@ impl<EA, RCA> ReceiptAuditor<EA, RCA>
 where
     EA: EscrowAdapter,
 {
-    async fn check_and_reserve_escrow(
+    pub async fn check_and_reserve_escrow(
         &self,
-        signed_receipt: &EIP712SignedMessage<Receipt>,
+        received_receipt: &ReceiptWithState<AwaitingReserve>,
     ) -> ReceiptResult<()> {
+        let signed_receipt = &received_receipt.signed_receipt;
         let receipt_signer_address = signed_receipt
             .recover_signer(&self.domain_separator)
             .map_err(|err| ReceiptError::InvalidSignature {
@@ -341,21 +337,5 @@ where
         }
 
         Ok(())
-    }
-
-    async fn check_and_reserve_escrow_batch(
-        &self,
-        received_receipts: &mut [ReceivedReceipt],
-    ) -> Vec<ReceiptResult<()>> {
-        let mut results = Vec::new();
-
-        for received_receipt in received_receipts.iter_mut().filter(|r| {
-            r.escrow_reserve_attempt_required() && !r.escrow_reserve_attempt_completed()
-        }) {
-            let signed_receipt = &received_receipt.signed_receipt;
-            results.push(self.check_and_reserve_escrow(signed_receipt).await);
-        }
-
-        results
     }
 }

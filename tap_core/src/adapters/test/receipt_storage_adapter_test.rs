@@ -20,9 +20,10 @@ mod receipt_storage_adapter_unit_test {
         receipt_storage_adapter::ReceiptStore,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
+    use crate::tap_receipt::ReceivedReceipt;
     use crate::{
         eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
-        tap_receipt::Receipt, tap_receipt::ReceivedReceipt,
+        tap_receipt::Receipt,
     };
 
     #[fixture]
@@ -135,7 +136,7 @@ mod receipt_storage_adapter_unit_test {
                     .await
                     .unwrap(),
             );
-            receipt_timestamps.push(received_receipt.signed_receipt.message.timestamp_ns)
+            receipt_timestamps.push(received_receipt.signed_receipt().message.timestamp_ns)
         }
 
         // Retreive receipts with timestamp
@@ -241,12 +242,12 @@ mod receipt_storage_adapter_unit_test {
         for (elem_trun, expected_timestamp) in receipts_truncated.iter().zip(expected.iter()) {
             // Check timestamps
             assert_eq!(
-                elem_trun.1.signed_receipt.message.timestamp_ns,
+                elem_trun.1.signed_receipt().message.timestamp_ns,
                 *expected_timestamp
             );
 
             // Check that the IDs are fine
-            assert_eq!(elem_trun.0, elem_trun.1.query_id);
+            assert_eq!(elem_trun.0, elem_trun.1.query_id());
         }
     }
 }
