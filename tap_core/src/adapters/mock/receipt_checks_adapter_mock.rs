@@ -11,11 +11,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
-use crate::{
-    adapters::receipt_checks_adapter::ReceiptChecksAdapter,
-    eip_712_signed_message::EIP712SignedMessage,
-    tap_receipt::{Receipt, ReceiptError, ReceivedReceipt},
-};
+use crate::tap_receipt::{ReceiptError, ReceivedReceipt};
 
 pub struct ReceiptChecksAdapterMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
@@ -51,47 +47,5 @@ impl ReceiptChecksAdapterMock {
             allocation_ids,
             sender_ids,
         }
-    }
-}
-
-#[async_trait]
-impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
-    type AdapterError = AdapterErrorMock;
-
-    async fn is_unique(
-        &self,
-        receipt: &EIP712SignedMessage<Receipt>,
-        receipt_id: u64,
-    ) -> Result<bool, Self::AdapterError> {
-        let receipt_storage = self.receipt_storage.read().await;
-        Ok(receipt_storage
-            .iter()
-            .all(|(stored_receipt_id, stored_receipt)| {
-                (stored_receipt.signed_receipt().message != receipt.message)
-                    || *stored_receipt_id == receipt_id
-            }))
-    }
-
-    async fn is_valid_allocation_id(
-        &self,
-        allocation_id: Address,
-    ) -> Result<bool, Self::AdapterError> {
-        let allocation_ids = self.allocation_ids.read().await;
-        Ok(allocation_ids.contains(&allocation_id))
-    }
-
-    async fn is_valid_value(&self, value: u128, query_id: u64) -> Result<bool, Self::AdapterError> {
-        let query_appraisals = self.query_appraisals.read().await;
-        let appraised_value = query_appraisals.get(&query_id).unwrap();
-
-        if value != *appraised_value {
-            return Ok(false);
-        }
-        Ok(true)
-    }
-
-    async fn is_valid_sender_id(&self, sender_id: Address) -> Result<bool, Self::AdapterError> {
-        let sender_ids = self.sender_ids.read().await;
-        Ok(sender_ids.contains(&sender_id))
     }
 }

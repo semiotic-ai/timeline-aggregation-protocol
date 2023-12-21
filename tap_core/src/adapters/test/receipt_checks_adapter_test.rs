@@ -17,10 +17,7 @@ mod receipt_checks_adapter_unit_test {
     use tokio::sync::RwLock;
 
     use crate::{
-        adapters::{
-            receipt_checks_adapter::ReceiptChecksAdapter,
-            receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
-        },
+        adapters::receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         eip_712_signed_message::EIP712SignedMessage,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
