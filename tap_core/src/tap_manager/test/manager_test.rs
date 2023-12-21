@@ -24,6 +24,7 @@ mod manager_unit_test {
             receipt_storage_adapter::ReceiptRead,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
+        checks::BoxedCheck,
         eip_712_signed_message::EIP712SignedMessage,
         get_current_timestamp_u64_ns,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceiptCheck},
@@ -115,32 +116,29 @@ mod manager_unit_test {
 
     #[rstest]
     #[case::full_checks(get_full_list_of_checks())]
-    #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
-    #[case::no_checks(Vec::<ReceiptCheck>::new())]
+    #[case::partial_checks(todo!())]
+    #[case::no_checks(Vec::<BoxedCheck>::new())]
     #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
         rav_storage_adapter: RAVStorageAdapterMock,
         escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
         receipt_adapters: (
             ReceiptStorageAdapterMock,
-            ReceiptChecksAdapterMock,
             Arc<RwLock<HashMap<u64, u128>>>,
         ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        #[case] initial_checks: Vec<ReceiptCheck>,
+        #[case] initial_checks: Vec<BoxedCheck>,
     ) {
         let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_storage_adapter, receipt_checks_adapter, query_appraisal_storage) =
-            receipt_adapters;
+        let (receipt_storage_adapter, query_appraisal_storage) = receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
             domain_separator.clone(),
             escrow_adapter,
-            receipt_checks_adapter,
             rav_storage_adapter,
             receipt_storage_adapter,
             get_full_list_of_checks(),
