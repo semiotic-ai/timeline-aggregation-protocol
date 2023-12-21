@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
 pub mod adapters;
+pub mod checks;
 pub mod eip_712_signed_message;
 mod error;
 pub mod receipt_aggregate_voucher;
