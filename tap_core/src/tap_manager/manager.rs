@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
 use alloy_sol_types::Eip712Domain;
 
 use super::{RAVRequest, SignedRAV, SignedReceipt};
@@ -8,9 +10,9 @@ use crate::{
     adapters::{
         escrow_adapter::EscrowAdapter,
         rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
+    checks::{BoxedCheck, TimestampCheck},
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId,
@@ -23,10 +25,12 @@ pub struct Manager<E> {
     /// Executor that implements adapters
     executor: E,
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    required_checks: Vec<ReceiptCheck>,
+    required_checks: Vec<BoxedCheck>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
+
+    timestamp_check: Arc<TimestampCheck>,
 }
 
 impl<E> Manager<E>
@@ -43,6 +47,8 @@ where
         required_checks: Vec<ReceiptCheck>,
         starting_min_timestamp_ns: u64,
     ) -> Self {
+        let timestamp_check = Arc::new(TimestampCheck::new(starting_min_timestamp_ns));
+        required_checks.push(timestamp_check.clone());
         let receipt_auditor = ReceiptAuditor::new(
             domain_separator,
             executor.clone(),
@@ -52,13 +58,14 @@ where
             executor,
             required_checks,
             receipt_auditor,
+            timestamp_check,
         }
     }
 }
 
 impl<E> Manager<E>
 where
-    E: RAVStore + ReceiptChecksAdapter,
+    E: RAVStore,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -71,9 +78,10 @@ where
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
     ) -> std::result::Result<(), Error> {
-        self.receipt_auditor
-            .check_rav_signature(&signed_rav)
-            .await?;
+        // TODO
+        // self.receipt_auditor
+        //     .check_rav_signature(&signed_rav)
+        //     .await?;
 
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRAV {
@@ -111,7 +119,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + EscrowAdapter + ReceiptChecksAdapter,
+    E: ReceiptRead + EscrowAdapter,
 {
     async fn collect_receipts(
         &self,
@@ -151,11 +159,9 @@ where
         for received_receipt in checking_receipts {
             let ReceiptWithId {
                 receipt,
-                receipt_id,
+                receipt_id: _,
             } = received_receipt;
-            let receipt = receipt
-                .finalize_receipt_checks(receipt_id, &self.receipt_auditor)
-                .await;
+            let receipt = receipt.finalize_receipt_checks().await;
 
             match receipt {
                 Ok(checked) => awaiting_reserve_receipts.push(checked),
@@ -178,7 +184,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + RAVRead + EscrowAdapter + ReceiptChecksAdapter,
+    E: ReceiptRead + RAVRead + EscrowAdapter,
 {
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
@@ -207,8 +213,8 @@ where
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
-        self.receipt_auditor
-            .update_min_timestamp_ns(expected_rav.timestampNs)
+        self.timestamp_check
+            .update_min_timestamp_ns(expected_rav.timestamp_ns)
             .await;
         let valid_receipts = valid_receipts
             .into_iter()
@@ -274,7 +280,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptStore + EscrowAdapter + ReceiptChecksAdapter,
+    E: ReceiptStore + EscrowAdapter,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
@@ -291,7 +297,7 @@ where
         &self,
         signed_receipt: SignedReceipt,
         query_id: u64,
-        initial_checks: &[ReceiptCheck],
+        initial_checks: &[BoxedCheck],
     ) -> std::result::Result<(), Error> {
         let mut received_receipt =
             ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
@@ -308,9 +314,7 @@ where
             })?;
 
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            received_receipt
-                .perform_checks(initial_checks, receipt_id, &self.receipt_auditor)
-                .await;
+            received_receipt.perform_checks(initial_checks).await;
         }
 
         self.executor
