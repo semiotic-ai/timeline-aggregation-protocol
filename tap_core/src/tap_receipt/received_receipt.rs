@@ -96,7 +96,7 @@ where
     }
 }
 
-pub struct SplittedReceiptWithState {
+pub struct CategorizedReceiptsWithState {
     pub(crate) awaiting_reserve_receipts: Vec<ReceiptWithState<AwaitingReserve>>,
     pub(crate) checking_receipts: Vec<ReceiptWithId<Checking>>,
     pub(crate) failed_receipts: Vec<ReceiptWithState<Failed>>,
@@ -136,7 +136,7 @@ impl From<ReceiptWithState<Reserved>> for ReceivedReceipt {
     }
 }
 
-impl From<Vec<StoredReceipt>> for SplittedReceiptWithState {
+impl From<Vec<StoredReceipt>> for CategorizedReceiptsWithState {
     fn from(value: Vec<StoredReceipt>) -> Self {
         let mut awaiting_reserve_receipts = Vec::new();
         let mut checking_receipts = Vec::new();
@@ -398,7 +398,6 @@ impl<S> ReceiptWithState<S>
 where
     S: ReceiptState,
 {
-
     fn perform_state_changes_into<T>(self) -> ReceiptWithState<T>
     where
         T: ReceiptState,

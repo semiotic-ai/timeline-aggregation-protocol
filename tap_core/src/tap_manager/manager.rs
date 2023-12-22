@@ -13,8 +13,8 @@ use crate::{
     },
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
-        Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId, ReceiptWithState, ReceivedReceipt,
-        Reserved, SplittedReceiptWithState,
+        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId,
+        ReceiptWithState, ReceivedReceipt, Reserved,
     },
     Error,
 };
@@ -148,7 +148,7 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let SplittedReceiptWithState {
+        let CategorizedReceiptsWithState {
             checking_receipts,
             mut awaiting_reserve_receipts,
             mut failed_receipts,

@@ -10,8 +10,8 @@ use alloy_primitives::Address;
 pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
 pub use received_receipt::{
-    AwaitingReserve, Checking, Failed, ReceiptState, ReceiptWithId, ReceiptWithState,
-    ReceivedReceipt, Reserved, ResultReceipt, SplittedReceiptWithState,
+    AwaitingReserve, CategorizedReceiptsWithState, Checking, Failed, ReceiptState, ReceiptWithId,
+    ReceiptWithState, ReceivedReceipt, Reserved, ResultReceipt,
 };
 
 use serde::{Deserialize, Serialize};
