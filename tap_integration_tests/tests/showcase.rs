@@ -209,7 +209,6 @@ fn required_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckUnique,
         ReceiptCheck::CheckValue,
-        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 
@@ -223,7 +222,6 @@ fn initial_checks() -> Vec<ReceiptCheck> {
         ReceiptCheck::CheckTimestamp,
         ReceiptCheck::CheckUnique,
         ReceiptCheck::CheckValue,
-        ReceiptCheck::CheckAndReserveEscrow,
     ]
 }
 

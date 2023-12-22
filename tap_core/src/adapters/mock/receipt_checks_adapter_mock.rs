@@ -67,7 +67,7 @@ impl ReceiptChecksAdapter for ReceiptChecksAdapterMock {
         Ok(receipt_storage
             .iter()
             .all(|(stored_receipt_id, stored_receipt)| {
-                (stored_receipt.signed_receipt.message != receipt.message)
+                (stored_receipt.signed_receipt().message != receipt.message)
                     || *stored_receipt_id == receipt_id
             }))
     }

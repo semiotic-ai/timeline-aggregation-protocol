@@ -115,9 +115,22 @@ pub trait ReceiptRead {
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, Self::AdapterError>;
+    ) -> Result<Vec<StoredReceipt>, Self::AdapterError>;
 }
 
+pub struct StoredReceipt {
+    pub receipt_id: u64,
+    pub receipt: ReceivedReceipt,
+}
+
+impl From<(u64, ReceivedReceipt)> for StoredReceipt {
+    fn from((receipt_id, receipt): (u64, ReceivedReceipt)) -> Self {
+        Self {
+            receipt_id,
+            receipt,
+        }
+    }
+}
 /// See [`ReceiptStorageAdapter::retrieve_receipts_in_timestamp_range()`] for details.
 ///
 /// WARNING: Will sort the receipts by timestamp using
@@ -130,18 +143,19 @@ pub fn safe_truncate_receipts(receipts: &mut Vec<(u64, ReceivedReceipt)>, limit:
         return;
     }
 
-    receipts.sort_unstable_by_key(|(_, rx_receipt)| rx_receipt.signed_receipt.message.timestamp_ns);
+    receipts
+        .sort_unstable_by_key(|(_, rx_receipt)| rx_receipt.signed_receipt().message.timestamp_ns);
 
     // This one will be the last timestamp in `receipts` after naive truncation
     let last_timestamp = receipts[limit as usize - 1]
         .1
-        .signed_receipt
+        .signed_receipt()
         .message
         .timestamp_ns;
     // This one is the timestamp that comes just after the one above
     let after_last_timestamp = receipts[limit as usize]
         .1
-        .signed_receipt
+        .signed_receipt()
         .message
         .timestamp_ns;
 
@@ -152,7 +166,7 @@ pub fn safe_truncate_receipts(receipts: &mut Vec<(u64, ReceivedReceipt)>, limit:
         // remove all the receipts with the same timestamp as the last one, because
         // otherwise we would leave behind part of the receipts for that timestamp.
         receipts.retain(|(_, rx_receipt)| {
-            rx_receipt.signed_receipt.message.timestamp_ns != last_timestamp
+            rx_receipt.signed_receipt().message.timestamp_ns != last_timestamp
         });
     }
 }

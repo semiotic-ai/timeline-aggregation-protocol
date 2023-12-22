@@ -24,9 +24,7 @@ mod received_receipt_unit_test {
         eip_712_signed_message::EIP712SignedMessage,
         get_current_timestamp_u64_ns,
         tap_receipt::{
-            get_full_list_of_checks,
-            received_receipt::{RAVStatus, ReceiptState},
-            Receipt, ReceiptAuditor, ReceiptCheck, ReceivedReceipt,
+            get_full_list_of_checks, Receipt, ReceiptAuditor, ReceiptCheck, ReceivedReceipt,
         },
     };
 
@@ -126,10 +124,13 @@ mod received_receipt_unit_test {
 
         let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
 
+        let received_receipt = match received_receipt {
+            ReceivedReceipt::Checking(checking) => checking,
+            _ => panic!("ReceivedReceipt should be in Checking state"),
+        };
+
         assert!(received_receipt.completed_checks_with_errors().is_empty());
         assert!(received_receipt.incomplete_checks().len() == checks.len());
-        assert_eq!(received_receipt.state, ReceiptState::Received);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
     }
 
     #[rstest]
@@ -181,26 +182,25 @@ mod received_receipt_unit_test {
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
-        let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
         let receipt_id = 0u64;
 
-        assert_eq!(received_receipt.state, ReceiptState::Received);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
+        let mut received_receipt = match received_receipt {
+            ReceivedReceipt::Checking(checking) => checking,
+            _ => panic!("ReceivedReceipt should be in Checking state"),
+        };
 
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
-        assert!(received_receipt
+        received_receipt
             .perform_check(&arbitrary_check_to_perform, receipt_id, &receipt_auditor)
-            .await
-            .is_ok());
+            .await;
+        assert!(received_receipt.check_is_complete(&arbitrary_check_to_perform));
 
-        assert!(received_receipt
+        received_receipt
             .perform_checks(&checks, receipt_id, &receipt_auditor)
-            .await
-            .is_ok());
-
-        assert_eq!(received_receipt.state, ReceiptState::Accepted);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
+            .await;
+        assert!(received_receipt.checking_is_complete());
     }
 
     #[rstest]
@@ -252,36 +252,26 @@ mod received_receipt_unit_test {
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
-        let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
         let receipt_id = 0u64;
 
-        assert_eq!(received_receipt.state, ReceiptState::Received);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
+        let mut received_receipt = match received_receipt {
+            ReceivedReceipt::Checking(checking) => checking,
+            _ => panic!("ReceivedReceipt should be in Checking state"),
+        };
 
         // perform single arbitrary check
         let arbitrary_check_to_perform = ReceiptCheck::CheckUnique;
-        assert!(received_receipt
+
+        received_receipt
             .perform_check(&arbitrary_check_to_perform, receipt_id, &receipt_auditor)
-            .await
-            .is_ok());
+            .await;
+        assert!(received_receipt.check_is_complete(&arbitrary_check_to_perform));
 
         assert!(received_receipt
             .finalize_receipt_checks(receipt_id, &receipt_auditor)
             .await
             .is_ok());
-
-        assert_eq!(received_receipt.state, ReceiptState::Accepted);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
-
-        received_receipt.update_rav_status(RAVStatus::IncludedInRequest);
-
-        assert_eq!(received_receipt.state, ReceiptState::IncludedInRAVRequest);
-        assert_eq!(received_receipt.rav_status, RAVStatus::IncludedInRequest);
-
-        received_receipt.update_rav_status(RAVStatus::IncludedInReceived);
-
-        assert_eq!(received_receipt.state, ReceiptState::Complete);
-        assert_eq!(received_receipt.rav_status, RAVStatus::IncludedInReceived);
     }
 
     #[rstest]
@@ -333,28 +323,17 @@ mod received_receipt_unit_test {
             .insert(query_id, query_value);
 
         let checks = get_full_list_of_checks();
-        let mut received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+        let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
         let receipt_id = 0u64;
 
-        assert_eq!(received_receipt.state, ReceiptState::Received);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
+        let received_receipt = match received_receipt {
+            ReceivedReceipt::Checking(checking) => checking,
+            _ => panic!("ReceivedReceipt should be in Checking state"),
+        };
 
         assert!(received_receipt
             .finalize_receipt_checks(receipt_id, &receipt_auditor)
             .await
             .is_ok());
-
-        assert_eq!(received_receipt.state, ReceiptState::Accepted);
-        assert_eq!(received_receipt.rav_status, RAVStatus::NotIncluded);
-
-        received_receipt.update_rav_status(RAVStatus::IncludedInRequest);
-
-        assert_eq!(received_receipt.state, ReceiptState::IncludedInRAVRequest);
-        assert_eq!(received_receipt.rav_status, RAVStatus::IncludedInRequest);
-
-        received_receipt.update_rav_status(RAVStatus::IncludedInReceived);
-
-        assert_eq!(received_receipt.state, ReceiptState::Complete);
-        assert_eq!(received_receipt.rav_status, RAVStatus::IncludedInReceived);
     }
 }

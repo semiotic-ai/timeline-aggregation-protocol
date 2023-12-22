@@ -13,64 +13,159 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString};
+use std::collections::HashMap;
 
-use super::{
-    receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults, ReceiptError,
-};
+use serde::{Deserialize, Serialize};
+
+use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults};
 use crate::{
-    adapters::{escrow_adapter::EscrowAdapter, receipt_checks_adapter::ReceiptChecksAdapter},
+    adapters::{
+        escrow_adapter::EscrowAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
+        receipt_storage_adapter::StoredReceipt,
+    },
     eip_712_signed_message::EIP712SignedMessage,
     Error, Result,
 };
 
-#[derive(Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
-/// State of the contained receipt
-pub enum ReceiptState {
-    /// Initial state, received with no checks started
-    Received,
-    /// Checking in progress, no errors found
-    Checking,
-    /// Checks completed with at least one check resulting in an error
-    Failed,
-    /// Checks completed with all passed, awaiting escrow check and reserve
-    AwaitingReserveEscrow,
-    /// All checks completed with no errors found, escrow is reserved if requested by user
-    Accepted,
-    /// Receipt was added to a RAV request
-    IncludedInRAVRequest,
-    /// Receipt was included in received RAV
-    Complete,
-}
-
-#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
-
-/// Status of receipt relating to RAV inclusion
-pub enum RAVStatus {
-    /// Has not been included in a RAV request or received RAV
-    NotIncluded,
-    /// Has been added to a RAV request, but not a received RAV (awaiting a response)
-    IncludedInRequest,
-    /// A RAV has been received that included this receipt
-    IncludedInReceived,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// Wrapper class for metadata and state of a received receipt
-pub struct ReceivedReceipt {
-    /// An EIP712 signed receipt message
-    pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
-    /// A unique identifier for the query associated with the receipt
-    pub(crate) query_id: u64,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Checking {
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
-    /// Escrow check and reserve, which is performed only after all other checks are complete. `Ok` result means escrow was reserved
-    pub(crate) escrow_reserved: Option<Option<std::result::Result<(), ReceiptError>>>,
-    /// The current RAV status of the receipt (e.g., not included, included in a request, or included in a received RAV)
-    pub(crate) rav_status: RAVStatus,
-    /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
-    pub(crate) state: ReceiptState,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Failed {
+    /// A list of checks to be completed for the receipt, along with their current result
+    pub(crate) checks: ReceiptCheckResults,
+}
+
+impl From<Checking> for Failed {
+    fn from(checking: Checking) -> Self {
+        Self {
+            checks: checking.checks,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AwaitingReserve;
+
+impl From<AwaitingReserve> for Failed {
+    fn from(_checking: AwaitingReserve) -> Self {
+        Self {
+            checks: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Reserved;
+
+pub trait ReceiptState {}
+impl ReceiptState for Checking {}
+impl ReceiptState for AwaitingReserve {}
+impl ReceiptState for Reserved {}
+impl ReceiptState for Failed {}
+
+#[derive(Clone)]
+pub enum ReceivedReceipt {
+    AwaitingReserve(ReceiptWithState<AwaitingReserve>),
+    Checking(ReceiptWithState<Checking>),
+    Failed(ReceiptWithState<Failed>),
+    Reserved(ReceiptWithState<Reserved>),
+}
+
+pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
+
+pub struct ReceiptWithId<T>
+where
+    T: ReceiptState,
+{
+    pub(crate) receipt_id: u64,
+    pub(crate) receipt: ReceiptWithState<T>,
+}
+
+impl<T> From<(u64, ReceiptWithState<T>)> for ReceiptWithId<T>
+where
+    T: ReceiptState,
+{
+    fn from((receipt_id, receipt): (u64, ReceiptWithState<T>)) -> ReceiptWithId<T> {
+        Self {
+            receipt_id,
+            receipt,
+        }
+    }
+}
+
+pub struct CategorizedReceiptsWithState {
+    pub(crate) awaiting_reserve_receipts: Vec<ReceiptWithState<AwaitingReserve>>,
+    pub(crate) checking_receipts: Vec<ReceiptWithId<Checking>>,
+    pub(crate) failed_receipts: Vec<ReceiptWithState<Failed>>,
+    pub(crate) reserved_receipts: Vec<ReceiptWithState<Reserved>>,
+}
+
+impl From<ResultReceipt<AwaitingReserve>> for ReceivedReceipt {
+    fn from(val: ResultReceipt<AwaitingReserve>) -> Self {
+        match val {
+            Ok(checked) => ReceivedReceipt::AwaitingReserve(checked),
+            Err(failed) => ReceivedReceipt::Failed(failed),
+        }
+    }
+}
+
+impl From<ReceiptWithState<AwaitingReserve>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<AwaitingReserve>) -> Self {
+        ReceivedReceipt::AwaitingReserve(val)
+    }
+}
+
+impl From<ReceiptWithState<Checking>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Checking>) -> Self {
+        ReceivedReceipt::Checking(val)
+    }
+}
+
+impl From<ReceiptWithState<Failed>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Failed>) -> Self {
+        ReceivedReceipt::Failed(val)
+    }
+}
+
+impl From<ReceiptWithState<Reserved>> for ReceivedReceipt {
+    fn from(val: ReceiptWithState<Reserved>) -> Self {
+        ReceivedReceipt::Reserved(val)
+    }
+}
+
+impl From<Vec<StoredReceipt>> for CategorizedReceiptsWithState {
+    fn from(value: Vec<StoredReceipt>) -> Self {
+        let mut awaiting_reserve_receipts = Vec::new();
+        let mut checking_receipts = Vec::new();
+        let mut failed_receipts = Vec::new();
+        let mut reserved_receipts = Vec::new();
+
+        for stored_receipt in value {
+            let StoredReceipt {
+                receipt_id,
+                receipt,
+            } = stored_receipt;
+            match receipt {
+                ReceivedReceipt::AwaitingReserve(checked) => {
+                    awaiting_reserve_receipts.push(checked)
+                }
+                ReceivedReceipt::Checking(checking) => {
+                    checking_receipts.push((receipt_id, checking).into())
+                }
+                ReceivedReceipt::Failed(failed) => failed_receipts.push(failed),
+                ReceivedReceipt::Reserved(reserved) => reserved_receipts.push(reserved),
+            }
+        }
+        Self {
+            awaiting_reserve_receipts,
+            checking_receipts,
+            failed_receipts,
+            reserved_receipts,
+        }
+    }
 }
 
 impl ReceivedReceipt {
@@ -80,21 +175,65 @@ impl ReceivedReceipt {
         query_id: u64,
         required_checks: &[ReceiptCheck],
     ) -> Self {
-        let mut checks = Self::get_empty_required_checks_hashmap(required_checks);
-        let escrow_reserved = checks.remove(&ReceiptCheck::CheckAndReserveEscrow);
+        let checks = ReceiptWithState::get_empty_required_checks_hashmap(required_checks);
 
-        let mut received_receipt = Self {
+        let received_receipt = ReceiptWithState {
             signed_receipt,
             query_id,
-            checks,
-            escrow_reserved,
-            rav_status: RAVStatus::NotIncluded,
-            state: ReceiptState::Received,
+            state: Checking { checks },
         };
-        received_receipt.update_state();
-        received_receipt
+        received_receipt.into()
+    }
+    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
+        match self {
+            ReceivedReceipt::AwaitingReserve(ReceiptWithState { signed_receipt, .. })
+            | ReceivedReceipt::Checking(ReceiptWithState { signed_receipt, .. })
+            | ReceivedReceipt::Failed(ReceiptWithState { signed_receipt, .. })
+            | ReceivedReceipt::Reserved(ReceiptWithState { signed_receipt, .. }) => signed_receipt,
+        }
     }
 
+    pub fn query_id(&self) -> u64 {
+        match self {
+            ReceivedReceipt::AwaitingReserve(ReceiptWithState { query_id, .. })
+            | ReceivedReceipt::Checking(ReceiptWithState { query_id, .. })
+            | ReceivedReceipt::Failed(ReceiptWithState { query_id, .. })
+            | ReceivedReceipt::Reserved(ReceiptWithState { query_id, .. }) => *query_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Wrapper class for metadata and state of a received receipt
+pub struct ReceiptWithState<S>
+where
+    S: ReceiptState,
+{
+    /// An EIP712 signed receipt message
+    pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
+    /// A unique identifier for the query associated with the receipt
+    pub(crate) query_id: u64,
+    /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
+    pub(crate) state: S,
+}
+
+impl ReceiptWithState<AwaitingReserve> {
+    pub async fn check_and_reserve_escrow<EA, RCA>(
+        self,
+        auditor: &ReceiptAuditor<EA, RCA>,
+    ) -> ResultReceipt<Reserved>
+    where
+        EA: EscrowAdapter,
+        RCA: ReceiptChecksAdapter,
+    {
+        match auditor.check_and_reserve_escrow(&self).await {
+            Ok(_) => Ok(self.perform_state_changes(Reserved)),
+            Err(_) => Err(self.perform_state_changes_into()),
+        }
+    }
+}
+
+impl ReceiptWithState<Checking> {
     /// Completes a single *incomplete* check and stores the result, *if the check already has a result it is skipped.*
     ///
     /// Returns `Err` only if unable to complete the check, returns `Ok` if the check was completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
@@ -110,31 +249,11 @@ impl ReceivedReceipt {
         check: &ReceiptCheck,
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> crate::Result<()> {
-        match self.state {
-            ReceiptState::Checking | ReceiptState::Received => {
-                // Cannot do escrow check and reserve until all other checks are complete
-                if check == &ReceiptCheck::CheckAndReserveEscrow {
-                    return Err(crate::Error::InvalidStateForRequestedAction {
-                        state: self.state.to_string(),
-                    });
-                }
-            }
-            // All checks are valid in this state (although complete ones will be skipped)
-            ReceiptState::AwaitingReserveEscrow => {}
-
-            // If all checks are complete then checking is skipped
-            ReceiptState::Accepted
-            | ReceiptState::Complete
-            | ReceiptState::IncludedInRAVRequest
-            | ReceiptState::Failed => return Ok(()),
-        }
-
-        // All skipped checks return `Ok`
-        let mut result = Ok(());
+    ) {
         // Only perform check if it is incomplete
-        if !self.check_is_complete(check) {
-            result = self.update_check(
+        // Don't check if already failed
+        if !self.check_is_complete(check) && !self.any_check_resulted_in_error() {
+            let _ = self.update_check(
                 check,
                 Some(
                     receipt_auditor
@@ -143,8 +262,6 @@ impl ReceivedReceipt {
                 ),
             );
         }
-        self.update_state();
-        result
     }
 
     pub async fn perform_check_batch<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
@@ -156,7 +273,6 @@ impl ReceivedReceipt {
 
         for (receipt, result) in batch.iter_mut().zip(results) {
             receipt.update_check(check, Some(result))?;
-            receipt.update_state();
         }
 
         Ok(())
@@ -177,27 +293,10 @@ impl ReceivedReceipt {
         checks: &[ReceiptCheck],
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> Result<()> {
-        let mut check_and_reserve_escrow_included = false;
+    ) {
         for check in checks {
-            if *check == ReceiptCheck::CheckAndReserveEscrow {
-                // if checks include check and reserve escrow it needs to be completed last
-                check_and_reserve_escrow_included = true;
-                continue;
-            }
-            self.perform_check(check, receipt_id, receipt_auditor)
-                .await?;
+            self.perform_check(check, receipt_id, receipt_auditor).await;
         }
-        if check_and_reserve_escrow_included && self.state != ReceiptState::Failed {
-            // CheckAndReserveEscrow is only performed after all other checks have passed
-            self.perform_check(
-                &ReceiptCheck::CheckAndReserveEscrow,
-                receipt_id,
-                receipt_auditor,
-            )
-            .await?;
-        }
-        Ok(())
     }
 
     /// Completes all remaining checks and stores the results
@@ -205,96 +304,28 @@ impl ReceivedReceipt {
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
     pub async fn finalize_receipt_checks<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
-        &mut self,
+        mut self,
         receipt_id: u64,
         receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> Result<()> {
-        self.perform_checks(
-            self.incomplete_checks().as_slice(),
-            receipt_id,
-            receipt_auditor,
-        )
-        .await
-    }
+    ) -> ResultReceipt<AwaitingReserve> {
+        let incomplete_checks = self.incomplete_checks();
 
-    /// Update RAV status, should be called when receipt is included in RAV request and when RAV request is received
-    pub fn update_rav_status(&mut self, rav_status: RAVStatus) {
-        self.rav_status = rav_status;
-        self.update_state();
-    }
+        self.perform_checks(incomplete_checks.as_slice(), receipt_id, receipt_auditor)
+            .await;
 
-    pub(crate) fn update_check(
-        &mut self,
-        check: &ReceiptCheck,
-        result: Option<super::ReceiptResult<()>>,
-    ) -> Result<()> {
-        if check == &ReceiptCheck::CheckAndReserveEscrow {
-            return self.update_escrow_reserved_check(check, result);
-        }
-
-        if !self.checks.contains_key(check) {
-            return Err(Error::InvalidCheckError {
-                check_string: check.to_string(),
-            });
-        }
-
-        self.checks.insert(check.clone(), result);
-        Ok(())
-    }
-
-    fn update_escrow_reserved_check(
-        &mut self,
-        check: &ReceiptCheck,
-        result: Option<super::ReceiptResult<()>>,
-    ) -> Result<()> {
-        if !(self.state == ReceiptState::AwaitingReserveEscrow) {
-            return Err(Error::InvalidStateForRequestedAction {
-                state: self.state.to_string(),
-            });
-        }
-
-        if let Some(ref mut escrow_reserved_check) = self.escrow_reserved {
-            *escrow_reserved_check = result;
+        if self.any_check_resulted_in_error() {
+            let failed = self.perform_state_changes_into();
+            Err(failed)
         } else {
-            return Err(crate::Error::InvalidCheckError {
-                check_string: check.to_string(),
-            });
+            let checked = self.perform_state_changes(AwaitingReserve);
+            Ok(checked)
         }
-
-        self.update_state();
-        Ok(())
-    }
-
-    pub fn signed_receipt(&self) -> EIP712SignedMessage<Receipt> {
-        self.signed_receipt.clone()
-    }
-
-    pub fn query_id(&self) -> u64 {
-        self.query_id
-    }
-
-    /// Returns all checks that have not been completed
-    pub fn incomplete_checks(&self) -> Vec<ReceiptCheck> {
-        let mut incomplete_checks: Vec<ReceiptCheck> = self
-            .checks
-            .iter()
-            .filter_map(|(check, result)| {
-                if result.is_none() {
-                    Some((*check).clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if self.escrow_reserve_attempt_required() && !self.escrow_reserve_attempt_completed() {
-            incomplete_checks.push(ReceiptCheck::CheckAndReserveEscrow);
-        }
-        incomplete_checks
     }
 
     /// Returns all checks that completed with errors
     pub fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
-        self.checks
+        self.state
+            .checks
             .iter()
             .filter_map(|(check, result)| {
                 if let Some(unwrapped_result) = result {
@@ -307,118 +338,52 @@ impl ReceivedReceipt {
             .collect()
     }
 
-    /// Updates receieved receipt state based on internal values, should be called anytime internal state changes
-    pub(crate) fn update_state(&mut self) {
-        let mut next_state = self.state.clone();
-        match self.state {
-            ReceiptState::Received => {
-                if self.checking_is_started() {
-                    next_state = self.get_state_of_checks();
+    /// Returns all checks that have not been completed
+    pub fn incomplete_checks(&self) -> Vec<ReceiptCheck> {
+        let incomplete_checks: Vec<ReceiptCheck> = self
+            .state
+            .checks
+            .iter()
+            .filter_map(|(check, result)| {
+                if result.is_none() {
+                    Some((*check).clone())
                 } else {
-                    next_state = ReceiptState::Received;
+                    None
                 }
-            }
-            ReceiptState::Checking => {
-                next_state = self.get_state_of_checks();
-            }
-            ReceiptState::AwaitingReserveEscrow => {
-                next_state = self.get_state_of_escrow_reserve();
-            }
-            ReceiptState::Failed => {} // currently no next state from Failed
-            ReceiptState::Accepted => {
-                if self.rav_status == RAVStatus::IncludedInRequest {
-                    next_state = ReceiptState::IncludedInRAVRequest;
-                }
-            }
-            ReceiptState::IncludedInRAVRequest => {
-                if self.rav_status == RAVStatus::IncludedInReceived {
-                    next_state = ReceiptState::Complete;
-                }
-            }
-            ReceiptState::Complete => {} // currently no next state from complete
-        }
-        self.state = next_state;
+            })
+            .collect();
+        incomplete_checks
     }
 
-    fn get_state_of_checks(&self) -> ReceiptState {
-        if self.checking_is_completed() && self.any_check_resulted_in_error() {
-            return ReceiptState::Failed;
-        }
-        if self.all_checks_passed() {
-            return self.get_state_of_escrow_reserve();
-        }
-        if self.checking_is_in_progress() {
-            return ReceiptState::Checking;
-        }
-        // Incase the function got called when checking was not started we can return to received state
-        ReceiptState::Received
-    }
-
-    fn get_state_of_escrow_reserve(&self) -> ReceiptState {
-        if !self.escrow_reserve_attempt_required() {
-            return ReceiptState::Accepted;
-        }
-        if self.escrow_reserve_attempt_completed() {
-            if let Some(Some(escrow_reserve_attempt_result)) = &self.escrow_reserved {
-                if escrow_reserve_attempt_result.is_err() {
-                    return ReceiptState::Failed;
-                }
-                if escrow_reserve_attempt_result.is_ok() {
-                    return ReceiptState::Accepted;
-                }
-            }
+    pub(crate) fn update_check(
+        &mut self,
+        check: &ReceiptCheck,
+        result: Option<super::ReceiptResult<()>>,
+    ) -> Result<()> {
+        if !self.state.checks.contains_key(check) {
+            return Err(Error::InvalidCheckError {
+                check_string: check.to_string(),
+            });
         }
 
-        ReceiptState::AwaitingReserveEscrow
+        self.state.checks.insert(check.clone(), result);
+        Ok(())
     }
 
-    pub(crate) fn escrow_reserve_attempt_completed(&self) -> bool {
-        if let Some(escrow_reserve_attempt) = &self.escrow_reserved {
-            return escrow_reserve_attempt.is_some();
-        }
-        false
-    }
-
-    pub(crate) fn escrow_reserve_attempt_required(&self) -> bool {
-        self.escrow_reserved.is_some()
-    }
-
-    fn checking_is_in_progress(&self) -> bool {
-        self.checking_is_started() && !self.checking_is_completed()
-    }
-
-    fn checking_is_started(&self) -> bool {
-        self.checks.iter().any(|(_, status)| status.is_some())
-    }
-
-    fn checking_is_completed(&self) -> bool {
-        !self.checks.iter().any(|(_, status)| status.is_none())
+    /// returns true `check` has a result, otherwise false
+    pub(crate) fn check_is_complete(&self, check: &ReceiptCheck) -> bool {
+        matches!(self.state.checks.get(check), Some(Some(_)))
     }
 
     fn any_check_resulted_in_error(&self) -> bool {
-        self.checks.iter().any(|(_, status)| match &status {
+        self.state.checks.iter().any(|(_, status)| match &status {
             Some(result) => result.is_err(),
             None => false,
         })
     }
 
-    fn all_checks_passed(&self) -> bool {
-        self.checking_is_completed() && !self.any_check_resulted_in_error()
-    }
-
-    /// returns true `check` has a result, otherwise false
-    fn check_is_complete(&self, check: &ReceiptCheck) -> bool {
-        matches!(self.checks.get(check), Some(Some(_)))
-    }
-
-    /// Returns true if all checks are complete and at least one failed
-    pub fn is_failed(&self) -> bool {
-        self.state == ReceiptState::Failed
-    }
-
-    /// Returns true if all checks are complete and all checks passed
-    pub fn is_accepted(&self) -> bool {
-        self.state == ReceiptState::Accepted
+    pub fn checking_is_complete(&self) -> bool {
+        self.state.checks.iter().all(|(_, status)| status.is_some())
     }
 
     fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
@@ -426,5 +391,41 @@ impl ReceivedReceipt {
             .iter()
             .map(|check| (check.clone(), None))
             .collect()
+    }
+}
+
+impl<S> ReceiptWithState<S>
+where
+    S: ReceiptState,
+{
+    fn perform_state_changes_into<T>(self) -> ReceiptWithState<T>
+    where
+        T: ReceiptState,
+        S: Into<T>,
+    {
+        ReceiptWithState {
+            signed_receipt: self.signed_receipt,
+            query_id: self.query_id,
+            state: self.state.into(),
+        }
+    }
+
+    fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T>
+    where
+        T: ReceiptState,
+    {
+        ReceiptWithState {
+            signed_receipt: self.signed_receipt,
+            query_id: self.query_id,
+            state: new_state,
+        }
+    }
+
+    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
+        &self.signed_receipt
+    }
+
+    pub fn query_id(&self) -> u64 {
+        self.query_id
     }
 }

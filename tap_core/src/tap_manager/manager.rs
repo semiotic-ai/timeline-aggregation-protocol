@@ -12,7 +12,10 @@ use crate::{
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
-    tap_receipt::{ReceiptAuditor, ReceiptCheck, ReceivedReceipt},
+    tap_receipt::{
+        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId,
+        ReceiptWithState, ReceivedReceipt, Reserved,
+    },
     Error,
 };
 
@@ -122,7 +125,13 @@ where
         timestamp_buffer_ns: u64,
         min_timestamp_ns: u64,
         limit: Option<u64>,
-    ) -> Result<(Vec<SignedReceipt>, Vec<ReceivedReceipt>), Error> {
+    ) -> Result<
+        (
+            Vec<ReceiptWithState<Reserved>>,
+            Vec<ReceiptWithState<Failed>>,
+        ),
+        Error,
+    > {
         let max_timestamp_ns = crate::get_current_timestamp_u64_ns()? - timestamp_buffer_ns;
 
         if min_timestamp_ns > max_timestamp_ns {
@@ -139,30 +148,38 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let mut accepted_signed_receipts = Vec::<SignedReceipt>::new();
-        let mut failed_signed_receipts = Vec::<ReceivedReceipt>::new();
+        let CategorizedReceiptsWithState {
+            checking_receipts,
+            mut awaiting_reserve_receipts,
+            mut failed_receipts,
+            mut reserved_receipts,
+        } = received_receipts.into();
 
-        let mut received_receipts: Vec<ReceivedReceipt> =
-            received_receipts.into_iter().map(|e| e.1).collect();
+        for received_receipt in checking_receipts {
+            let ReceiptWithId {
+                receipt,
+                receipt_id,
+            } = received_receipt;
+            let receipt = receipt
+                .finalize_receipt_checks(receipt_id, &self.receipt_auditor)
+                .await;
 
-        for check in self.required_checks.iter() {
-            ReceivedReceipt::perform_check_batch(
-                &mut received_receipts,
-                check,
-                &self.receipt_auditor,
-            )
-            .await?;
+            match receipt {
+                Ok(checked) => awaiting_reserve_receipts.push(checked),
+                Err(failed) => failed_receipts.push(failed),
+            }
         }
-
-        for received_receipt in received_receipts {
-            if received_receipt.is_accepted() {
-                accepted_signed_receipts.push(received_receipt.signed_receipt);
-            } else {
-                failed_signed_receipts.push(received_receipt);
+        for checked in awaiting_reserve_receipts {
+            match checked
+                .check_and_reserve_escrow(&self.receipt_auditor)
+                .await
+            {
+                Ok(reserved) => reserved_receipts.push(reserved),
+                Err(failed) => failed_receipts.push(failed),
             }
         }
 
-        Ok((accepted_signed_receipts, failed_signed_receipts))
+        Ok((reserved_receipts, failed_receipts))
     }
 }
 
@@ -203,6 +220,10 @@ where
         self.receipt_auditor
             .update_min_timestamp_ns(expected_rav.timestamp_ns)
             .await;
+        let valid_receipts = valid_receipts
+            .into_iter()
+            .map(|rx_receipt| rx_receipt.signed_receipt)
+            .collect::<Vec<_>>();
 
         Ok(RAVRequest {
             valid_receipts,
@@ -213,14 +234,22 @@ where
     }
 
     fn generate_expected_rav(
-        receipts: &[SignedReceipt],
+        receipts: &[ReceiptWithState<Reserved>],
         previous_rav: Option<SignedRAV>,
     ) -> Result<ReceiptAggregateVoucher, Error> {
         if receipts.is_empty() {
             return Err(Error::NoValidReceiptsForRAVRequest);
         }
-        let allocation_id = receipts[0].message.allocation_id;
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)
+        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let receipts = receipts
+            .iter()
+            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
+            .collect::<Vec<_>>();
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            receipts.as_slice(),
+            previous_rav,
+        )
     }
 }
 
@@ -291,9 +320,11 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        received_receipt
-            .perform_checks(initial_checks, receipt_id, &self.receipt_auditor)
-            .await?;
+        if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
+            received_receipt
+                .perform_checks(initial_checks, receipt_id, &self.receipt_auditor)
+                .await;
+        }
 
         self.receipt_storage_adapter
             .update_receipt_by_id(receipt_id, received_receipt)
