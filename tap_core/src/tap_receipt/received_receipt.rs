@@ -13,6 +13,8 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults};
@@ -31,9 +33,29 @@ pub struct Checking {
     pub(crate) checks: ReceiptCheckResults,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Failed;
+pub struct Failed {
+    /// A list of checks to be completed for the receipt, along with their current result
+    pub(crate) checks: ReceiptCheckResults,
+}
+
+impl From<Checking> for Failed {
+    fn from(checking: Checking) -> Self {
+        Self {
+            checks: checking.checks,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AwaitingReserve;
+
+impl From<AwaitingReserve> for Failed {
+    fn from(_checking: AwaitingReserve) -> Self {
+        Self {
+            checks: HashMap::new(),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Reserved;
@@ -206,7 +228,7 @@ impl ReceiptWithState<AwaitingReserve> {
     {
         match auditor.check_and_reserve_escrow(&self).await {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
-            Err(_) => Err(self.perform_state_changes(Failed)),
+            Err(_) => Err(self.perform_state_changes_into()),
         }
     }
 }
@@ -292,7 +314,7 @@ impl ReceiptWithState<Checking> {
             .await;
 
         if self.any_check_resulted_in_error() {
-            let failed = self.perform_state_changes(Failed);
+            let failed = self.perform_state_changes_into();
             Err(failed)
         } else {
             let checked = self.perform_state_changes(AwaitingReserve);
@@ -376,6 +398,19 @@ impl<S> ReceiptWithState<S>
 where
     S: ReceiptState,
 {
+
+    fn perform_state_changes_into<T>(self) -> ReceiptWithState<T>
+    where
+        T: ReceiptState,
+        S: Into<T>,
+    {
+        ReceiptWithState {
+            signed_receipt: self.signed_receipt,
+            query_id: self.query_id,
+            state: self.state.into(),
+        }
+    }
+
     fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T>
     where
         T: ReceiptState,
