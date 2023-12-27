@@ -71,11 +71,32 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn executor() -> ExecutorMock {
+    fn executor_mock() -> (
+        ExecutorMock,
+        Arc<RwLock<HashMap<Address, u128>>>,
+        Arc<RwLock<HashMap<u64, u128>>>,
+    ) {
         let rav_storage = Arc::new(RwLock::new(None));
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
-        ExecutorMock::new(rav_storage, receipt_storage)
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
+        let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
+        let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        (
+            ExecutorMock::new(
+                rav_storage,
+                receipt_storage,
+                sender_escrow_storage.clone(),
+                query_appraisal_storage.clone(),
+                allocation_ids_set,
+                sender_ids_set,
+            ),
+            sender_escrow_storage,
+            query_appraisal_storage,
+        )
     }
 
     #[fixture]
@@ -109,23 +130,22 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
-        executor: ExecutorMock,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (ReceiptChecksAdapterMock, Arc<RwLock<HashMap<u64, u128>>>),
+        executor_mock: (
+            ExecutorMock,
+            Arc<RwLock<HashMap<Address, u128>>>,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
             domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
             executor,
             get_full_list_of_checks(),
             starting_min_timestamp,
@@ -158,23 +178,22 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_create_rav_request_all_valid_receipts(
-        executor: ExecutorMock,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (ReceiptChecksAdapterMock, Arc<RwLock<HashMap<u64, u128>>>),
+        executor_mock: (
+            ExecutorMock,
+            Arc<RwLock<HashMap<Address, u128>>>,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
             domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
             executor,
             get_full_list_of_checks(),
             starting_min_timestamp,
@@ -229,23 +248,22 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts(
-        executor: ExecutorMock,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (ReceiptChecksAdapterMock, Arc<RwLock<HashMap<u64, u128>>>),
+        executor_mock: (
+            ExecutorMock,
+            Arc<RwLock<HashMap<Address, u128>>>,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
             domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
             executor,
             get_full_list_of_checks(),
             starting_min_timestamp,
@@ -356,9 +374,11 @@ mod manager_unit_test {
     #[rstest]
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
-        executor: ExecutorMock,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (ReceiptChecksAdapterMock, Arc<RwLock<HashMap<u64, u128>>>),
+        executor_mock: (
+            ExecutorMock,
+            Arc<RwLock<HashMap<Address, u128>>>,
+            Arc<RwLock<HashMap<u64, u128>>>,
+        ),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -366,15 +386,12 @@ mod manager_unit_test {
         initial_checks: Vec<ReceiptCheck>,
         #[values(true, false)] remove_old_receipts: bool,
     ) {
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
         let manager = Manager::new(
             domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
             executor,
             get_full_list_of_checks(),
             starting_min_timestamp,

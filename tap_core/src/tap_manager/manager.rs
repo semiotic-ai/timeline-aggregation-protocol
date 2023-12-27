@@ -19,33 +19,33 @@ use crate::{
     Error,
 };
 
-pub struct Manager<E, CA, RCA> {
+pub struct Manager<E> {
     /// Executor that implements adapters
     executor: E,
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
     required_checks: Vec<ReceiptCheck>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
-    receipt_auditor: ReceiptAuditor<CA, RCA>,
+    receipt_auditor: ReceiptAuditor<E>,
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA> {
+impl<E> Manager<E>
+where
+    E: Clone,
+{
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
     pub fn new(
         domain_separator: Eip712Domain,
-        escrow_adapter: EA,
-        receipt_checks_adapter: RCA,
         executor: E,
         required_checks: Vec<ReceiptCheck>,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         let receipt_auditor = ReceiptAuditor::new(
             domain_separator,
-            escrow_adapter,
-            receipt_checks_adapter,
+            executor.clone(),
             starting_min_timestamp_ns,
         );
         Self {
@@ -56,10 +56,9 @@ impl<E, EA, RCA> Manager<E, EA, RCA> {
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
-    RCA: ReceiptChecksAdapter,
-    E: RAVStore,
+    E: RAVStore + ReceiptChecksAdapter,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -94,7 +93,7 @@ where
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
     E: RAVRead,
 {
@@ -110,11 +109,9 @@ where
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
-    EA: EscrowAdapter,
-    RCA: ReceiptChecksAdapter,
-    E: ReceiptRead,
+    E: ReceiptRead + EscrowAdapter + ReceiptChecksAdapter,
 {
     async fn collect_receipts(
         &self,
@@ -179,11 +176,9 @@ where
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
-    EA: EscrowAdapter,
-    RCA: ReceiptChecksAdapter,
-    E: ReceiptRead + RAVRead,
+    E: ReceiptRead + RAVRead + EscrowAdapter + ReceiptChecksAdapter,
 {
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
@@ -248,7 +243,7 @@ where
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
     E: ReceiptStore + RAVRead,
 {
@@ -277,11 +272,9 @@ where
     }
 }
 
-impl<E, EA, RCA> Manager<E, EA, RCA>
+impl<E> Manager<E>
 where
-    EA: EscrowAdapter,
-    RCA: ReceiptChecksAdapter,
-    E: ReceiptStore,
+    E: ReceiptStore + EscrowAdapter + ReceiptChecksAdapter,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
