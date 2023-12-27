@@ -27,7 +27,8 @@ use tokio::sync::RwLock;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::{
-        escrow_adapter_mock::EscrowAdapterMock, rav_storage_adapter_mock::RAVStorageAdapterMock,
+        escrow_adapter_mock::EscrowAdapterMock, executor_mock::ExecutorMock,
+        rav_storage_adapter_mock::RAVStorageAdapterMock,
         receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
@@ -158,6 +159,14 @@ fn escrow_adapter() -> EscrowAdapterMock {
 }
 
 #[fixture]
+fn executor() -> ExecutorMock {
+    let rav_storage = Arc::new(RwLock::new(None));
+    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+
+    ExecutorMock::new(rav_storage, receipt_storage)
+}
+
+#[fixture]
 fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
     Arc::new(RwLock::new(HashMap::new()))
 }
@@ -227,42 +236,20 @@ fn initial_checks() -> Vec<ReceiptCheck> {
 
 #[fixture]
 fn indexer_1_adapters(
+    executor: ExecutorMock,
     escrow_adapter: EscrowAdapterMock,
-    receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
-    rav_storage_adapter: RAVStorageAdapterMock,
-) -> (
-    EscrowAdapterMock,
-    ReceiptStorageAdapterMock,
-    ReceiptChecksAdapterMock,
-    RAVStorageAdapterMock,
-) {
-    (
-        escrow_adapter,
-        receipt_storage_adapter,
-        receipt_checks_adapter,
-        rav_storage_adapter,
-    )
+) -> (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock) {
+    (executor, escrow_adapter, receipt_checks_adapter)
 }
 
 #[fixture]
 fn indexer_2_adapters(
+    executor: ExecutorMock,
     escrow_adapter: EscrowAdapterMock,
-    receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
-    rav_storage_adapter: RAVStorageAdapterMock,
-) -> (
-    EscrowAdapterMock,
-    ReceiptStorageAdapterMock,
-    ReceiptChecksAdapterMock,
-    RAVStorageAdapterMock,
-) {
-    (
-        escrow_adapter,
-        receipt_storage_adapter,
-        receipt_checks_adapter,
-        rav_storage_adapter,
-    )
+) -> (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock) {
+    (executor, escrow_adapter, receipt_checks_adapter)
 }
 
 // Helper fixture to generate a batch of receipts to be sent to the Indexer.
@@ -419,12 +406,7 @@ async fn single_indexer_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: (
-        EscrowAdapterMock,
-        ReceiptStorageAdapterMock,
-        ReceiptChecksAdapterMock,
-        RAVStorageAdapterMock,
-    ),
+    indexer_1_adapters: (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock),
     available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
@@ -439,14 +421,12 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let (escrow_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
-        indexer_1_adapters;
+    let (executor, escrow_adapter, receipt_checks_adapter) = indexer_1_adapters;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         escrow_adapter,
-        receipt_storage_adapter,
         receipt_checks_adapter,
-        rav_storage_adapter,
+        executor,
         sender_id,
         available_escrow,
         initial_checks,
@@ -470,18 +450,8 @@ async fn two_indexers_test_servers(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: (
-        EscrowAdapterMock,
-        ReceiptStorageAdapterMock,
-        ReceiptChecksAdapterMock,
-        RAVStorageAdapterMock,
-    ),
-    indexer_2_adapters: (
-        EscrowAdapterMock,
-        ReceiptStorageAdapterMock,
-        ReceiptChecksAdapterMock,
-        RAVStorageAdapterMock,
-    ),
+    indexer_1_adapters: (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock),
+    indexer_2_adapters: (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock),
     available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
@@ -503,25 +473,14 @@ async fn two_indexers_test_servers(
         http_max_concurrent_connections,
     )
     .await?;
-    let (
-        escrow_adapter_1,
-        receipt_storage_adapter_1,
-        receipt_checks_adapter_1,
-        rav_storage_adapter_1,
-    ) = indexer_1_adapters;
-    let (
-        escrow_adapter_2,
-        receipt_storage_adapter_2,
-        receipt_checks_adapter_2,
-        rav_storage_adapter_2,
-    ) = indexer_2_adapters;
+    let (executor_1, escrow_adapter_1, receipt_checks_adapter_1) = indexer_1_adapters;
+    let (executor_2, escrow_adapter_2, receipt_checks_adapter_2) = indexer_2_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         escrow_adapter_1,
-        receipt_storage_adapter_1,
         receipt_checks_adapter_1,
-        rav_storage_adapter_1,
+        executor_1,
         sender_id,
         available_escrow,
         initial_checks.clone(),
@@ -534,9 +493,8 @@ async fn two_indexers_test_servers(
     let (indexer_handle_2, indexer_addr_2) = start_indexer_server(
         domain_separator.clone(),
         escrow_adapter_2,
-        receipt_storage_adapter_2,
         receipt_checks_adapter_2,
-        rav_storage_adapter_2,
+        executor_2,
         sender_id,
         available_escrow,
         initial_checks,
@@ -563,12 +521,7 @@ async fn single_indexer_wrong_sender_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: (
-        EscrowAdapterMock,
-        ReceiptStorageAdapterMock,
-        ReceiptChecksAdapterMock,
-        RAVStorageAdapterMock,
-    ),
+    indexer_1_adapters: (ExecutorMock, EscrowAdapterMock, ReceiptChecksAdapterMock),
     available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
@@ -583,15 +536,13 @@ async fn single_indexer_wrong_sender_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let (escrow_adapter, receipt_storage_adapter, receipt_checks_adapter, rav_storage_adapter) =
-        indexer_1_adapters;
+    let (executor, escrow_adapter, receipt_checks_adapter) = indexer_1_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         escrow_adapter,
-        receipt_storage_adapter,
         receipt_checks_adapter,
-        rav_storage_adapter,
+        executor,
         sender_id,
         available_escrow,
         initial_checks,
@@ -964,9 +915,8 @@ async fn generate_requests(
 async fn start_indexer_server(
     domain_separator: Eip712Domain,
     mut escrow_adapter: EscrowAdapterMock,
-    receipt_storage_adapter: ReceiptStorageAdapterMock,
     receipt_checks_adapter: ReceiptChecksAdapterMock,
-    rav_storage_adapter: RAVStorageAdapterMock,
+    executor: ExecutorMock,
     sender_id: Address,
     available_escrow: u128,
     initial_checks: Vec<ReceiptCheck>,
@@ -989,8 +939,7 @@ async fn start_indexer_server(
         domain_separator,
         escrow_adapter,
         receipt_checks_adapter,
-        receipt_storage_adapter,
-        rav_storage_adapter,
+        executor,
         initial_checks,
         required_checks,
         receipt_threshold,

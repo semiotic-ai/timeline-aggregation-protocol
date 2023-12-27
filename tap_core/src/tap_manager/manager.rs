@@ -19,11 +19,9 @@ use crate::{
     Error,
 };
 
-pub struct Manager<CA, RCA, RSA, RAVSA> {
-    /// Adapter for RAV CRUD
-    rav_storage_adapter: RAVSA,
-    /// Adapter for receipt CRUD
-    receipt_storage_adapter: RSA,
+pub struct Manager<E, CA, RCA> {
+    /// Executor that implements adapters
+    executor: E,
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
     required_checks: Vec<ReceiptCheck>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
@@ -31,7 +29,7 @@ pub struct Manager<CA, RCA, RSA, RAVSA> {
     receipt_auditor: ReceiptAuditor<CA, RCA>,
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA> {
+impl<E, EA, RCA> Manager<E, EA, RCA> {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
@@ -40,8 +38,7 @@ impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA> {
         domain_separator: Eip712Domain,
         escrow_adapter: EA,
         receipt_checks_adapter: RCA,
-        rav_storage_adapter: RAVSA,
-        receipt_storage_adapter: RSA,
+        executor: E,
         required_checks: Vec<ReceiptCheck>,
         starting_min_timestamp_ns: u64,
     ) -> Self {
@@ -52,18 +49,17 @@ impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA> {
             starting_min_timestamp_ns,
         );
         Self {
-            rav_storage_adapter,
-            receipt_storage_adapter,
+            executor,
             required_checks,
             receipt_auditor,
         }
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
     RCA: ReceiptChecksAdapter,
-    RAVSA: RAVStore,
+    E: RAVStore,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -87,7 +83,7 @@ where
             });
         }
 
-        self.rav_storage_adapter
+        self.executor
             .update_last_rav(signed_rav)
             .await
             .map_err(|err| Error::AdapterError {
@@ -98,27 +94,27 @@ where
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
-    RAVSA: RAVRead,
+    E: RAVRead,
 {
     async fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
-        let previous_rav =
-            self.rav_storage_adapter
-                .last_rav()
-                .await
-                .map_err(|err| Error::AdapterError {
-                    source_error: anyhow::Error::new(err),
-                })?;
+        let previous_rav = self
+            .executor
+            .last_rav()
+            .await
+            .map_err(|err| Error::AdapterError {
+                source_error: anyhow::Error::new(err),
+            })?;
         Ok(previous_rav)
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
     EA: EscrowAdapter,
     RCA: ReceiptChecksAdapter,
-    RSA: ReceiptRead,
+    E: ReceiptRead,
 {
     async fn collect_receipts(
         &self,
@@ -141,7 +137,7 @@ where
             });
         }
         let received_receipts = self
-            .receipt_storage_adapter
+            .executor
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns, limit)
             .await
             .map_err(|err| Error::AdapterError {
@@ -183,12 +179,11 @@ where
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
     EA: EscrowAdapter,
     RCA: ReceiptChecksAdapter,
-    RSA: ReceiptRead,
-    RAVSA: RAVRead,
+    E: ReceiptRead + RAVRead,
 {
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
@@ -253,10 +248,9 @@ where
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
-    RSA: ReceiptStore,
-    RAVSA: RAVRead,
+    E: ReceiptStore + RAVRead,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
     /// therefore already aggregated into the RAV.
@@ -270,7 +264,7 @@ where
     pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
             Some(last_rav) => {
-                self.receipt_storage_adapter
+                self.executor
                     .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp_ns)
                     .await
                     .map_err(|err| Error::AdapterError {
@@ -283,11 +277,11 @@ where
     }
 }
 
-impl<EA, RCA, RSA, RAVSA> Manager<EA, RCA, RSA, RAVSA>
+impl<E, EA, RCA> Manager<E, EA, RCA>
 where
     EA: EscrowAdapter,
     RCA: ReceiptChecksAdapter,
-    RSA: ReceiptStore,
+    E: ReceiptStore,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
@@ -313,7 +307,7 @@ where
         // This function first stores it, then checks it, then updates what was stored.
 
         let receipt_id = self
-            .receipt_storage_adapter
+            .executor
             .store_receipt(received_receipt.clone())
             .await
             .map_err(|err| Error::AdapterError {
@@ -326,7 +320,7 @@ where
                 .await;
         }
 
-        self.receipt_storage_adapter
+        self.executor
             .update_receipt_by_id(receipt_id, received_receipt)
             .await
             .map_err(|err| Error::AdapterError {
