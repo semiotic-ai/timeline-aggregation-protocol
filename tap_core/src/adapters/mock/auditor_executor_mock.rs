@@ -14,34 +14,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-/// `RAVStorageAdapterMock` is a mock implementation of the `RAVStorageAdapter` trait.
-///
-/// It serves two main purposes:
-///
-/// 1. **Unit Testing**: The `RAVStorageAdapterMock` is primarily intended to be used for unit tests,
-///    providing a way to simulate the behavior of a real `RAVStorageAdapter` without requiring a real
-///    implementation. By using a mock implementation, you can create predictable behaviors and
-///    responses, enabling isolated and focused testing of the logic that depends on the `RAVStorageAdapter` trait.
-///
-/// 2. **Example Implementation**: New users of the `RAVStorageAdapter` trait can look to
-///    `RAVStorageAdapterMock` as a basic example of how to implement the trait.
-///
-/// Note: This mock implementation is not suitable for production use. Its methods simply manipulate a
-/// local `RwLock<Option<SignedRAV>>`, and it provides no real error handling.
-///
-/// # Usage
-///
-/// To use `RAVStorageAdapterMock`, first create an `Arc<RwLock<Option<SignedRAV>>>`, then pass it to
-/// `RAVStorageAdapterMock::new()`. Now, it can be used anywhere a `RAVStorageAdapter` is required.
-///
-/// ```rust
-/// use std::sync::{Arc};
-/// use tokio::sync::RwLock;
-/// use tap_core::{tap_manager::SignedRAV, adapters::rav_storage_adapter_mock::RAVStorageAdapterMock};
-///
-/// let rav_storage: Arc<RwLock<Option<SignedRAV>>> = Arc::new(RwLock::new(None));
-/// let adapter = RAVStorageAdapterMock::new(rav_storage);
-/// ```
 #[derive(Clone)]
 pub struct AuditorExecutorMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,

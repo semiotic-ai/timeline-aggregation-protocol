@@ -168,12 +168,8 @@ mod received_receipt_unit_test {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            executor,
-            // receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
@@ -232,12 +228,8 @@ mod received_receipt_unit_test {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            executor,
-            // receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
@@ -297,12 +289,8 @@ mod received_receipt_unit_test {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            executor,
-            // receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
