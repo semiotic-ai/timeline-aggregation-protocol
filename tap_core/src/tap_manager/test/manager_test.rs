@@ -18,7 +18,8 @@ mod manager_unit_test {
     use super::super::Manager;
     use crate::{
         adapters::{
-            escrow_adapter_mock::EscrowAdapterMock, executor_mock::ExecutorMock,
+            escrow_adapter_mock::EscrowAdapterMock,
+            executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
             receipt_storage_adapter::ReceiptRead,
         },
@@ -71,11 +72,7 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn executor_mock() -> (
-        ExecutorMock,
-        Arc<RwLock<HashMap<Address, u128>>>,
-        Arc<RwLock<HashMap<u64, u128>>>,
-    ) {
+    fn executor_mock() -> (ExecutorMock, EscrowStorage, QueryAppraisals) {
         let rav_storage = Arc::new(RwLock::new(None));
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
@@ -100,7 +97,7 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
+    fn escrow_adapters() -> (EscrowAdapterMock, EscrowStorage) {
         let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
         let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&sender_escrow_storage));
         (escrow_adapter, sender_escrow_storage)
@@ -130,11 +127,7 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
-        executor_mock: (
-            ExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -178,11 +171,7 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_create_rav_request_all_valid_receipts(
-        executor_mock: (
-            ExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -248,11 +237,7 @@ mod manager_unit_test {
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts(
-        executor_mock: (
-            ExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -374,11 +359,7 @@ mod manager_unit_test {
     #[rstest]
     #[tokio::test]
     async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
-        executor_mock: (
-            ExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,

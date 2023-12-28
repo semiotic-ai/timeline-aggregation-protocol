@@ -17,7 +17,9 @@ mod received_receipt_unit_test {
 
     use crate::{
         adapters::{
-            auditor_executor_mock::AuditorExecutorMock, escrow_adapter_mock::EscrowAdapterMock,
+            auditor_executor_mock::AuditorExecutorMock,
+            escrow_adapter_mock::EscrowAdapterMock,
+            executor_mock::{EscrowStorage, QueryAppraisals},
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
@@ -96,11 +98,7 @@ mod received_receipt_unit_test {
     }
 
     #[fixture]
-    fn auditor_executor() -> (
-        AuditorExecutorMock,
-        Arc<RwLock<HashMap<Address, u128>>>,
-        Arc<RwLock<HashMap<u64, u128>>>,
-    ) {
+    fn auditor_executor() -> (AuditorExecutorMock, EscrowStorage, QueryAppraisals) {
         let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
 
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
@@ -165,11 +163,7 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         allocation_ids: Vec<Address>,
-        auditor_executor: (
-            AuditorExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
@@ -233,11 +227,7 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        auditor_executor: (
-            AuditorExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
@@ -302,11 +292,7 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        auditor_executor: (
-            AuditorExecutorMock,
-            Arc<RwLock<HashMap<Address, u128>>>,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time

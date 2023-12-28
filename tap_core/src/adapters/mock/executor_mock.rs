@@ -22,6 +22,9 @@ use std::{
 };
 use tokio::sync::RwLock;
 
+pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
+pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
+
 /// `RAVStorageAdapterMock` is a mock implementation of the `RAVStorageAdapter` trait.
 ///
 /// It serves two main purposes:
@@ -57,9 +60,9 @@ pub struct ExecutorMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     unique_id: Arc<RwLock<u64>>,
 
-    sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>,
+    sender_escrow_storage: EscrowStorage,
 
-    query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
+    query_appraisals: QueryAppraisals,
     allocation_ids: Arc<RwLock<HashSet<Address>>>,
     sender_ids: Arc<RwLock<HashSet<Address>>>,
 }
