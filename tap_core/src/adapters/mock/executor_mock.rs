@@ -139,11 +139,8 @@ impl ReceiptRead for ExecutorMock {
 
         if limit.is_some_and(|limit| receipts_in_range.len() > limit as usize) {
             safe_truncate_receipts(&mut receipts_in_range, limit.unwrap());
-
-            Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
-        } else {
-            Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
         }
+        Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
     }
 }
 
