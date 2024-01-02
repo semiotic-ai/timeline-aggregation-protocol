@@ -8,13 +8,13 @@ A stateless JSON-RPC service that lets clients request an aggregate receipt from
 A JSON-RPC service for the Timeline Aggregation Protocol that lets clients request an aggregate receipt from a list of
 individual receipts.
 
-Usage: tap_aggregator [OPTIONS] --mnemonic <MNEMONIC>
+Usage: tap_aggregator [OPTIONS] --private-key <PRIVATE_KEY>
 
 Options:
       --port <PORT>
           Port to listen on for JSON-RPC requests [env: TAP_PORT=] [default: 8080]
-      --mnemonic <MNEMONIC>
-          Sender mnemonic to be used to sign Receipt Aggregate Vouchers [env: TAP_MNEMONIC=]
+      --private-key <PRIVATE_KEY>
+          Sender private key for signing Receipt Aggregate Vouchers, as a hex string [env: TAP_PRIVATE_KEY=]
       --max-request-body-size <MAX_REQUEST_BODY_SIZE>
           Maximum request body size in bytes. Defaults to 10MB [env: TAP_MAX_REQUEST_BODY_SIZE=] [default: 10485760]
       --max-response-body-size <MAX_RESPONSE_BODY_SIZE>
@@ -98,7 +98,7 @@ Warning object format (similar to the standard JSON-RPC error object):
 We define these warning codes:
 
 - `-32051` API version deprecation
-  
+
   Also returns an object containing the method's supported versions in the `data` field. Example:
 
   ```json
@@ -134,7 +134,7 @@ If the call fails, the error response format is as described in
 In addition to the official spec, we define a few special errors:
 
 - `-32001` Invalid API version.
-  
+
   Also returns an object containing the method's supported versions in the `data` field. Example:
 
   ```json
@@ -158,7 +158,7 @@ In addition to the official spec, we define a few special errors:
   ```
 
 - `-32002` Aggregation error.
-  
+
   The aggregation function returned an error. Example:
 
   ```json
