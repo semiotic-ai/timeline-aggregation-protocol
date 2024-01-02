@@ -1,0 +1,17 @@
+FROM rust:1.74-bookworm as build
+
+WORKDIR /root
+COPY . .
+
+RUN cargo build --release --bin tap_aggregator
+
+########################################################################################
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /root/target/release/tap_aggregator /usr/local/bin/tap_aggregator
+
+ENTRYPOINT [ "/usr/local/bin/tap_aggregator" ]
