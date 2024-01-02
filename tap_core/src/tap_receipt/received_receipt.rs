@@ -218,13 +218,12 @@ where
 }
 
 impl ReceiptWithState<AwaitingReserve> {
-    pub async fn check_and_reserve_escrow<EA, RCA>(
+    pub async fn check_and_reserve_escrow<A>(
         self,
-        auditor: &ReceiptAuditor<EA, RCA>,
+        auditor: &ReceiptAuditor<A>,
     ) -> ResultReceipt<Reserved>
     where
-        EA: EscrowAdapter,
-        RCA: ReceiptChecksAdapter,
+        A: EscrowAdapter + ReceiptChecksAdapter,
     {
         match auditor.check_and_reserve_escrow(&self).await {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
@@ -244,12 +243,14 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn perform_check<A>(
         &mut self,
         check: &ReceiptCheck,
         receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) {
+        receipt_auditor: &ReceiptAuditor<A>,
+    ) where
+        A: EscrowAdapter + ReceiptChecksAdapter,
+    {
         // Only perform check if it is incomplete
         // Don't check if already failed
         if !self.check_is_complete(check) && !self.any_check_resulted_in_error() {
@@ -264,11 +265,14 @@ impl ReceiptWithState<Checking> {
         }
     }
 
-    pub async fn perform_check_batch<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn perform_check_batch<A>(
         batch: &mut [Self],
         check: &ReceiptCheck,
-        receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> Result<()> {
+        receipt_auditor: &ReceiptAuditor<A>,
+    ) -> Result<()>
+    where
+        A: EscrowAdapter + ReceiptChecksAdapter,
+    {
         let results = receipt_auditor.check_batch(check, batch).await;
 
         for (receipt, result) in batch.iter_mut().zip(results) {
@@ -288,12 +292,14 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn perform_checks<A>(
         &mut self,
         checks: &[ReceiptCheck],
         receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) {
+        receipt_auditor: &ReceiptAuditor<A>,
+    ) where
+        A: EscrowAdapter + ReceiptChecksAdapter,
+    {
         for check in checks {
             self.perform_check(check, receipt_id, receipt_auditor).await;
         }
@@ -303,11 +309,14 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
-    pub async fn finalize_receipt_checks<CA: EscrowAdapter, RCA: ReceiptChecksAdapter>(
+    pub async fn finalize_receipt_checks<A>(
         mut self,
         receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<CA, RCA>,
-    ) -> ResultReceipt<AwaitingReserve> {
+        receipt_auditor: &ReceiptAuditor<A>,
+    ) -> ResultReceipt<AwaitingReserve>
+    where
+        A: EscrowAdapter + ReceiptChecksAdapter,
+    {
         let incomplete_checks = self.incomplete_checks();
 
         self.perform_checks(incomplete_checks.as_slice(), receipt_id, receipt_auditor)

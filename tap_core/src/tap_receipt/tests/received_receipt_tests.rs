@@ -17,7 +17,9 @@ mod received_receipt_unit_test {
 
     use crate::{
         adapters::{
+            auditor_executor_mock::AuditorExecutorMock,
             escrow_adapter_mock::EscrowAdapterMock,
+            executor_mock::{EscrowStorage, QueryAppraisals},
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
             receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
@@ -96,6 +98,28 @@ mod received_receipt_unit_test {
     }
 
     #[fixture]
+    fn auditor_executor() -> (AuditorExecutorMock, EscrowStorage, QueryAppraisals) {
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
+        let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
+        let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
+        (
+            AuditorExecutorMock::new(
+                receipt_storage,
+                sender_escrow_storage.clone(),
+                query_appraisal_storage.clone(),
+                allocation_ids_set,
+                sender_ids_set,
+            ),
+            sender_escrow_storage,
+            query_appraisal_storage,
+        )
+    }
+
+    #[fixture]
     fn domain_separator() -> Eip712Domain {
         eip712_domain! {
             name: "TAP",
@@ -139,23 +163,13 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         allocation_ids: Vec<Address>,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (
-            ReceiptStorageAdapterMock,
-            ReceiptChecksAdapterMock,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
-        let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
@@ -209,23 +223,13 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (
-            ReceiptStorageAdapterMock,
-            ReceiptChecksAdapterMock,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
-        let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
@@ -280,23 +284,13 @@ mod received_receipt_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        escrow_adapters: (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>),
-        receipt_adapters: (
-            ReceiptStorageAdapterMock,
-            ReceiptChecksAdapterMock,
-            Arc<RwLock<HashMap<u64, u128>>>,
-        ),
+        auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
     ) {
-        let (_, receipt_checks_adapter, query_appraisal_storage) = receipt_adapters;
-        let (escrow_adapter, escrow_storage) = escrow_adapters;
+        let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator.clone(),
-            escrow_adapter,
-            receipt_checks_adapter,
-            starting_min_timestamp,
-        );
+        let receipt_auditor =
+            ReceiptAuditor::new(domain_separator.clone(), executor, starting_min_timestamp);
 
         let query_value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(

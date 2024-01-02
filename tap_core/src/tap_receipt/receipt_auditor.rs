@@ -17,24 +17,21 @@ use crate::{
 
 use super::{received_receipt::Checking, AwaitingReserve, ReceiptWithState};
 
-pub struct ReceiptAuditor<EA, RCA> {
+pub struct ReceiptAuditor<E> {
     domain_separator: Eip712Domain,
-    escrow_adapter: EA,
-    receipt_checks_adapter: RCA,
+    executor: E,
     min_timestamp_ns: RwLock<u64>,
 }
 
-impl<EA, RCA> ReceiptAuditor<EA, RCA> {
+impl<E> ReceiptAuditor<E> {
     pub fn new(
         domain_separator: Eip712Domain,
-        escrow_adapter: EA,
-        receipt_checks_adapter: RCA,
+        executor: E,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         Self {
             domain_separator,
-            escrow_adapter,
-            receipt_checks_adapter,
+            executor,
             min_timestamp_ns: RwLock::new(starting_min_timestamp_ns),
         }
     }
@@ -105,10 +102,9 @@ impl<EA, RCA> ReceiptAuditor<EA, RCA> {
     }
 }
 
-impl<EA, RCA> ReceiptAuditor<EA, RCA>
+impl<E> ReceiptAuditor<E>
 where
-    EA: EscrowAdapter,
-    RCA: ReceiptChecksAdapter,
+    E: EscrowAdapter + ReceiptChecksAdapter,
 {
     pub async fn check(
         &self,
@@ -143,9 +139,9 @@ where
     }
 }
 
-impl<EA, RCA> ReceiptAuditor<EA, RCA>
+impl<E> ReceiptAuditor<E>
 where
-    RCA: ReceiptChecksAdapter,
+    E: ReceiptChecksAdapter,
 {
     async fn check_uniqueness(
         &self,
@@ -153,7 +149,7 @@ where
         receipt_id: u64,
     ) -> ReceiptResult<()> {
         if !self
-            .receipt_checks_adapter
+            .executor
             .is_unique(signed_receipt, receipt_id)
             .await
             .map_err(|e| ReceiptError::CheckFailedToComplete {
@@ -170,7 +166,7 @@ where
         signed_receipt: &EIP712SignedMessage<Receipt>,
     ) -> ReceiptResult<()> {
         if !self
-            .receipt_checks_adapter
+            .executor
             .is_valid_allocation_id(signed_receipt.message.allocation_id)
             .await
             .map_err(|e| ReceiptError::CheckFailedToComplete {
@@ -210,7 +206,7 @@ where
         query_id: u64,
     ) -> ReceiptResult<()> {
         if !self
-            .receipt_checks_adapter
+            .executor
             .is_valid_value(signed_receipt.message.value, query_id)
             .await
             .map_err(|e| ReceiptError::CheckFailedToComplete {
@@ -256,7 +252,7 @@ where
                 source_error_message: err.to_string(),
             })?;
         if !self
-            .receipt_checks_adapter
+            .executor
             .is_valid_sender_id(receipt_signer_address)
             .await
             .map_err(|e| ReceiptError::CheckFailedToComplete {
@@ -298,7 +294,7 @@ where
     ) -> Result<()> {
         let rav_signer_address = signed_rav.recover_signer(&self.domain_separator)?;
         if !self
-            .receipt_checks_adapter
+            .executor
             .is_valid_sender_id(rav_signer_address)
             .await
             .map_err(|err| Error::AdapterError {
@@ -313,9 +309,9 @@ where
     }
 }
 
-impl<EA, RCA> ReceiptAuditor<EA, RCA>
+impl<E> ReceiptAuditor<E>
 where
-    EA: EscrowAdapter,
+    E: EscrowAdapter,
 {
     pub async fn check_and_reserve_escrow(
         &self,
@@ -328,7 +324,7 @@ where
                 source_error_message: err.to_string(),
             })?;
         if self
-            .escrow_adapter
+            .executor
             .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
             .await
             .is_err()
