@@ -29,10 +29,6 @@ struct Args {
     #[arg(long, env = "TAP_PRIVATE_KEY")]
     private_key: String,
 
-    /// Sender key derive path to be used to generate key for signing Receipt Aggregate Vouchers.
-    #[arg(long, default_value = "m/44'/60'/0'/0/0", env = "TAP_KEY_DERIVE_PATH")]
-    key_derive_path: String,
-
     /// Maximum request body size in bytes.
     /// Defaults to 10MB.
     #[arg(long, default_value_t = 10 * 1024 * 1024, env = "TAP_MAX_REQUEST_BODY_SIZE")]
