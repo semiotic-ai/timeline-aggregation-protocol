@@ -41,7 +41,7 @@ pub async fn check_and_aggregate_receipts(
     check_receipt_timestamps(receipts, previous_rav.as_ref())?;
 
     // Get the allocation id from the first receipt, return error if there are no receipts
-    let allocation_id = match receipts.get(0) {
+    let allocation_id = match receipts.first() {
         Some(receipt) => receipt.message.allocation_id,
         None => return Err(tap_core::Error::NoValidReceiptsForRAVRequest.into()),
     };
