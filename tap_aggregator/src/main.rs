@@ -4,12 +4,13 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
+use std::str::FromStr;
 
 use alloy_primitives::{Address, FixedBytes, U256};
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use clap::Parser;
-use ethers_signers::{coins_bip39::English, MnemonicBuilder, Signer};
+use ethers_signers::{LocalWallet, Signer};
 use tokio::signal::unix::{signal, SignalKind};
 
 use log::{debug, info};
@@ -24,13 +25,9 @@ struct Args {
     #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
-    /// Sender mnemonic to be used to generate key for signing Receipt Aggregate Vouchers.
-    #[arg(long, env = "TAP_MNEMONIC")]
-    mnemonic: String,
-
-    /// Sender key derive path to be used to generate key for signing Receipt Aggregate Vouchers.
-    #[arg(long, default_value = "m/44'/60'/0'/0/0", env = "TAP_KEY_DERIVE_PATH")]
-    key_derive_path: String,
+    /// Sender private key for signing Receipt Aggregate Vouchers, as a hex string.
+    #[arg(long, env = "TAP_PRIVATE_KEY")]
+    private_key: String,
 
     /// Maximum request body size in bytes.
     /// Defaults to 10MB.
@@ -90,10 +87,7 @@ async fn main() -> Result<()> {
     tokio::spawn(metrics::run_server(args.metrics_port));
 
     // Create a wallet from the mnemonic.
-    let wallet = MnemonicBuilder::<English>::default()
-        .phrase(args.mnemonic.as_str())
-        .derivation_path(&args.key_derive_path)?
-        .build()?;
+    let wallet = LocalWallet::from_str(&args.private_key)?;
 
     info!("Wallet address: {:#40x}", wallet.address());
 

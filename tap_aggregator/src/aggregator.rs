@@ -118,7 +118,7 @@ mod tests {
 
     use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
-    use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use ethers_signers::{LocalWallet, Signer};
     use rstest::*;
 
     use crate::aggregator;
@@ -126,10 +126,10 @@ mod tests {
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {
-        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
+        let wallet = LocalWallet::from_str(
+            "1ab42cc412b618bdea3a599e3c9bae199ebf030895b039e9db1e30dafb12b727",
+        )
+        .unwrap();
         let address: [u8; 20] = wallet.address().into();
         (wallet, address.into())
     }
