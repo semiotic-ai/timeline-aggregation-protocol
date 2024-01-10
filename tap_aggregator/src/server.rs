@@ -362,7 +362,7 @@ mod tests {
 
         // Start the JSON-RPC client.
         let client = HttpClientBuilder::default()
-            .build(format!("http://127.0.0.1:{}", local_addr.port()))
+            .build(format!("http://0.0.0.0:{}", local_addr.port()))
             .unwrap();
 
         // Create receipts
