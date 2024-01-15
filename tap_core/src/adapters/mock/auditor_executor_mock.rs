@@ -1,11 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{escrow_adapter_mock::AdpaterErrorMock, receipt_checks_adapter_mock::AdapterErrorMock};
+use super::escrow_adapter_mock::AdpaterErrorMock;
 use crate::adapters::escrow_adapter::EscrowAdapter;
-use crate::adapters::receipt_checks_adapter::ReceiptChecksAdapter;
-use crate::eip_712_signed_message::EIP712SignedMessage;
-use crate::tap_receipt::{Receipt, ReceivedReceipt};
+// use crate::adapters::receipt_checks_adapter::ReceiptChecksAdapter;
+use crate::tap_receipt::ReceivedReceipt;
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::{
@@ -15,6 +14,7 @@ use std::{
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AuditorExecutorMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
 
@@ -97,47 +97,5 @@ impl EscrowAdapter for AuditorExecutorMock {
         value: u128,
     ) -> Result<(), Self::AdapterError> {
         self.reduce_escrow(sender_id, value).await
-    }
-}
-
-#[async_trait]
-impl ReceiptChecksAdapter for AuditorExecutorMock {
-    type AdapterError = AdapterErrorMock;
-
-    async fn is_unique(
-        &self,
-        receipt: &EIP712SignedMessage<Receipt>,
-        receipt_id: u64,
-    ) -> Result<bool, Self::AdapterError> {
-        let receipt_storage = self.receipt_storage.read().await;
-        Ok(receipt_storage
-            .iter()
-            .all(|(stored_receipt_id, stored_receipt)| {
-                (stored_receipt.signed_receipt().message != receipt.message)
-                    || *stored_receipt_id == receipt_id
-            }))
-    }
-
-    async fn is_valid_allocation_id(
-        &self,
-        allocation_id: Address,
-    ) -> Result<bool, Self::AdapterError> {
-        let allocation_ids = self.allocation_ids.read().await;
-        Ok(allocation_ids.contains(&allocation_id))
-    }
-
-    async fn is_valid_value(&self, value: u128, query_id: u64) -> Result<bool, Self::AdapterError> {
-        let query_appraisals = self.query_appraisals.read().await;
-        let appraised_value = query_appraisals.get(&query_id).unwrap();
-
-        if value != *appraised_value {
-            return Ok(false);
-        }
-        Ok(true)
-    }
-
-    async fn is_valid_sender_id(&self, sender_id: Address) -> Result<bool, Self::AdapterError> {
-        let sender_ids = self.sender_ids.read().await;
-        Ok(sender_ids.contains(&sender_id))
     }
 }

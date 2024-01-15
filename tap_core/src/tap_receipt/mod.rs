@@ -53,7 +53,7 @@ pub enum ReceiptCheck {
 }
 
 pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
-    let mut all_checks_list = ReceiptCheckResults::new();
+    let all_checks_list = ReceiptCheckResults::new();
     // all_checks_list.insert(ReceiptCheck::CheckUnique, None);
     // all_checks_list.insert(ReceiptCheck::CheckAllocationId, None);
     // all_checks_list.insert(ReceiptCheck::CheckTimestamp, None);

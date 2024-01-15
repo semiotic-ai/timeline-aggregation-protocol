@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheckResults};
 use crate::{
     adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
-    checks::{BoxedCheck, Check, CheckingChecks},
+    checks::{BoxedCheck, CheckingChecks},
     eip_712_signed_message::EIP712SignedMessage,
     Error, Result,
 };
@@ -31,7 +31,9 @@ pub struct Checking {
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Failed {
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
@@ -79,6 +81,7 @@ pub struct ReceiptWithId<T>
 where
     T: ReceiptState,
 {
+    #[allow(dead_code)]
     pub(crate) receipt_id: u64,
     pub(crate) receipt: ReceiptWithState<T>,
 }
@@ -222,7 +225,7 @@ impl ReceiptWithState<AwaitingReserve> {
         auditor: &ReceiptAuditor<A>,
     ) -> ResultReceipt<Reserved>
     where
-        A: EscrowAdapter + ReceiptChecksAdapter,
+        A: EscrowAdapter,
     {
         match auditor.check_and_reserve_escrow(&self).await {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
@@ -242,10 +245,7 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check(
-        &mut self,
-        check: &BoxedCheck,
-    ) {
+    pub async fn perform_check(&mut self, check: &BoxedCheck) {
         // Only perform check if it is incomplete
         // Don't check if already failed
         if !self.check_is_complete(check) && !self.any_check_resulted_in_error() {
@@ -264,10 +264,7 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks(
-        &mut self,
-        checks: &[BoxedCheck],
-    ) {
+    pub async fn perform_checks(&mut self, checks: &[BoxedCheck]) {
         for check in checks {
             self.perform_check(check).await;
         }
@@ -277,13 +274,10 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
-    pub async fn finalize_receipt_checks(
-        mut self,
-    ) -> ResultReceipt<AwaitingReserve> {
+    pub async fn finalize_receipt_checks(mut self) -> ResultReceipt<AwaitingReserve> {
         let incomplete_checks = self.incomplete_checks();
 
-        self.perform_checks(incomplete_checks.as_slice())
-            .await;
+        self.perform_checks(incomplete_checks.as_slice()).await;
 
         if self.any_check_resulted_in_error() {
             let failed = self.perform_state_changes_into();
@@ -302,7 +296,7 @@ impl ReceiptWithState<Checking> {
             .filter_map(|(check, result)| {
                 if let CheckingChecks::Executed(unwrapped_result) = result {
                     if unwrapped_result.is_err() {
-                        return Some(((*check).clone(), result.clone()));
+                        return Some((*check, result.clone()));
                     }
                 }
                 None
@@ -316,7 +310,7 @@ impl ReceiptWithState<Checking> {
             .state
             .checks
             .iter()
-            .filter_map(|(check, result)| match result {
+            .filter_map(|(_check, result)| match result {
                 CheckingChecks::Pending(check) => Some(check.clone()),
                 CheckingChecks::Executed(_) => None,
             })

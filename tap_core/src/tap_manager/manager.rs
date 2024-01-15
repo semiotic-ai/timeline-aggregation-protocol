@@ -15,8 +15,8 @@ use crate::{
     checks::{BoxedCheck, TimestampCheck},
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
-        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptCheck, ReceiptWithId,
-        ReceiptWithState, ReceivedReceipt, Reserved,
+        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
+        ReceivedReceipt, Reserved,
     },
     Error,
 };
@@ -44,16 +44,12 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        required_checks: Vec<ReceiptCheck>,
+        mut required_checks: Vec<BoxedCheck>,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         let timestamp_check = Arc::new(TimestampCheck::new(starting_min_timestamp_ns));
         required_checks.push(timestamp_check.clone());
-        let receipt_auditor = ReceiptAuditor::new(
-            domain_separator,
-            executor.clone(),
-            starting_min_timestamp_ns,
-        );
+        let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
         Self {
             executor,
             required_checks,

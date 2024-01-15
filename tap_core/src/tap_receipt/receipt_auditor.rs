@@ -13,23 +13,21 @@ use super::{AwaitingReserve, ReceiptWithState};
 pub struct ReceiptAuditor<E> {
     domain_separator: Eip712Domain,
     executor: E,
-    min_timestamp_ns: RwLock<u64>,
 }
 
 impl<E> ReceiptAuditor<E> {
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        starting_min_timestamp_ns: u64,
     ) -> Self {
         Self {
             domain_separator,
-            escrow_adapter,
+            executor,
         }
     }
 }
 
-impl<EA> ReceiptAuditor<EA>
+impl<E> ReceiptAuditor<E>
 where
     E: EscrowAdapter,
 {
