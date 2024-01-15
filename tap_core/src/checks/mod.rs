@@ -32,22 +32,16 @@ impl CheckingChecks {
 #[typetag::serde(tag = "type")]
 pub trait Check: std::fmt::Debug + Send + Sync {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()>;
-}
 
-#[async_trait::async_trait]
-trait CheckBatch {
-    async fn check_batch(receipt: &[ReceiptWithState<Checking>]) -> Vec<ReceiptResult<()>>;
+    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<ReceiptResult<()>> {
+        let mut results = Vec::new();
+        for receipt in receipts {
+            let result = self.check(receipt).await;
+            results.push(result);
+        }
+        results
+    }
 }
-
-// #[async_trait::async_trait]
-// impl<T> CheckBatch for T
-// where
-//     T: Check,
-// {
-//     async fn check_batch(receipt: &[ReceiptWithState<Checking>]) -> ReceiptResult<()> {
-//         todo!()
-//     }
-// }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct UniqueCheck;
@@ -59,11 +53,8 @@ impl Check for UniqueCheck {
         println!("UniqueCheck");
         Ok(())
     }
-}
 
-#[async_trait::async_trait]
-impl CheckBatch for UniqueCheck {
-    async fn check_batch(receipts: &[ReceiptWithState<Checking>]) -> Vec<ReceiptResult<()>> {
+    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<ReceiptResult<()>> {
         let mut signatures: HashSet<Signature> = HashSet::new();
         let mut results = Vec::new();
 
