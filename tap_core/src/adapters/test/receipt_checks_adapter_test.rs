@@ -10,7 +10,7 @@ mod receipt_checks_adapter_unit_test {
     };
 
     use alloy_primitives::Address;
-    use alloy_sol_types::{eip712_domain, Eip712Domain};
+    use alloy_sol_types::Eip712Domain;
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
     use futures::{stream, StreamExt};
     use rstest::*;
@@ -22,17 +22,13 @@ mod receipt_checks_adapter_unit_test {
             receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         },
         eip_712_signed_message::EIP712SignedMessage,
+        tap_eip712_domain,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        eip712_domain! {
-            name: "TAP",
-            version: "1",
-            chain_id: 1,
-            verifying_contract: Address::from([0x11u8; 20]),
-        }
+        tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
     #[rstest]

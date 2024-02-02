@@ -241,7 +241,7 @@ mod tests {
     use std::str::FromStr;
 
     use alloy_primitives::Address;
-    use alloy_sol_types::{eip712_domain, Eip712Domain};
+    use alloy_sol_types::Eip712Domain;
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
@@ -249,7 +249,8 @@ mod tests {
     use crate::server;
     use tap_core::{
         eip_712_signed_message::EIP712SignedMessage,
-        receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+        receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_eip712_domain,
+        tap_receipt::Receipt,
     };
 
     #[fixture]
@@ -277,12 +278,7 @@ mod tests {
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        eip712_domain! {
-            name: "TAP",
-            version: "1",
-            chain_id: 1,
-            verifying_contract: Address::from([0x11u8; 20]),
-        }
+        tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
     #[fixture]

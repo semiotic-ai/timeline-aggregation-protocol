@@ -14,7 +14,7 @@ use std::{
 };
 
 use alloy_primitives::Address;
-use alloy_sol_types::{eip712_domain, Eip712Domain};
+use alloy_sol_types::Eip712Domain;
 use anyhow::{Error, Result};
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use jsonrpsee::{
@@ -33,6 +33,7 @@ use tap_core::{
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     eip_712_signed_message::EIP712SignedMessage,
+    tap_eip712_domain,
     tap_manager::SignedRAV,
     tap_receipt::{Receipt, ReceiptCheck, ReceivedReceipt},
 };
@@ -125,12 +126,7 @@ fn allocation_ids() -> Vec<Address> {
 // Domain separator is used to sign receipts/RAVs according to EIP-712
 #[fixture]
 fn domain_separator() -> Eip712Domain {
-    eip712_domain! {
-        name: "TAP",
-        version: "1",
-        chain_id: 1,
-        verifying_contract: Address::from([0x11u8; 20]),
-    }
+    tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
 
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.

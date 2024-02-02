@@ -11,12 +11,13 @@
 use std::str::FromStr;
 
 use alloy_primitives::Address;
-use alloy_sol_types::{eip712_domain, Eip712Domain};
+use alloy_sol_types::Eip712Domain;
 use criterion::async_executor::AsyncStdExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ethers::signers::{LocalWallet, Signer, Wallet};
 use ethers_core::k256::ecdsa::SigningKey;
 use rand_core::OsRng;
+use tap_core::tap_eip712_domain;
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
@@ -39,12 +40,7 @@ pub async fn create_and_sign_receipt(
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    let domain_seperator = eip712_domain! {
-        name: "TAP",
-        version: "1",
-        chain_id: 1,
-        verifying_contract: Address::from([0x11u8; 20]),
-    };
+    let domain_seperator = tap_eip712_domain(1, Address::from([0x11u8; 20]));
 
     let async_runtime = Runtime::new().unwrap();
 

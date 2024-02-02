@@ -10,7 +10,7 @@ mod receipt_storage_adapter_unit_test {
     use std::sync::Arc;
 
     use alloy_primitives::Address;
-    use alloy_sol_types::{eip712_domain, Eip712Domain};
+    use alloy_sol_types::Eip712Domain;
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
@@ -20,6 +20,7 @@ mod receipt_storage_adapter_unit_test {
         receipt_storage_adapter::ReceiptStore,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
+    use crate::tap_eip712_domain;
     use crate::tap_receipt::ReceivedReceipt;
     use crate::{
         eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
@@ -28,12 +29,7 @@ mod receipt_storage_adapter_unit_test {
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        eip712_domain! {
-            name: "TAP",
-            version: "1",
-            chain_id: 1,
-            verifying_contract: Address::from([0x11u8; 20]),
-        }
+        tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
     #[rstest]

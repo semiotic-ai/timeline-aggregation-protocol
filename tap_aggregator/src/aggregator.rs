@@ -117,12 +117,14 @@ mod tests {
     use std::str::FromStr;
 
     use alloy_primitives::Address;
-    use alloy_sol_types::{eip712_domain, Eip712Domain};
+    use alloy_sol_types::Eip712Domain;
     use ethers_signers::{LocalWallet, Signer};
     use rstest::*;
 
     use crate::aggregator;
-    use tap_core::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
+    use tap_core::{
+        eip_712_signed_message::EIP712SignedMessage, tap_eip712_domain, tap_receipt::Receipt,
+    };
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {
@@ -146,12 +148,7 @@ mod tests {
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        eip712_domain! {
-            name: "TAP",
-            version: "1",
-            chain_id: 1,
-            verifying_contract: Address::from([0x11u8; 20]),
-        }
+        tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
     #[rstest]
