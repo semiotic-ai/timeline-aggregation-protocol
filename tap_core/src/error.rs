@@ -29,7 +29,7 @@ pub enum Error {
     WalletError(#[from] WalletError),
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
-    #[error("Recovered sender address invalid{address}")]
+    #[error("Recovered sender address invalid {address}")]
     InvalidRecoveredSigner { address: Address },
     #[error("Received RAV does not match expexted RAV")]
     InvalidReceivedRAV {

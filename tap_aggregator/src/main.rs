@@ -4,6 +4,7 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::str::FromStr;
 
 use alloy_primitives::{Address, FixedBytes, U256};
@@ -25,9 +26,17 @@ struct Args {
     #[arg(long, default_value_t = 8080, env = "TAP_PORT")]
     port: u16,
 
-    /// Sender private key for signing Receipt Aggregate Vouchers, as a hex string.
+    /// Signer private key for signing Receipt Aggregate Vouchers, as a hex string.
     #[arg(long, env = "TAP_PRIVATE_KEY")]
     private_key: String,
+
+    /// Signer public keys. Not the counterpart of the signer private key. Signers that are allowed
+    /// for the incoming receipts / RAV to aggregate. Useful when needing to accept receipts that
+    /// were signed with a different key (e.g. a recent key rotation, or receipts coming from a
+    /// different gateway / aggregator that use a different signing key).
+    /// Expects a comma-separated list of Ethereum addresses.
+    #[arg(long, env = "TAP_PUBLIC_KEYS")]
+    public_keys: Option<Vec<Address>>,
 
     /// Maximum request body size in bytes.
     /// Defaults to 10MB.
@@ -94,11 +103,19 @@ async fn main() -> Result<()> {
     // Create the EIP-712 domain separator.
     let domain_separator = create_eip712_domain(&args)?;
 
+    // Create HashSet of *all* allowed signers
+    let mut accepted_addresses: HashSet<Address> = std::collections::HashSet::new();
+    accepted_addresses.insert(wallet.address().0.into());
+    if let Some(public_keys) = &args.public_keys {
+        accepted_addresses.extend(public_keys.iter().cloned());
+    }
+
     // Start the JSON-RPC server.
     // This await is non-blocking
     let (handle, _) = server::run_server(
         args.port,
         wallet,
+        accepted_addresses,
         domain_separator,
         args.max_request_body_size,
         args.max_response_body_size,
