@@ -10,7 +10,6 @@
 
 use std::str::FromStr;
 
-use alloy_primitives::Address;
 use alloy_sol_types::{eip712_domain, Eip712Domain};
 use criterion::async_executor::AsyncStdExecutor;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -21,6 +20,7 @@ use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
+use thegraph::types::Address;
 use tokio::runtime::Runtime;
 
 pub async fn create_and_sign_receipt(

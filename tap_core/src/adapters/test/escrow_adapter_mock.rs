@@ -3,8 +3,8 @@
 
 use std::{collections::HashMap, sync::Arc};
 
-use alloy_primitives::Address;
 use async_trait::async_trait;
+use thegraph::types::Address;
 use tokio::sync::RwLock;
 
 use crate::adapters::escrow_adapter::EscrowAdapter;

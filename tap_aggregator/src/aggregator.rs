@@ -3,11 +3,11 @@
 
 use std::collections::hash_set;
 
-use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use anyhow::{Ok, Result};
 use ethers_core::types::Signature;
 use ethers_signers::{LocalWallet, Signer};
+use thegraph::types::Address;
 
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
@@ -116,10 +116,10 @@ fn check_receipt_timestamps(
 mod tests {
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use thegraph::types::Address;
 
     use crate::aggregator;
     use tap_core::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};

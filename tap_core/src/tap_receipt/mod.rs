@@ -6,12 +6,12 @@ mod receipt_auditor;
 mod received_receipt;
 use std::collections::HashMap;
 
-use alloy_primitives::Address;
 pub use receipt::Receipt;
 pub use receipt_auditor::ReceiptAuditor;
 pub use received_receipt::{RAVStatus, ReceiptState, ReceivedReceipt};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
+use thegraph::types::Address;
 use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]

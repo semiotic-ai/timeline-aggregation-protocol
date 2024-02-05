@@ -8,10 +8,10 @@
 //! The payment receiver would verify the received receipt and store it to be
 //! accumulated with other received receipts in the future.
 
-use alloy_primitives::Address;
 use alloy_sol_types::sol;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use thegraph::types::Address;
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA

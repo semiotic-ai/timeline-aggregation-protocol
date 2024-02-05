@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
-use alloy_primitives::Address;
 use async_trait::async_trait;
+use thegraph::types::Address;
 
 /// `ReceiptChecksAdapter` defines a trait for adapters to handle checks related to TAP receipts.
 ///

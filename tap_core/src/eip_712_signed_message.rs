@@ -4,10 +4,10 @@
 //! Module containing EIP712 message and signature
 //!
 
-use alloy_primitives::Address;
 use alloy_sol_types::{Eip712Domain, SolStruct};
 use ethers::{signers::LocalWallet, types::Signature};
 use serde::{Deserialize, Serialize};
+use thegraph::types::Address;
 
 use crate::Result;
 

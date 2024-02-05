@@ -240,11 +240,11 @@ pub async fn run_server(
 mod tests {
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
+    use thegraph::types::Address;
 
     use crate::server;
     use tap_core::{

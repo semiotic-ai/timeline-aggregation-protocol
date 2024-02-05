@@ -32,10 +32,10 @@ pub(crate) fn get_current_timestamp_u64_ns() -> Result<u64> {
 mod tap_tests {
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use thegraph::types::Address;
 
     use crate::{
         eip_712_signed_message::EIP712SignedMessage,

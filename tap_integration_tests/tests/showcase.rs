@@ -13,7 +13,6 @@ use std::{
     sync::Arc,
 };
 
-use alloy_primitives::Address;
 use alloy_sol_types::{eip712_domain, Eip712Domain};
 use anyhow::{Error, Result};
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
@@ -22,6 +21,7 @@ use jsonrpsee::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
+use thegraph::types::Address;
 use tokio::sync::RwLock;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};

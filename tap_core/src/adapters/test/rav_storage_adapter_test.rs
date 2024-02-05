@@ -5,11 +5,11 @@
 mod rav_storage_adapter_unit_test {
     use std::{str::FromStr, sync::Arc};
 
-    use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::coins_bip39::English;
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
+    use thegraph::types::Address;
     use tokio::sync::RwLock;
 
     use crate::adapters::{

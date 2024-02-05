@@ -9,10 +9,10 @@ mod received_receipt_unit_test {
         sync::Arc,
     };
 
-    use alloy_primitives::Address;
     use alloy_sol_types::{eip712_domain, Eip712Domain};
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
+    use thegraph::types::Address;
     use tokio::sync::RwLock;
 
     use crate::{

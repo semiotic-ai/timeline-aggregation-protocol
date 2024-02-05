@@ -6,8 +6,8 @@ mod receipt_unit_test {
     use std::str::FromStr;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use alloy_primitives::Address;
     use rstest::*;
+    use thegraph::types::Address;
 
     use crate::tap_receipt::Receipt;
 

@@ -5,10 +5,10 @@
 //!
 
 use crate::receipt_aggregate_voucher::ReceiptAggregateVoucher;
-use alloy_primitives::Address;
 use ethers::signers::WalletError;
 use ethers_core::types::SignatureError;
 use std::result::Result as StdResult;
+use thegraph::types::Address;
 use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]

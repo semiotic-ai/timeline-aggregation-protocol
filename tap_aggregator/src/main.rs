@@ -5,11 +5,12 @@
 
 use std::borrow::Cow;
 
-use alloy_primitives::{Address, FixedBytes, U256};
+use alloy_primitives::FixedBytes;
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use clap::Parser;
 use ethers_signers::{coins_bip39::English, MnemonicBuilder, Signer};
+use thegraph::types::{Address, U256};
 use tokio::signal::unix::{signal, SignalKind};
 
 use log::{debug, info};

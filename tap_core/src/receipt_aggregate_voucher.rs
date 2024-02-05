@@ -10,9 +10,9 @@
 
 use std::cmp;
 
-use alloy_primitives::Address;
 use alloy_sol_types::sol;
 use serde::{Deserialize, Serialize};
+use thegraph::types::Address;
 
 use crate::Error;
 use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
