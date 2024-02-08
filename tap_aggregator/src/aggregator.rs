@@ -1,13 +1,13 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::hash_set;
+use std::collections::{hash_set, HashSet};
 
 use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use anyhow::{Ok, Result};
+use alloy_sol_types::{Eip712Domain, SolStruct};
+use anyhow::{bail, Ok, Result};
 use ethers_core::types::Signature;
-use ethers_signers::{LocalWallet, Signer};
+use ethers_signers::LocalWallet;
 
 use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
@@ -19,22 +19,26 @@ pub async fn check_and_aggregate_receipts(
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     wallet: &LocalWallet,
+    accepted_addresses: &HashSet<Address>,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
-    // Get the address of the wallet
-    let address: [u8; 20] = wallet.address().into();
-    let address: Address = address.into();
-
-    // Check that the receipts are unique
     check_signatures_unique(receipts)?;
 
-    // Check that the receipts are signed by ourselves
-    receipts
-        .iter()
-        .try_for_each(|receipt| receipt.verify(domain_separator, address))?;
+    // Check that the receipts are signed by an accepted signer address
+    receipts.iter().try_for_each(|receipt| {
+        check_signature_is_from_one_of_addresses(
+            receipt.clone(),
+            domain_separator,
+            accepted_addresses,
+        )
+    })?;
 
-    // Check that the previous rav is signed by ourselves
+    // Check that the previous rav is signed by an accepted signer address
     if let Some(previous_rav) = &previous_rav {
-        previous_rav.verify(domain_separator, address)?;
+        check_signature_is_from_one_of_addresses(
+            previous_rav.clone(),
+            domain_separator,
+            accepted_addresses,
+        )?;
     }
 
     // Check that the receipts timestamp is greater than the previous rav
@@ -66,6 +70,20 @@ pub async fn check_and_aggregate_receipts(
 
     // Sign the rav and return
     Ok(EIP712SignedMessage::new(domain_separator, rav, wallet).await?)
+}
+
+fn check_signature_is_from_one_of_addresses<M: SolStruct>(
+    message: EIP712SignedMessage<M>,
+    domain_separator: &Eip712Domain,
+    accepted_addresses: &HashSet<Address>,
+) -> Result<()> {
+    let recovered_address = message.recover_signer(domain_separator)?;
+    if !accepted_addresses.contains(&recovered_address) {
+        bail!(tap_core::Error::InvalidRecoveredSigner {
+            address: recovered_address,
+        });
+    }
+    Ok(())
 }
 
 fn check_allocation_id(

@@ -1,8 +1,9 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
+use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use ethers_signers::LocalWallet;
@@ -96,6 +97,7 @@ pub trait Rpc {
 
 struct RpcImpl {
     wallet: LocalWallet,
+    accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
 }
 
@@ -132,6 +134,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
 async fn aggregate_receipts_(
     api_version: String,
     wallet: &LocalWallet,
+    accepted_addresses: &HashSet<Address>,
     domain_separator: &Eip712Domain,
     receipts: Vec<EIP712SignedMessage<Receipt>>,
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
@@ -154,7 +157,14 @@ async fn aggregate_receipts_(
 
     let res = match api_version {
         TapRpcApiVersion::V0_0 => {
-            check_and_aggregate_receipts(domain_separator, &receipts, previous_rav, wallet).await
+            check_and_aggregate_receipts(
+                domain_separator,
+                &receipts,
+                previous_rav,
+                wallet,
+                accepted_addresses,
+            )
+            .await
         }
     };
 
@@ -188,6 +198,7 @@ impl RpcServer for RpcImpl {
         match aggregate_receipts_(
             api_version,
             &self.wallet,
+            &self.accepted_addresses,
             &self.domain_separator,
             receipts,
             previous_rav,
@@ -211,6 +222,7 @@ impl RpcServer for RpcImpl {
 pub async fn run_server(
     port: u16,
     wallet: LocalWallet,
+    accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
     max_request_body_size: u32,
     max_response_body_size: u32,
@@ -229,6 +241,7 @@ pub async fn run_server(
     println!("Listening on: {}", addr);
     let rpc_impl = RpcImpl {
         wallet,
+        accepted_addresses,
         domain_separator,
     };
     let handle = server.start(rpc_impl.into_rpc())?;
@@ -238,12 +251,15 @@ pub async fn run_server(
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod tests {
+    use std::collections::HashSet;
     use std::str::FromStr;
 
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
     use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
+    use rand::prelude::*;
+    use rand::seq::SliceRandom;
     use rstest::*;
 
     use crate::server;
@@ -253,17 +269,27 @@ mod tests {
         tap_receipt::Receipt,
     };
 
-    #[fixture]
-    fn keys() -> (LocalWallet, Address) {
+    #[derive(Clone)]
+    struct Keys {
+        wallet: LocalWallet,
+        address: Address,
+    }
+
+    fn keys(index: u32) -> Keys {
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+         .index(index)
+         .unwrap()
          .build()
          .unwrap();
         // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
         // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
         let address: [u8; 20] = wallet.address().into();
 
-        (wallet, address.into())
+        Keys {
+            wallet,
+            address: address.into(),
+        }
     }
 
     #[fixture]
@@ -299,16 +325,19 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn protocol_version(
-        keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
     ) {
+        // The keys that will be used to sign the new RAVs
+        let keys_main = keys(0);
+
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
-            keys.0,
+            keys_main.wallet,
+            HashSet::from([keys_main.address]),
             domain_separator,
             http_request_size_limit,
             http_response_size_limit,
@@ -335,7 +364,6 @@ mod tests {
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
-        keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
@@ -343,11 +371,23 @@ mod tests {
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
+        #[values(0, 1, 2)] random_seed: u64,
     ) {
+        // The keys that will be used to sign the new RAVs
+        let keys_main = keys(0);
+        // Extra keys to test the server's ability to accept multiple signers as input
+        let keys_0 = keys(1);
+        let keys_1 = keys(2);
+        // Vector of all wallets to make it easier to select one randomly
+        let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
+        // PRNG for selecting a random wallet
+        let mut rng = StdRng::seed_from_u64(random_seed);
+
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
-            keys.0.clone(),
+            keys_main.wallet.clone(),
+            HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
             domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
@@ -368,7 +408,7 @@ mod tests {
                 EIP712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
-                    &keys.0,
+                    &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
                 .await
                 .unwrap(),
@@ -395,7 +435,7 @@ mod tests {
         assert!(remote_rav.message.timestamp_ns == local_rav.timestamp_ns);
         assert!(remote_rav.message.value_aggregate == local_rav.value_aggregate);
 
-        assert!(remote_rav.recover_signer(&domain_separator).unwrap() == keys.1);
+        assert!(remote_rav.recover_signer(&domain_separator).unwrap() == keys_main.address);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -406,7 +446,6 @@ mod tests {
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
-        keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
@@ -414,11 +453,23 @@ mod tests {
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
+        #[values(0, 1, 2, 3, 4)] random_seed: u64,
     ) {
+        // The keys that will be used to sign the new RAVs
+        let keys_main = keys(0);
+        // Extra keys to test the server's ability to accept multiple signers as input
+        let keys_0 = keys(1);
+        let keys_1 = keys(2);
+        // Vector of all wallets to make it easier to select one randomly
+        let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
+        // PRNG for selecting a random wallet
+        let mut rng = StdRng::seed_from_u64(random_seed);
+
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
-            keys.0.clone(),
+            keys_main.wallet.clone(),
+            HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
             domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
@@ -439,7 +490,7 @@ mod tests {
                 EIP712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
-                    &keys.0,
+                    &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
                 .await
                 .unwrap(),
@@ -453,9 +504,13 @@ mod tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0)
-            .await
-            .unwrap();
+        let signed_prev_rav = EIP712SignedMessage::new(
+            &domain_separator,
+            prev_rav,
+            &all_wallets.choose(&mut rng).unwrap().wallet,
+        )
+        .await
+        .unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
         let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
@@ -472,7 +527,7 @@ mod tests {
 
         let rav = res.data;
 
-        assert!(rav.recover_signer(&domain_separator).unwrap() == keys.1);
+        assert!(rav.recover_signer(&domain_separator).unwrap() == keys_main.address);
 
         handle.stop().unwrap();
         handle.stopped().await;
@@ -481,17 +536,20 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn invalid_api_version(
-        keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
     ) {
+        // The keys that will be used to sign the new RAVs
+        let keys_main = keys(0);
+
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
-            keys.0.clone(),
+            keys_main.wallet.clone(),
+            HashSet::from([keys_main.address]),
             domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
@@ -509,7 +567,7 @@ mod tests {
         let receipts = vec![EIP712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], 42).unwrap(),
-            &keys.0,
+            &keys_main.wallet,
         )
         .await
         .unwrap()];
@@ -562,13 +620,15 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn request_size_limit(
-        keys: (LocalWallet, Address),
         domain_separator: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
         #[values("0.0")] api_version: &str,
     ) {
+        // The keys that will be used to sign the new RAVs
+        let keys_main = keys(0);
+
         // Set the request byte size limit to a value that easily triggers the HTTP 413
         // error.
         let http_request_size_limit = 100 * 1024;
@@ -581,7 +641,8 @@ mod tests {
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
             0,
-            keys.0.clone(),
+            keys_main.wallet.clone(),
+            HashSet::from([keys_main.address]),
             domain_separator.clone(),
             http_request_size_limit,
             http_response_size_limit,
@@ -602,7 +663,7 @@ mod tests {
                 EIP712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
-                    &keys.0,
+                    &keys_main.wallet,
                 )
                 .await
                 .unwrap(),

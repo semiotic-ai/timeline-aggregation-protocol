@@ -958,9 +958,12 @@ async fn start_sender_aggregator(
         listener.local_addr()?.port()
     };
 
+    let accepted_addresses = HashSet::from([keys.1]);
+
     let (server_handle, socket_addr) = agg_server::run_server(
         http_port,
         keys.0,
+        accepted_addresses,
         domain_separator,
         http_request_size_limit,
         http_response_size_limit,
