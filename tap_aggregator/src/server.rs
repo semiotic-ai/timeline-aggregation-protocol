@@ -395,9 +395,9 @@ mod tests {
             ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
                 .unwrap();
 
-        assert!(remote_rav.message.allocation_id == local_rav.allocation_id);
-        assert!(remote_rav.message.timestamp_ns == local_rav.timestamp_ns);
-        assert!(remote_rav.message.value_aggregate == local_rav.value_aggregate);
+        assert!(remote_rav.message.allocationId == local_rav.allocationId);
+        assert!(remote_rav.message.timestampNs == local_rav.timestampNs);
+        assert!(remote_rav.message.valueAggregate == local_rav.valueAggregate);
 
         assert!(remote_rav.recover_signer(&domain_separator).unwrap() == keys.1);
 

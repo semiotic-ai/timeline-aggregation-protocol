@@ -155,7 +155,7 @@ impl<
         match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.receipt_storage_adapter
-                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp_ns)
+                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestampNs)
                     .await
                     .map_err(|err| Error::AdapterError {
                         source_error: anyhow::Error::new(err),
@@ -184,7 +184,7 @@ impl<
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
-            .map(|rav| rav.message.timestamp_ns + 1)
+            .map(|rav| rav.message.timestampNs + 1)
             .unwrap_or(0);
 
         let (valid_receipts, invalid_receipts) = self
@@ -194,7 +194,7 @@ impl<
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
         self.receipt_auditor
-            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .update_min_timestamp_ns(expected_rav.timestampNs)
             .await;
 
         Ok(RAVRequest {

@@ -51,7 +51,7 @@ pub async fn check_and_aggregate_receipts(
 
     // Check that the rav has the correct allocation id
     if let Some(previous_rav) = &previous_rav {
-        let prev_id = previous_rav.message.allocation_id;
+        let prev_id = previous_rav.message.allocationId;
         if prev_id != allocation_id {
             return Err(tap_core::Error::RavAllocationIdMismatch {
                 prev_id: format!("{prev_id:#X}"),
@@ -99,9 +99,9 @@ fn check_receipt_timestamps(
     if let Some(previous_rav) = &previous_rav {
         for receipt in receipts.iter() {
             let receipt = &receipt.message;
-            if previous_rav.message.timestamp_ns >= receipt.timestamp_ns {
+            if previous_rav.message.timestampNs >= receipt.timestamp_ns {
                 return Err(tap_core::Error::ReceiptTimestampLowerThanRav {
-                    rav_ts: previous_rav.message.timestamp_ns,
+                    rav_ts: previous_rav.message.timestampNs,
                     receipt_ts: receipt.timestamp_ns,
                 }
                 .into());
@@ -241,9 +241,9 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
-                allocation_id: allocation_ids[0],
-                timestamp_ns: receipt_timestamp_range.clone().min().unwrap() - 1,
-                value_aggregate: 42,
+                allocationId: allocation_ids[0],
+                timestampNs: receipt_timestamp_range.clone().min().unwrap() - 1,
+                valueAggregate: 42,
             },
             &keys.0,
         )
@@ -256,9 +256,9 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
-                allocation_id: allocation_ids[0],
-                timestamp_ns: receipt_timestamp_range.clone().min().unwrap(),
-                value_aggregate: 42,
+                allocationId: allocation_ids[0],
+                timestampNs: receipt_timestamp_range.clone().min().unwrap(),
+                valueAggregate: 42,
             },
             &keys.0,
         )
@@ -271,9 +271,9 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
-                allocation_id: allocation_ids[0],
-                timestamp_ns: receipt_timestamp_range.clone().max().unwrap() + 1,
-                value_aggregate: 42,
+                allocationId: allocation_ids[0],
+                timestampNs: receipt_timestamp_range.clone().max().unwrap() + 1,
+                valueAggregate: 42,
             },
             &keys.0,
         )

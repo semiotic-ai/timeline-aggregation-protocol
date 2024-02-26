@@ -927,7 +927,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     for (receipt, _) in first_batch.iter().chain(second_batch.iter()) {
         expected_value += receipt.message.value;
     }
-    assert!(expected_value == second_rav_response.data.message.value_aggregate);
+    assert!(expected_value == second_rav_response.data.message.valueAggregate);
 
     sender_handle.stop()?;
     Ok(())
