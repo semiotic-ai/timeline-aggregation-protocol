@@ -286,7 +286,7 @@ mod manager_unit_test {
         assert_eq!(rav_request.invalid_receipts.len(), 0);
         // accumulated value is correct
         assert_eq!(
-            rav_request.expected_rav.value_aggregate,
+            rav_request.expected_rav.valueAggregate,
             expected_accumulated_value
         );
         // no previous rav
@@ -335,7 +335,7 @@ mod manager_unit_test {
         assert_eq!(rav_request.invalid_receipts.len(), 0);
         // accumulated value is correct
         assert_eq!(
-            rav_request.expected_rav.value_aggregate,
+            rav_request.expected_rav.valueAggregate,
             expected_accumulated_value
         );
         // Verify there is a previous rav
@@ -415,7 +415,7 @@ mod manager_unit_test {
         assert_eq!(rav_request_1.invalid_receipts.len(), 0);
         // accumulated value is correct
         assert_eq!(
-            rav_request_1.expected_rav.value_aggregate,
+            rav_request_1.expected_rav.valueAggregate,
             expected_accumulated_value
         );
         // no previous rav
@@ -481,7 +481,7 @@ mod manager_unit_test {
         assert_eq!(rav_request_2.invalid_receipts.len(), 0);
         // accumulated value is correct
         assert_eq!(
-            rav_request_2.expected_rav.value_aggregate,
+            rav_request_2.expected_rav.valueAggregate,
             expected_accumulated_value
         );
         // Verify there is a previous rav

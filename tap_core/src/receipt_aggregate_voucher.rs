@@ -22,12 +22,12 @@ sol! {
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct ReceiptAggregateVoucher {
         /// Unique allocation id this RAV belongs to
-        address allocation_id;
+        address allocationId;
         /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
         /// corresponding to max timestamp from receipt batch aggregated
-        uint64 timestamp_ns;
+        uint64 timestampNs;
         /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
-        uint128 value_aggregate;
+        uint128 valueAggregate;
     }
 }
 
@@ -49,8 +49,8 @@ impl ReceiptAggregateVoucher {
         let mut value_aggregate = 0u128;
 
         if let Some(prev_rav) = previous_rav {
-            timestamp_max = prev_rav.message.timestamp_ns;
-            value_aggregate = prev_rav.message.value_aggregate;
+            timestamp_max = prev_rav.message.timestampNs;
+            value_aggregate = prev_rav.message.valueAggregate;
         }
 
         for receipt in receipts {
@@ -62,9 +62,9 @@ impl ReceiptAggregateVoucher {
         }
 
         Ok(Self {
-            allocation_id,
-            timestamp_ns: timestamp_max,
-            value_aggregate,
+            allocationId: allocation_id,
+            timestampNs: timestamp_max,
+            valueAggregate: value_aggregate,
         })
     }
 }
