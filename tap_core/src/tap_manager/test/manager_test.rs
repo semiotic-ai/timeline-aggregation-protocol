@@ -3,7 +3,11 @@
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod manager_unit_test {
-    use std::{collections::HashMap, str::FromStr, sync::Arc};
+    use std::{
+        collections::{HashMap, HashSet},
+        str::FromStr,
+        sync::Arc,
+    };
 
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
@@ -17,7 +21,6 @@ mod manager_unit_test {
             escrow_adapter_mock::EscrowAdapterMock,
             executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
             receipt_storage_adapter::ReceiptRead,
-            receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
         checks::ReceiptCheck,
         eip_712_signed_message::EIP712SignedMessage,
@@ -93,24 +96,6 @@ mod manager_unit_test {
         let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
         let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&sender_escrow_storage));
         (escrow_adapter, sender_escrow_storage)
-    }
-
-    #[fixture]
-    fn receipt_adapters() -> (ReceiptStorageAdapterMock, Arc<RwLock<HashMap<u64, u128>>>) {
-        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-
-        // let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
-        // let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
-        let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
-
-        // let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
-        //     Arc::clone(&receipt_storage),
-        //     Arc::clone(&query_appraisal_storage),
-        //     Arc::clone(&allocation_ids_set),
-        //     Arc::clone(&sender_ids_set),
-        // );
-
-        (receipt_checks_adapter, query_appraisal_storage)
     }
 
     #[rstest]

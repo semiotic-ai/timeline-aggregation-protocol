@@ -5,7 +5,7 @@
 // The tests use a mock Indexer server running a tap_manager instance and a tap_aggregator to handle RAV requests.
 // An Indexer checks and stores receipts. After receiving a specific number of receipts, the Indexer sends a RAV request to the aggregator.
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     convert::TryInto,
     net::{SocketAddr, TcpListener},
     str::FromStr,
