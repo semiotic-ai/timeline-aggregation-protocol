@@ -3,11 +3,7 @@
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod manager_unit_test {
-    use std::{
-        collections::{HashMap, HashSet},
-        str::FromStr,
-        sync::Arc,
-    };
+    use std::{collections::HashMap, str::FromStr, sync::Arc};
 
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
@@ -22,7 +18,7 @@ mod manager_unit_test {
             executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
             receipt_storage_adapter::ReceiptRead,
         },
-        checks::{tests::get_full_list_of_checks, ReceiptCheck},
+        checks::ReceiptCheck,
         eip_712_signed_message::EIP712SignedMessage,
         get_current_timestamp_u64_ns, tap_eip712_domain,
         tap_receipt::Receipt,
@@ -78,19 +74,10 @@ mod manager_unit_test {
 
         let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
 
-        let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
-        let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
         let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
 
         (
-            ExecutorMock::new(
-                rav_storage,
-                receipt_storage,
-                sender_escrow_storage.clone(),
-                query_appraisal_storage.clone(),
-                allocation_ids_set,
-                sender_ids_set,
-            ),
+            ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone()),
             sender_escrow_storage,
             query_appraisal_storage,
         )

@@ -15,17 +15,13 @@ use crate::{
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::ops::RangeBounds;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct ExecutorMock {
     /// local RAV store with rwlocks to allow sharing with other compenents as needed
     rav_storage: Arc<RwLock<Option<SignedRAV>>>,
@@ -33,10 +29,6 @@ pub struct ExecutorMock {
     unique_id: Arc<RwLock<u64>>,
 
     sender_escrow_storage: EscrowStorage,
-
-    query_appraisals: QueryAppraisals,
-    allocation_ids: Arc<RwLock<HashSet<Address>>>,
-    sender_ids: Arc<RwLock<HashSet<Address>>>,
 }
 
 impl ExecutorMock {
@@ -44,18 +36,12 @@ impl ExecutorMock {
         rav_storage: Arc<RwLock<Option<SignedRAV>>>,
         receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
         sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>,
-        query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
-        sender_ids: Arc<RwLock<HashSet<Address>>>,
     ) -> Self {
         ExecutorMock {
             rav_storage,
             receipt_storage,
             unique_id: Arc::new(RwLock::new(0)),
             sender_escrow_storage,
-            allocation_ids,
-            sender_ids,
-            query_appraisals,
         }
     }
 }

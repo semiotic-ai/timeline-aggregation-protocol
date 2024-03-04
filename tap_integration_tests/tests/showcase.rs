@@ -154,31 +154,12 @@ fn escrow_adapter() -> EscrowAdapterMock {
 }
 
 #[fixture]
-fn executor(
-    keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
-    allocation_ids: Vec<Address>,
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) -> ExecutorMock {
-    let (_, sender_address) = keys_sender;
-    let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
-    let query_appraisal_storage = Arc::new(RwLock::new(query_appraisals));
-    let allocation_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from_iter(allocation_ids)));
-    let sender_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from([sender_address])));
+fn executor(receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>) -> ExecutorMock {
     let rav_storage = Arc::new(RwLock::new(None));
 
     let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
 
-    ExecutorMock::new(
-        rav_storage,
-        receipt_storage,
-        sender_escrow_storage,
-        query_appraisal_storage,
-        allocation_ids,
-        sender_ids,
-    )
+    ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage)
 }
 
 #[fixture]

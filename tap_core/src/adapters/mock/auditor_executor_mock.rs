@@ -3,42 +3,20 @@
 
 use super::escrow_adapter_mock::AdpaterErrorMock;
 use crate::adapters::escrow_adapter::EscrowAdapter;
-// use crate::adapters::receipt_checks_adapter::ReceiptChecksAdapter;
-use crate::tap_receipt::ReceivedReceipt;
 use alloy_primitives::Address;
 use async_trait::async_trait;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
-#[allow(dead_code)]
 pub struct AuditorExecutorMock {
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-
     sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>,
-
-    query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
-    allocation_ids: Arc<RwLock<HashSet<Address>>>,
-    sender_ids: Arc<RwLock<HashSet<Address>>>,
 }
 
 impl AuditorExecutorMock {
-    pub fn new(
-        receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-        sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>,
-        query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
-        sender_ids: Arc<RwLock<HashSet<Address>>>,
-    ) -> Self {
+    pub fn new(sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>) -> Self {
         AuditorExecutorMock {
-            receipt_storage,
             sender_escrow_storage,
-            allocation_ids,
-            sender_ids,
-            query_appraisals,
         }
     }
 }

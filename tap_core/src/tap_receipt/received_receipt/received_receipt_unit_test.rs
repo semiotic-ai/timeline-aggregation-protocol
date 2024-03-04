@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
@@ -106,19 +102,9 @@ fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>)
 fn auditor_executor() -> (AuditorExecutorMock, EscrowStorage, QueryAppraisals) {
     let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
 
-    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-
-    let allocation_ids_set = Arc::new(RwLock::new(HashSet::from_iter(allocation_ids())));
-    let sender_ids_set = Arc::new(RwLock::new(HashSet::from_iter(sender_ids())));
     let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
     (
-        AuditorExecutorMock::new(
-            receipt_storage,
-            sender_escrow_storage.clone(),
-            query_appraisal_storage.clone(),
-            allocation_ids_set,
-            sender_ids_set,
-        ),
+        AuditorExecutorMock::new(sender_escrow_storage.clone()),
         sender_escrow_storage,
         query_appraisal_storage,
     )
