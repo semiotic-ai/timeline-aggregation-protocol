@@ -10,7 +10,6 @@ use crate::{
     adapters::{
         auditor_executor_mock::AuditorExecutorMock,
         executor_mock::{EscrowStorage, QueryAppraisals},
-        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     checks::{tests::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
@@ -80,14 +79,8 @@ fn sender_ids() -> Vec<Address> {
 }
 
 #[fixture]
-fn receipt_adapters() -> (
-    ReceiptStorageAdapterMock,
-    Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) {
-    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-    let receipt_storage_adapter = ReceiptStorageAdapterMock::new(Arc::clone(&receipt_storage));
-
-    (receipt_storage_adapter, receipt_storage)
+fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
+    Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[fixture]
@@ -111,14 +104,10 @@ fn domain_separator() -> Eip712Domain {
 fn checks(
     domain_separator: Eip712Domain,
     auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
-    receipt_adapters: (
-        ReceiptStorageAdapterMock,
-        Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-    ),
+    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
 ) -> Vec<ReceiptCheck> {
-    let (_, receipt_storage) = receipt_adapters;
     let (_, _escrow_storage, query_appraisal_storage) = auditor_executor;
     get_full_list_of_checks(
         domain_separator,

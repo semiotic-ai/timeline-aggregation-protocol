@@ -50,6 +50,61 @@ impl ExecutorMock {
             sender_escrow_storage,
         }
     }
+
+    pub async fn retrieve_receipt_by_id(
+        &self,
+        receipt_id: u64,
+    ) -> Result<ReceivedReceipt, AdapterErrorMock> {
+        let receipt_storage = self.receipt_storage.read().await;
+
+        receipt_storage
+            .get(&receipt_id)
+            .cloned()
+            .ok_or(AdapterErrorMock::AdapterError {
+                error: "No receipt found with ID".to_owned(),
+            })
+    }
+
+    pub async fn retrieve_receipts_by_timestamp(
+        &self,
+        timestamp_ns: u64,
+    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
+        let receipt_storage = self.receipt_storage.read().await;
+        Ok(receipt_storage
+            .iter()
+            .filter(|(_, rx_receipt)| {
+                rx_receipt.signed_receipt().message.timestamp_ns == timestamp_ns
+            })
+            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
+            .collect())
+    }
+
+    pub async fn retrieve_receipts_upto_timestamp(
+        &self,
+        timestamp_ns: u64,
+    ) -> Result<Vec<StoredReceipt>, AdapterErrorMock> {
+        self.retrieve_receipts_in_timestamp_range(..=timestamp_ns, None)
+            .await
+    }
+
+    pub async fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
+        let mut receipt_storage = self.receipt_storage.write().await;
+        receipt_storage
+            .remove(&receipt_id)
+            .map(|_| ())
+            .ok_or(AdapterErrorMock::AdapterError {
+                error: "No receipt found with ID".to_owned(),
+            })
+    }
+    pub async fn remove_receipts_by_ids(
+        &mut self,
+        receipt_ids: &[u64],
+    ) -> Result<(), AdapterErrorMock> {
+        for receipt_id in receipt_ids {
+            self.remove_receipt_by_id(*receipt_id).await?;
+        }
+        Ok(())
+    }
 }
 
 #[async_trait]

@@ -16,15 +16,13 @@ mod receipt_storage_adapter_unit_test {
     use rstest::*;
     use tokio::sync::RwLock;
 
-    use crate::adapters::{
-        receipt_storage_adapter::ReceiptStore,
-        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
+    use crate::{
+        adapters::{executor_mock::ExecutorMock, receipt_storage_adapter::ReceiptStore},
+        checks::{tests::get_full_list_of_checks, ReceiptCheck},
+        eip_712_signed_message::EIP712SignedMessage,
+        tap_eip712_domain,
+        tap_receipt::{Receipt, ReceivedReceipt},
     };
-    use crate::checks::tests::get_full_list_of_checks;
-    use crate::checks::ReceiptCheck;
-    use crate::tap_eip712_domain;
-    use crate::tap_receipt::ReceivedReceipt;
-    use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
@@ -45,8 +43,12 @@ mod receipt_storage_adapter_unit_test {
     #[rstest]
     #[tokio::test]
     async fn receipt_adapter_test(domain_separator: Eip712Domain, checks: Vec<ReceiptCheck>) {
+        let rav_storage = Arc::new(RwLock::new(None));
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let mut receipt_adapter =
+            ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -106,8 +108,12 @@ mod receipt_storage_adapter_unit_test {
     #[rstest]
     #[tokio::test]
     async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, checks: Vec<ReceiptCheck>) {
+        let rav_storage = Arc::new(RwLock::new(None));
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-        let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let mut receipt_adapter =
+            ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
