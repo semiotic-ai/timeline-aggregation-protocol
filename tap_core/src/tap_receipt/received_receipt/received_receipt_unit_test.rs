@@ -7,10 +7,7 @@ use rstest::*;
 use tokio::sync::RwLock;
 
 use crate::{
-    adapters::{
-        auditor_executor_mock::AuditorExecutorMock,
-        executor_mock::{EscrowStorage, QueryAppraisals},
-    },
+    adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
     checks::{tests::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
@@ -84,15 +81,17 @@ fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
 }
 
 #[fixture]
-fn auditor_executor() -> (AuditorExecutorMock, EscrowStorage, QueryAppraisals) {
+fn executor_mock() -> (ExecutorMock, EscrowStorage, QueryAppraisals) {
+    let rav_storage = Arc::new(RwLock::new(None));
+    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+    let executor = ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
+
     let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
 
     let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
-    (
-        AuditorExecutorMock::new(sender_escrow_storage.clone()),
-        sender_escrow_storage,
-        query_appraisal_storage,
-    )
+    (executor, sender_escrow_storage, query_appraisal_storage)
 }
 
 #[fixture]
@@ -103,12 +102,12 @@ fn domain_separator() -> Eip712Domain {
 #[fixture]
 fn checks(
     domain_separator: Eip712Domain,
-    auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
+    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
 ) -> Vec<ReceiptCheck> {
-    let (_, _escrow_storage, query_appraisal_storage) = auditor_executor;
+    let (_, _, query_appraisal_storage) = executor_mock;
     get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
@@ -151,10 +150,10 @@ async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
+    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
     checks: Vec<ReceiptCheck>,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
+    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
     // give receipt 5 second variance for min start time
     let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
     let _receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
@@ -210,13 +209,13 @@ async fn partial_then_finalize_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
+    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
     checks: Vec<ReceiptCheck>,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
+    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
     // give receipt 5 second variance for min start time
     let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-    let _receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
+    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -263,7 +262,7 @@ async fn partial_then_finalize_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&_receipt_auditor)
+        .check_and_reserve_escrow(&receipt_auditor)
         .await;
     assert!(receipt.is_ok());
 }
@@ -274,10 +273,10 @@ async fn standard_lifetime_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    auditor_executor: (AuditorExecutorMock, EscrowStorage, QueryAppraisals),
+    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
     checks: Vec<ReceiptCheck>,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = auditor_executor;
+    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
     // give receipt 5 second variance for min start time
     let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
     let _receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
