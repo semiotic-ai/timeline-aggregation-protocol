@@ -94,16 +94,16 @@ where
             });
         }
 
-        self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestamp_ns)
-            .await;
-
         self.rav_storage_adapter
             .update_last_rav(signed_rav)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
+
+        self.timestamp_check
+            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .await;
 
         Ok(())
     }
