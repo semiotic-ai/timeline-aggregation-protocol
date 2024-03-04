@@ -103,6 +103,10 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
+        self.timestamp_check
+            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .await;
+
         Ok(())
     }
 }
