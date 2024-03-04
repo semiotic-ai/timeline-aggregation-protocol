@@ -4,7 +4,7 @@
 mod receipt;
 mod receipt_auditor;
 mod received_receipt;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, Mutex, RwLock}};
 
 use alloy_primitives::Address;
 pub use receipt::Receipt;
@@ -42,7 +42,7 @@ pub enum ReceiptError {
 }
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
-pub type ReceiptCheckResults = HashMap<&'static str, CheckingChecks>;
+pub type ReceiptCheckResults = HashMap<&'static str, Arc<RwLock<CheckingChecks>>>;
 #[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
 pub enum ReceiptCheck {
     CheckUnique,

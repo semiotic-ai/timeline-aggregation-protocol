@@ -13,7 +13,7 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +22,6 @@ use crate::{
     adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
     checks::{BoxedCheck, CheckingChecks},
     eip_712_signed_message::EIP712SignedMessage,
-    Error, Result,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -245,12 +244,14 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check(&mut self, check: &BoxedCheck) {
+    pub async fn perform_check(&mut self, check: &'static str) {
         // Only perform check if it is incomplete
         // Don't check if already failed
-        if !self.check_is_complete(check) && !self.any_check_resulted_in_error() {
-            let execute_check = self.state.checks.remove(check.typetag_name()).unwrap();
-            let _ = self.update_check(check, execute_check.execute(&self).await);
+        let mut checks = self.state.checks.clone();
+        let check = checks.get_mut(check);
+        if let Some(check) = check {
+            let mut check = check.write().unwrap();
+            check.execute(&self).await;
         }
     }
 
@@ -264,7 +265,7 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks(&mut self, checks: &[BoxedCheck]) {
+    pub async fn perform_checks(&mut self, checks: &[&'static str]) {
         for check in checks {
             self.perform_check(check).await;
         }
@@ -289,15 +290,13 @@ impl ReceiptWithState<Checking> {
     }
 
     /// Returns all checks that completed with errors
-    pub fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
+    pub(crate) fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
         self.state
             .checks
             .iter()
             .filter_map(|(check, result)| {
-                if let CheckingChecks::Executed(unwrapped_result) = result {
-                    if unwrapped_result.is_err() {
-                        return Some((*check, result.clone()));
-                    }
+                if result.read().unwrap().is_failed() {
+                    return Some((*check, result.clone()));
                 }
                 None
             })
@@ -305,60 +304,44 @@ impl ReceiptWithState<Checking> {
     }
 
     /// Returns all checks that have not been completed
-    pub fn incomplete_checks(&self) -> Vec<BoxedCheck> {
+    pub(crate) fn incomplete_checks(&self) -> Vec<&'static str> {
         let incomplete_checks = self
             .state
             .checks
             .iter()
-            .filter_map(|(_check, result)| match result {
-                CheckingChecks::Pending(check) => Some(check.clone()),
-                CheckingChecks::Executed(_) => None,
+            .filter_map(|(check, result)| {
+                if result.read().unwrap().is_complete() {
+                    return None;
+                }
+                Some(*check)
             })
             .collect();
         incomplete_checks
     }
 
-    pub(crate) fn update_check(
-        &mut self,
-        check: &BoxedCheck,
-        result: CheckingChecks,
-    ) -> Result<()> {
-        if !self.state.checks.contains_key(check.typetag_name()) {
-            return Err(Error::InvalidCheckError {
-                check_string: check.typetag_name().to_string(),
-            });
-        }
-
-        self.state.checks.insert(check.typetag_name(), result);
-        Ok(())
-    }
-
-    /// returns true `check` has a result, otherwise false
-    pub(crate) fn check_is_complete(&self, check: &BoxedCheck) -> bool {
-        matches!(
-            self.state.checks.get(check.typetag_name()),
-            Some(CheckingChecks::Executed(_))
-        )
-    }
-
     fn any_check_resulted_in_error(&self) -> bool {
-        self.state.checks.iter().any(|(_, status)| match &status {
-            CheckingChecks::Executed(result) => result.is_err(),
-            _ => false,
-        })
+        self.state
+            .checks
+            .iter()
+            .any(|(_, status)| status.read().unwrap().is_failed())
     }
 
     pub fn checking_is_complete(&self) -> bool {
         self.state
             .checks
             .iter()
-            .all(|(_, status)| matches!(status, CheckingChecks::Executed(_)))
+            .all(|(_, status)| status.read().unwrap().is_complete())
     }
 
     fn get_empty_required_checks_hashmap(required_checks: &[BoxedCheck]) -> ReceiptCheckResults {
         required_checks
             .iter()
-            .map(|check| (check.typetag_name(), CheckingChecks::Pending(check.clone())))
+            .map(|check| {
+                (
+                    check.typetag_name(),
+                    Arc::new(RwLock::new(CheckingChecks::Pending(check.clone()))),
+                )
+            })
             .collect()
     }
 }
