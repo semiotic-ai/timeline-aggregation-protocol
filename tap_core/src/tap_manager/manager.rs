@@ -319,7 +319,13 @@ where
 
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
             received_receipt
-                .perform_checks(initial_checks)
+                .perform_checks(
+                    initial_checks
+                        .iter()
+                        .map(|check| check.typetag_name())
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                )
                 .await;
         }
 

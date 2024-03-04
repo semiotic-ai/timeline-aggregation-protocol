@@ -17,14 +17,27 @@ impl CheckingChecks {
         Self::Pending(check)
     }
 
-    pub async fn execute(self, receipt: &ReceiptWithState<Checking>) -> Self {
+    pub async fn execute(&mut self, receipt: &ReceiptWithState<Checking>) -> &mut Self {
         match self {
             Self::Pending(check) => {
                 let result = check.check(&receipt).await;
-                Self::Executed(result)
+                *self = Self::Executed(result);
+                self
             }
             Self::Executed(_) => self,
         }
+    }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(self, Self::Executed(Err(_)))
+    }
+
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending(_))
+    }
+
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Executed(_))
     }
 }
 
