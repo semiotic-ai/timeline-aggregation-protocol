@@ -4,13 +4,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use thiserror::Error;
 use tokio::sync::RwLock;
 
 use crate::{
     adapters::rav_storage_adapter::{RAVRead, RAVStore},
     tap_manager::SignedRAV,
 };
+
+use super::executor_mock::AdapterErrorMock;
 
 /// `RAVStorageAdapterMock` is a mock implementation of the `RAVStorageAdapter` trait.
 ///
@@ -51,15 +52,9 @@ impl RAVStorageAdapterMock {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum AdpaterErrorMock {
-    #[error("something went wrong: {error}")]
-    AdapterError { error: String },
-}
-
 #[async_trait]
 impl RAVStore for RAVStorageAdapterMock {
-    type AdapterError = AdpaterErrorMock;
+    type AdapterError = AdapterErrorMock;
 
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
         let mut rav_storage = self.rav_storage.write().await;
@@ -70,7 +65,7 @@ impl RAVStore for RAVStorageAdapterMock {
 
 #[async_trait]
 impl RAVRead for RAVStorageAdapterMock {
-    type AdapterError = AdpaterErrorMock;
+    type AdapterError = AdapterErrorMock;
 
     async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
         Ok(self.rav_storage.read().await.clone())

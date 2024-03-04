@@ -13,6 +13,8 @@ use crate::{
     tap_receipt::ReceivedReceipt,
 };
 
+use super::executor_mock::AdapterErrorMock;
+
 pub struct ReceiptStorageAdapterMock {
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     unique_id: RwLock<u64>,
@@ -76,13 +78,6 @@ impl ReceiptStorageAdapterMock {
         }
         Ok(())
     }
-}
-
-use thiserror::Error;
-#[derive(Debug, Error)]
-pub enum AdapterErrorMock {
-    #[error("something went wrong: {error}")]
-    AdapterError { error: String },
 }
 
 #[async_trait]

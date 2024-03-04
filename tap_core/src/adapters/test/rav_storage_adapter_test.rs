@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod rav_storage_adapter_unit_test {
+    use std::collections::HashMap;
     use std::{str::FromStr, sync::Arc};
 
     use alloy_primitives::Address;
@@ -12,14 +13,15 @@ mod rav_storage_adapter_unit_test {
     use rstest::*;
     use tokio::sync::RwLock;
 
-    use crate::adapters::rav_storage_adapter::RAVRead;
-    use crate::adapters::{
-        rav_storage_adapter::RAVStore, rav_storage_adapter_mock::RAVStorageAdapterMock,
-    };
-    use crate::tap_eip712_domain;
     use crate::{
+        adapters::{
+            executor_mock::ExecutorMock,
+            rav_storage_adapter::{RAVRead, RAVStore},
+        },
         eip_712_signed_message::EIP712SignedMessage,
-        receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+        receipt_aggregate_voucher::ReceiptAggregateVoucher,
+        tap_eip712_domain,
+        tap_receipt::Receipt,
     };
 
     #[fixture]
@@ -31,7 +33,11 @@ mod rav_storage_adapter_unit_test {
     #[tokio::test]
     async fn rav_storage_adapter_test(domain_separator: Eip712Domain) {
         let rav_storage = Arc::new(RwLock::new(None));
-        let rav_storage_adapter = RAVStorageAdapterMock::new(rav_storage);
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let rav_storage_adapter =
+            ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

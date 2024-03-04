@@ -1,12 +1,14 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::escrow_adapter_mock::AdpaterErrorMock;
 use crate::adapters::escrow_adapter::EscrowAdapter;
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+
+use super::executor_mock::AdapterErrorMock;
+
 
 #[derive(Clone)]
 pub struct AuditorExecutorMock {
@@ -22,12 +24,12 @@ impl AuditorExecutorMock {
 }
 
 impl AuditorExecutorMock {
-    pub async fn escrow(&self, sender_id: Address) -> Result<u128, AdpaterErrorMock> {
+    pub async fn escrow(&self, sender_id: Address) -> Result<u128, AdapterErrorMock> {
         let sender_escrow_storage = self.sender_escrow_storage.read().await;
         if let Some(escrow) = sender_escrow_storage.get(&sender_id) {
             return Ok(*escrow);
         }
-        Err(AdpaterErrorMock::AdapterError {
+        Err(AdapterErrorMock::AdapterError {
             error: "No escrow exists for provided sender ID.".to_owned(),
         })
     }
@@ -47,7 +49,7 @@ impl AuditorExecutorMock {
         &self,
         sender_id: Address,
         value: u128,
-    ) -> Result<(), AdpaterErrorMock> {
+    ) -> Result<(), AdapterErrorMock> {
         let mut sender_escrow_storage = self.sender_escrow_storage.write().await;
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
@@ -57,7 +59,7 @@ impl AuditorExecutorMock {
                 return Ok(());
             }
         }
-        Err(AdpaterErrorMock::AdapterError {
+        Err(AdapterErrorMock::AdapterError {
             error: "Provided value is greater than existing escrow.".to_owned(),
         })
     }
@@ -65,7 +67,7 @@ impl AuditorExecutorMock {
 
 #[async_trait]
 impl EscrowAdapter for AuditorExecutorMock {
-    type AdapterError = AdpaterErrorMock;
+    type AdapterError = AdapterErrorMock;
     async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
         self.escrow(sender_id).await
     }

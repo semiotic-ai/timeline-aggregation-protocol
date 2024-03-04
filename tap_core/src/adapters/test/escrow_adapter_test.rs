@@ -9,13 +9,17 @@ mod escrow_adapter_unit_test {
     use rstest::*;
     use tokio::sync::RwLock;
 
-    use crate::adapters::{escrow_adapter::EscrowAdapter, escrow_adapter_mock::EscrowAdapterMock};
+    use crate::adapters::{escrow_adapter::EscrowAdapter, executor_mock::ExecutorMock};
 
     #[rstest]
     #[tokio::test]
     async fn escrow_adapter_test() {
-        let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-        let mut escrow_adapter = EscrowAdapterMock::new(escrow_storage);
+        let rav_storage = Arc::new(RwLock::new(None));
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let mut escrow_adapter =
+            ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")

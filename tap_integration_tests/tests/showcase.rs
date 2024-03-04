@@ -26,8 +26,7 @@ use tokio::sync::RwLock;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::{
-        escrow_adapter_mock::EscrowAdapterMock, executor_mock::ExecutorMock,
-        rav_storage_adapter_mock::RAVStorageAdapterMock,
+        executor_mock::ExecutorMock, rav_storage_adapter_mock::RAVStorageAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     checks::ReceiptCheck,
@@ -145,12 +144,6 @@ fn query_price() -> Vec<u128> {
 #[fixture]
 fn available_escrow(query_price: Vec<u128>, num_batches: u64) -> u128 {
     (num_batches as u128) * query_price.into_iter().sum::<u128>()
-}
-
-// The escrow adapter, a storage struct that the Indexer uses to track the available escrow for each Sender
-#[fixture]
-fn escrow_adapter() -> EscrowAdapterMock {
-    EscrowAdapterMock::new(Arc::new(RwLock::new(HashMap::new())))
 }
 
 #[fixture]

@@ -14,7 +14,6 @@ mod manager_unit_test {
     use super::super::Manager;
     use crate::{
         adapters::{
-            escrow_adapter_mock::EscrowAdapterMock,
             executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
             receipt_storage_adapter::ReceiptRead,
         },
@@ -81,13 +80,6 @@ mod manager_unit_test {
             sender_escrow_storage,
             query_appraisal_storage,
         )
-    }
-
-    #[fixture]
-    fn escrow_adapters() -> (EscrowAdapterMock, EscrowStorage) {
-        let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-        let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&sender_escrow_storage));
-        (escrow_adapter, sender_escrow_storage)
     }
 
     #[rstest]

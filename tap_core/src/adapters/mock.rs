@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod auditor_executor_mock;
-pub mod escrow_adapter_mock;
 pub mod executor_mock;
 pub mod rav_storage_adapter_mock;
 pub mod receipt_storage_adapter_mock;

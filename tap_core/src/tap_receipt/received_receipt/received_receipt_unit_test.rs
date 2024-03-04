@@ -9,7 +9,6 @@ use tokio::sync::RwLock;
 use crate::{
     adapters::{
         auditor_executor_mock::AuditorExecutorMock,
-        escrow_adapter_mock::EscrowAdapterMock,
         executor_mock::{EscrowStorage, QueryAppraisals},
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
@@ -89,13 +88,6 @@ fn receipt_adapters() -> (
     let receipt_storage_adapter = ReceiptStorageAdapterMock::new(Arc::clone(&receipt_storage));
 
     (receipt_storage_adapter, receipt_storage)
-}
-
-#[fixture]
-fn escrow_adapters() -> (EscrowAdapterMock, Arc<RwLock<HashMap<Address, u128>>>) {
-    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-    let escrow_adapter = EscrowAdapterMock::new(Arc::clone(&sender_escrow_storage));
-    (escrow_adapter, sender_escrow_storage)
 }
 
 #[fixture]
