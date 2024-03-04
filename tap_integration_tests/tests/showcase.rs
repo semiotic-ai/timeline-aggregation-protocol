@@ -930,6 +930,7 @@ async fn start_indexer_server(
         receipt_threshold,
         aggregate_server_address,
         aggregate_server_api_version(),
+        sender_id,
     )
     .await?;
 
