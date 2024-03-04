@@ -93,7 +93,7 @@ where
         }
 
         self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .update_min_timestamp_ns(expected_rav.timestampNs)
             .await;
 
         self.executor
@@ -104,7 +104,7 @@ where
             })?;
 
         self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .update_min_timestamp_ns(expected_rav.timestampNs)
             .await;
 
         Ok(())

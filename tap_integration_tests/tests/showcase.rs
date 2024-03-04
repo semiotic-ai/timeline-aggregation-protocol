@@ -34,7 +34,7 @@ use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_manager::SignedRAV,
-    tap_receipt::{Receipt, ReceiptCheck, ReceivedReceipt},
+    tap_receipt::{Receipt, ReceivedReceipt},
 };
 
 use crate::indexer_mock;

@@ -160,7 +160,6 @@ fn aggregate_receipts_(
                 wallet,
                 accepted_addresses,
             )
-            .await
         }
     };
 
