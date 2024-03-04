@@ -5,9 +5,8 @@
 // The tests use a mock Indexer server running a tap_manager instance and a tap_aggregator to handle RAV requests.
 // An Indexer checks and stores receipts. After receiving a specific number of receipts, the Indexer sends a RAV request to the aggregator.
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     convert::TryInto,
-    iter::FromIterator,
     net::{SocketAddr, TcpListener},
     str::FromStr,
     sync::Arc,
@@ -29,7 +28,6 @@ use tap_core::{
     adapters::{
         escrow_adapter_mock::EscrowAdapterMock, executor_mock::ExecutorMock,
         rav_storage_adapter_mock::RAVStorageAdapterMock,
-        receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     checks::ReceiptCheck,
@@ -193,30 +191,6 @@ fn receipt_storage_adapter(
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
 ) -> ReceiptStorageAdapterMock {
     ReceiptStorageAdapterMock::new(receipt_storage)
-}
-
-// This adapter is used by the Indexer to check the validity of the receipt.
-#[fixture]
-fn receipt_checks_adapter(
-    keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
-    allocation_ids: Vec<Address>,
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) -> ReceiptChecksAdapterMock {
-    let (_, sender_address) = keys_sender;
-    let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
-    let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
-    let allocation_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from_iter(allocation_ids)));
-    let sender_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from([sender_address])));
-
-    ReceiptChecksAdapterMock::new(
-        receipt_storage,
-        query_appraisals_storage,
-        allocation_ids,
-        sender_ids,
-    )
 }
 
 // A structure for storing received RAVs.

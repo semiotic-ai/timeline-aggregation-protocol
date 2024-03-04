@@ -13,7 +13,7 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -80,8 +80,7 @@ pub struct ReceiptWithId<T>
 where
     T: ReceiptState,
 {
-    #[allow(dead_code)]
-    pub(crate) receipt_id: u64,
+    pub receipt_id: u64,
     pub(crate) receipt: ReceiptWithState<T>,
 }
 
@@ -288,20 +287,6 @@ impl ReceiptWithState<Checking> {
         }
     }
 
-    /// Returns all checks that completed with errors
-    pub(crate) fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
-        self.state
-            .checks
-            .iter()
-            .filter_map(|(check, result)| {
-                if result.is_failed() {
-                    return Some((*check, result.clone()));
-                }
-                None
-            })
-            .collect()
-    }
-
     /// Returns all checks that have not been completed
     pub(crate) fn incomplete_checks(&self) -> Vec<&'static str> {
         let incomplete_checks = self
@@ -323,13 +308,6 @@ impl ReceiptWithState<Checking> {
             .checks
             .iter()
             .any(|(_, status)| status.is_failed())
-    }
-
-    pub fn checking_is_complete(&self) -> bool {
-        self.state
-            .checks
-            .iter()
-            .all(|(_, status)| status.is_complete())
     }
 
     fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
@@ -375,3 +353,5 @@ where
         self.query_id
     }
 }
+#[cfg(test)]
+pub mod received_receipt_unit_test;

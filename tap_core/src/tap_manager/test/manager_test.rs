@@ -3,11 +3,7 @@
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod manager_unit_test {
-    use std::{
-        collections::{HashMap, HashSet},
-        str::FromStr,
-        sync::Arc,
-    };
+    use std::{collections::HashMap, str::FromStr, sync::Arc};
 
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
@@ -20,7 +16,8 @@ mod manager_unit_test {
         adapters::{
             escrow_adapter_mock::EscrowAdapterMock,
             executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-            receipt_storage_adapter::ReceiptRead, receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
+            receipt_storage_adapter::ReceiptRead,
+            receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
         },
         checks::ReceiptCheck,
         eip_712_signed_message::EIP712SignedMessage,
