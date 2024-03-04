@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
+use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
+use futures::Future;
 
 use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
@@ -50,8 +52,7 @@ impl<EA, RSA, RAVSA> Manager<EA, RSA, RAVSA> {
     ) -> Self {
         let timestamp_check = Arc::new(TimestampCheck::new(starting_min_timestamp_ns));
         required_checks.push(timestamp_check.clone());
-        let receipt_auditor =
-            ReceiptAuditor::new(domain_separator, escrow_adapter, starting_min_timestamp_ns);
+        let receipt_auditor = ReceiptAuditor::new(domain_separator, escrow_adapter);
         Self {
             rav_storage_adapter,
             receipt_storage_adapter,
@@ -72,15 +73,19 @@ where
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub async fn verify_and_store_rav(
+    pub async fn verify_and_store_rav<F, Fut>(
         &self,
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
-    ) -> std::result::Result<(), Error> {
-        // TODO
-        // self.receipt_auditor
-        //     .check_rav_signature(&signed_rav)
-        //     .await?;
+        verify_signer: F,
+    ) -> std::result::Result<(), Error>
+    where
+        F: FnOnce(Address) -> Fut,
+        Fut: Future<Output = Result<bool, Error>>,
+    {
+        self.receipt_auditor
+            .check_rav_signature(&signed_rav, verify_signer)
+            .await?;
 
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRAV {
@@ -88,6 +93,10 @@ where
                 expected_rav,
             });
         }
+
+        self.timestamp_check
+            .update_min_timestamp_ns(expected_rav.timestamp_ns)
+            .await;
 
         self.rav_storage_adapter
             .update_last_rav(signed_rav)
@@ -215,9 +224,6 @@ where
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
 
-        self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestamp_ns)
-            .await;
         let valid_receipts = valid_receipts
             .into_iter()
             .map(|rx_receipt| rx_receipt.signed_receipt)
