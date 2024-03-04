@@ -4,25 +4,26 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::RwLock;
 
-pub type BoxedCheck = Arc<dyn Check>;
+pub type ReceiptCheck = Arc<dyn Check>;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum CheckingChecks {
-    Pending(BoxedCheck),
+    Pending(ReceiptCheck),
     Executed(ReceiptResult<()>),
 }
 
 impl CheckingChecks {
-    pub fn new(check: BoxedCheck) -> Self {
+    pub fn new(check: ReceiptCheck) -> Self {
         Self::Pending(check)
     }
 
-    pub async fn execute(&mut self, receipt: &ReceiptWithState<Checking>) -> &mut Self {
+    pub async fn execute(self, receipt: &ReceiptWithState<Checking>) -> Self {
         match self {
             Self::Pending(check) => {
                 let result = check.check(&receipt).await;
-                *self = Self::Executed(result);
-                self
+                // *self = Self::Executed(result);
+                // self
+                Self::Executed(result)
             }
             Self::Executed(_) => self,
         }

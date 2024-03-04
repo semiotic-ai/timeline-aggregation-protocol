@@ -4,7 +4,7 @@
 mod receipt;
 mod receipt_auditor;
 mod received_receipt;
-use std::{collections::HashMap, sync::{Arc, Mutex, RwLock}};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use alloy_primitives::Address;
 pub use receipt::Receipt;
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use thiserror::Error;
 
-use crate::checks::{BoxedCheck, CheckingChecks};
+use crate::checks::{CheckingChecks, ReceiptCheck};
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
@@ -42,15 +42,15 @@ pub enum ReceiptError {
 }
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
-pub type ReceiptCheckResults = HashMap<&'static str, Arc<RwLock<CheckingChecks>>>;
-#[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
-pub enum ReceiptCheck {
-    CheckUnique,
-    CheckAllocationId,
-    CheckTimestamp,
-    CheckValue,
-    CheckSignature,
-}
+pub type ReceiptCheckResults = HashMap<&'static str, CheckingChecks>;
+// #[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
+// pub enum ReceiptCheck {
+//     CheckUnique,
+//     CheckAllocationId,
+//     CheckTimestamp,
+//     CheckValue,
+//     CheckSignature,
+// }
 
 pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
     let all_checks_list = ReceiptCheckResults::new();
@@ -63,7 +63,7 @@ pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
     all_checks_list
 }
 
-pub fn get_full_list_of_checks() -> Vec<BoxedCheck> {
+pub fn get_full_list_of_checks() -> Vec<ReceiptCheck> {
     vec![
         // ReceiptCheck::CheckUnique,
         // ReceiptCheck::CheckAllocationId,

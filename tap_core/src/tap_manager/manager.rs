@@ -14,7 +14,7 @@ use crate::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
-    checks::{BoxedCheck, TimestampCheck},
+    checks::{ReceiptCheck, TimestampCheck},
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
@@ -27,7 +27,7 @@ pub struct Manager<E> {
     /// Executor that implements adapters
     executor: E,
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    required_checks: Vec<BoxedCheck>,
+    required_checks: Vec<ReceiptCheck>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
@@ -46,7 +46,7 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        mut required_checks: Vec<BoxedCheck>,
+        mut required_checks: Vec<ReceiptCheck>,
         starting_min_timestamp_ns: u64,
     ) -> Self {
         let timestamp_check = Arc::new(TimestampCheck::new(starting_min_timestamp_ns));
@@ -304,7 +304,7 @@ where
         &self,
         signed_receipt: SignedReceipt,
         query_id: u64,
-        initial_checks: &[BoxedCheck],
+        initial_checks: &[ReceiptCheck],
     ) -> std::result::Result<(), Error> {
         let mut received_receipt =
             ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);

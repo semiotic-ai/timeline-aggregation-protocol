@@ -32,6 +32,7 @@ use tap_core::{
         receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
+    checks::ReceiptCheck,
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_manager::SignedRAV,
@@ -229,11 +230,11 @@ fn rav_storage_adapter() -> RAVStorageAdapterMock {
 #[fixture]
 fn required_checks() -> Vec<ReceiptCheck> {
     vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
+        // ReceiptCheck::CheckAllocationId,
+        // ReceiptCheck::CheckSignature,
+        // ReceiptCheck::CheckTimestamp,
+        // ReceiptCheck::CheckUnique,
+        // ReceiptCheck::CheckValue,
     ]
 }
 
@@ -242,11 +243,11 @@ fn required_checks() -> Vec<ReceiptCheck> {
 #[fixture]
 fn initial_checks() -> Vec<ReceiptCheck> {
     vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
+        // ReceiptCheck::CheckAllocationId,
+        // ReceiptCheck::CheckSignature,
+        // ReceiptCheck::CheckTimestamp,
+        // ReceiptCheck::CheckUnique,
+        // ReceiptCheck::CheckValue,
     ]
 }
 
