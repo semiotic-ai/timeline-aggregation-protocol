@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheckResults};
 use crate::{
     adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
-    checks::{BoxedCheck, CheckingChecks},
+    checks::{CheckingChecks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
 };
 
@@ -151,7 +151,7 @@ impl ReceivedReceipt {
     pub fn new(
         signed_receipt: EIP712SignedMessage<Receipt>,
         query_id: u64,
-        required_checks: &[BoxedCheck],
+        required_checks: &[ReceiptCheck],
     ) -> Self {
         let checks = ReceiptWithState::get_empty_required_checks_hashmap(required_checks);
 
@@ -221,14 +221,13 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check(&mut self, check: &'static str) {
+    pub async fn perform_check(&mut self, check_name: &'static str) {
         // Only perform check if it is incomplete
         // Don't check if already failed
-        let mut checks = self.state.checks.clone();
-        let check = checks.get_mut(check);
+        let check = self.state.checks.remove(check_name);
         if let Some(check) = check {
-            let mut check = check.write().unwrap();
-            check.execute(&self).await;
+            let result = check.execute(&self).await;
+            self.state.checks.insert(check_name, result);
         }
     }
 
@@ -272,7 +271,7 @@ impl ReceiptWithState<Checking> {
             .checks
             .iter()
             .filter_map(|(check, result)| {
-                if result.read().unwrap().is_failed() {
+                if result.is_failed() {
                     return Some((*check, result.clone()));
                 }
                 None
@@ -287,7 +286,7 @@ impl ReceiptWithState<Checking> {
             .checks
             .iter()
             .filter_map(|(check, result)| {
-                if result.read().unwrap().is_complete() {
+                if result.is_complete() {
                     return None;
                 }
                 Some(*check)
@@ -300,25 +299,20 @@ impl ReceiptWithState<Checking> {
         self.state
             .checks
             .iter()
-            .any(|(_, status)| status.read().unwrap().is_failed())
+            .any(|(_, status)| status.is_failed())
     }
 
     pub fn checking_is_complete(&self) -> bool {
         self.state
             .checks
             .iter()
-            .all(|(_, status)| status.read().unwrap().is_complete())
+            .all(|(_, status)| status.is_complete())
     }
 
-    fn get_empty_required_checks_hashmap(required_checks: &[BoxedCheck]) -> ReceiptCheckResults {
+    fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
         required_checks
             .iter()
-            .map(|check| {
-                (
-                    check.typetag_name(),
-                    Arc::new(RwLock::new(CheckingChecks::Pending(check.clone()))),
-                )
-            })
+            .map(|check| (check.typetag_name(), CheckingChecks::Pending(check.clone())))
             .collect()
     }
 }

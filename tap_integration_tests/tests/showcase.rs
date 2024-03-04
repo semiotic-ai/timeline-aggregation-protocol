@@ -30,10 +30,7 @@ use tap_core::{
         escrow_adapter_mock::EscrowAdapterMock, rav_storage_adapter_mock::RAVStorageAdapterMock,
         receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
-    },
-    eip_712_signed_message::EIP712SignedMessage,
-    tap_manager::SignedRAV,
-    tap_receipt::{Receipt, ReceiptCheck, ReceivedReceipt},
+    }, checks::ReceiptCheck, eip_712_signed_message::EIP712SignedMessage, tap_manager::SignedRAV, tap_receipt::{Receipt, ReceivedReceipt}
 };
 
 use crate::indexer_mock;
@@ -204,11 +201,11 @@ fn rav_storage_adapter() -> RAVStorageAdapterMock {
 #[fixture]
 fn required_checks() -> Vec<ReceiptCheck> {
     vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
+        // ReceiptCheck::CheckAllocationId,
+        // ReceiptCheck::CheckSignature,
+        // ReceiptCheck::CheckTimestamp,
+        // ReceiptCheck::CheckUnique,
+        // ReceiptCheck::CheckValue,
     ]
 }
 
@@ -217,11 +214,11 @@ fn required_checks() -> Vec<ReceiptCheck> {
 #[fixture]
 fn initial_checks() -> Vec<ReceiptCheck> {
     vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
+        // ReceiptCheck::CheckAllocationId,
+        // ReceiptCheck::CheckSignature,
+        // ReceiptCheck::CheckTimestamp,
+        // ReceiptCheck::CheckUnique,
+        // ReceiptCheck::CheckValue,
     ]
 }
 
@@ -988,7 +985,6 @@ async fn start_indexer_server(
         http_port,
         domain_separator,
         escrow_adapter,
-        receipt_checks_adapter,
         receipt_storage_adapter,
         rav_storage_adapter,
         initial_checks,

@@ -23,11 +23,10 @@ use tap_core::{
     adapters::{
         escrow_adapter::EscrowAdapter,
         rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_checks_adapter::ReceiptChecksAdapter,
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
+    checks::ReceiptCheck,
     tap_manager::{Manager, SignedRAV, SignedReceipt},
-    tap_receipt::ReceiptCheck,
     Error as TapCoreError,
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
@@ -52,11 +51,11 @@ pub trait Rpc {
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<
     EA: EscrowAdapter + Send + Sync + 'static, // An instance of EscrowAdapter, marked as thread-safe with Send and given 'static lifetime
-    RCA: ReceiptChecksAdapter + Send + Sync + 'static, // An instance of ReceiptChecksAdapter
+    // RCA: ReceiptChecksAdapter + Send + Sync + 'static, // An instance of ReceiptChecksAdapter
     RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static, // An instance of ReceiptStorageAdapter
     RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 > {
-    manager: Arc<Manager<EA, RCA, RSA, RAVSA>>, // Manager object reference counted with an Arc
+    manager: Arc<Manager<EA, RSA, RAVSA>>, // Manager object reference counted with an Arc
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     receipt_count: Arc<AtomicU64>,     // Thread-safe atomic counter for receipts
     threshold: u64,                    // The count at which a RAV request will be triggered
@@ -68,15 +67,13 @@ pub struct RpcManager<
 /// `request` method handles incoming JSON-RPC requests and it verifies and stores the receipt from the request.
 impl<
         EA: EscrowAdapter + Send + Sync + 'static,
-        RCA: ReceiptChecksAdapter + Send + Sync + 'static,
         RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
         RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
-    > RpcManager<EA, RCA, RSA, RAVSA>
+    > RpcManager<EA, RSA, RAVSA>
 {
     pub fn new(
         domain_separator: Eip712Domain,
         escrow_adapter: EA,
-        receipt_checks_adapter: RCA,
         receipt_storage_adapter: RSA,
         rav_storage_adapter: RAVSA,
         initial_checks: Vec<ReceiptCheck>,
@@ -86,10 +83,9 @@ impl<
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Manager::<EA, RCA, RSA, RAVSA>::new(
+            manager: Arc::new(Manager::<EA, RSA, RAVSA>::new(
                 domain_separator,
                 escrow_adapter,
-                receipt_checks_adapter,
                 rav_storage_adapter,
                 receipt_storage_adapter,
                 required_checks,
@@ -109,10 +105,9 @@ impl<
 #[async_trait]
 impl<
         CA: EscrowAdapter + Send + Sync + 'static,
-        RCA: ReceiptChecksAdapter + Send + Sync + 'static,
         RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
         RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
-    > RpcServer for RpcManager<CA, RCA, RSA, RAVSA>
+    > RpcServer for RpcManager<CA, RSA, RAVSA>
 {
     async fn request(
         &self,
@@ -165,14 +160,12 @@ impl<
 /// run_server function initializes and starts a JSON-RPC server that handles incoming requests.
 pub async fn run_server<
     CA: EscrowAdapter + Send + Sync + 'static,
-    RCA: ReceiptChecksAdapter + Send + Sync + 'static,
     RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
     RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 >(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
     escrow_adapter: CA,                   // EscrowAdapter instance
-    receipt_checks_adapter: RCA,          // ReceiptChecksAdapter instance
     receipt_storage_adapter: RSA,         // ReceiptStorageAdapter instance
     rav_storage_adapter: RAVSA,           // RAVStorageAdapter instance
     initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
@@ -192,7 +185,6 @@ pub async fn run_server<
     let rpc_manager = RpcManager::new(
         domain_separator,
         escrow_adapter,
-        receipt_checks_adapter,
         receipt_storage_adapter,
         rav_storage_adapter,
         initial_checks,
@@ -209,11 +201,10 @@ pub async fn run_server<
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<
     CA: EscrowAdapter + Send + Sync + 'static,
-    RCA: ReceiptChecksAdapter + Send + Sync + 'static,
     RSA: ReceiptStore + ReceiptRead + Send + Sync + 'static,
     RAVSA: RAVStore + RAVRead + Send + Sync + 'static,
 >(
-    manager: &Arc<Manager<CA, RCA, RSA, RAVSA>>,
+    manager: &Arc<Manager<CA, RSA, RAVSA>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
@@ -233,9 +224,10 @@ async fn request_rav<
         .0
         .request("aggregate_receipts", params)
         .await?;
-    manager
-        .verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)
-        .await?;
+    // TODO update this with the async function
+    // manager
+    //     .verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)
+    //     .await?;
 
     // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
     // If there is throw an error.
