@@ -57,7 +57,6 @@ mod rav_storage_adapter_unit_test {
                     Receipt::new(allocation_id, value).unwrap(),
                     &wallet,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -67,7 +66,6 @@ mod rav_storage_adapter_unit_test {
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
             &wallet,
         )
-        .await
         .unwrap();
 
         rav_storage_adapter
@@ -90,7 +88,6 @@ mod rav_storage_adapter_unit_test {
                     Receipt::new(allocation_id, value).unwrap(),
                     &wallet,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -100,7 +97,6 @@ mod rav_storage_adapter_unit_test {
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
             &wallet,
         )
-        .await
         .unwrap();
 
         // Update the last rav

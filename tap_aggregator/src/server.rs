@@ -6,11 +6,7 @@ use std::str::FromStr;
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
 use ethers_signers::LocalWallet;
-use jsonrpsee::{
-    proc_macros::rpc,
-    server::ServerBuilder,
-    {core::async_trait, server::ServerHandle},
-};
+use jsonrpsee::{proc_macros::rpc, server::ServerBuilder, server::ServerHandle};
 use lazy_static::lazy_static;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
 
@@ -81,12 +77,12 @@ lazy_static! {
 pub trait Rpc {
     /// Returns the versions of the TAP JSON-RPC API implemented by this server.
     #[method(name = "api_versions")]
-    async fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo>;
+    fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo>;
 
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
     #[method(name = "aggregate_receipts")]
-    async fn aggregate_receipts(
+    fn aggregate_receipts(
         &self,
         api_version: String,
         receipts: Vec<EIP712SignedMessage<Receipt>>,
@@ -129,7 +125,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
     }
 }
 
-async fn aggregate_receipts_(
+fn aggregate_receipts_(
     api_version: String,
     wallet: &LocalWallet,
     domain_separator: &Eip712Domain,
@@ -154,7 +150,7 @@ async fn aggregate_receipts_(
 
     let res = match api_version {
         TapRpcApiVersion::V0_0 => {
-            check_and_aggregate_receipts(domain_separator, &receipts, previous_rav, wallet).await
+            check_and_aggregate_receipts(domain_separator, &receipts, previous_rav, wallet)
         }
     };
 
@@ -169,13 +165,12 @@ async fn aggregate_receipts_(
     }
 }
 
-#[async_trait]
 impl RpcServer for RpcImpl {
-    async fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
+    fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
         Ok(JsonRpcResponse::ok(tap_rpc_api_versions_info()))
     }
 
-    async fn aggregate_receipts(
+    fn aggregate_receipts(
         &self,
         api_version: String,
         receipts: Vec<EIP712SignedMessage<Receipt>>,
@@ -191,9 +186,7 @@ impl RpcServer for RpcImpl {
             &self.domain_separator,
             receipts,
             previous_rav,
-        )
-        .await
-        {
+        ) {
             Ok(res) => {
                 TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
@@ -374,7 +367,6 @@ mod tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -445,7 +437,6 @@ mod tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -457,9 +448,8 @@ mod tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0)
-            .await
-            .unwrap();
+        let signed_prev_rav =
+            EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0).unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
         let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
@@ -515,7 +505,6 @@ mod tests {
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap()];
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
@@ -608,7 +597,6 @@ mod tests {
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }

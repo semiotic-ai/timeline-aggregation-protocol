@@ -88,10 +88,7 @@ mod manager_unit_test {
     }
 
     #[fixture]
-    fn receipt_adapters() -> (
-        ReceiptStorageAdapterMock,
-        Arc<RwLock<HashMap<u64, u128>>>,
-    ) {
+    fn receipt_adapters() -> (ReceiptStorageAdapterMock, Arc<RwLock<HashMap<u64, u128>>>) {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let receipt_storage_adapter = ReceiptStorageAdapterMock::new(Arc::clone(&receipt_storage));
 
@@ -115,7 +112,7 @@ mod manager_unit_test {
 
     #[rstest]
     #[case::full_checks(get_full_list_of_checks())]
-    #[case::partial_checks(todo!())]
+    // #[case::partial_checks(todo!())]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
     async fn manager_verify_and_store_varying_initial_checks(
@@ -148,7 +145,6 @@ mod manager_unit_test {
             Receipt::new(allocation_ids[0], value).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
         query_appraisal_storage
             .write()
@@ -204,7 +200,6 @@ mod manager_unit_test {
                 Receipt::new(allocation_ids[0], value).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
@@ -230,12 +225,15 @@ mod manager_unit_test {
 
         let signed_rav =
             EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
-                .await
                 .unwrap();
-        // assert!(manager
-        //     .verify_and_store_rav(rav_request.expected_rav, signed_rav)
-        //     .await
-        //     .is_ok());
+        assert!(manager
+            .verify_and_store_rav(
+                rav_request.expected_rav,
+                signed_rav,
+                |address: Address| async move { Ok(keys.1 == address) }
+            )
+            .await
+            .is_ok());
     }
 
     #[rstest]
@@ -257,7 +255,7 @@ mod manager_unit_test {
         #[case] initial_checks: Vec<ReceiptCheck>,
     ) {
         let (escrow_adapter, escrow_storage) = escrow_adapters;
-        let (receipt_storage_adapter, /* receipt_checks_adapter,  */query_appraisal_storage) =
+        let (receipt_storage_adapter, /* receipt_checks_adapter,  */ query_appraisal_storage) =
             receipt_adapters;
         // give receipt 5 second variance for min start time
         let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
@@ -282,7 +280,6 @@ mod manager_unit_test {
                 Receipt::new(allocation_ids[0], value).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
@@ -316,12 +313,15 @@ mod manager_unit_test {
 
         let signed_rav =
             EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
-                .await
                 .unwrap();
-        // assert!(manager
-        //     .verify_and_store_rav(rav_request.expected_rav, signed_rav)
-        //     .await
-        //     .is_ok());
+        assert!(manager
+            .verify_and_store_rav(
+                rav_request.expected_rav,
+                signed_rav,
+                |address: Address| async move { Ok(keys.1 == address) }
+            )
+            .await
+            .is_ok());
 
         stored_signed_receipts.clear();
         for query_id in 10..20 {
@@ -331,7 +331,6 @@ mod manager_unit_test {
                 Receipt::new(allocation_ids[0], value).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
@@ -365,12 +364,15 @@ mod manager_unit_test {
 
         let signed_rav =
             EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
-                .await
                 .unwrap();
-        // assert!(manager
-        //     .verify_and_store_rav(rav_request.expected_rav, signed_rav)
-        //     .await
-        //     .is_ok());
+        assert!(manager
+            .verify_and_store_rav(
+                rav_request.expected_rav,
+                signed_rav,
+                |address: Address| async move { Ok(keys.1 == address) }
+            )
+            .await
+            .is_ok());
     }
 
     #[rstest]
@@ -413,9 +415,8 @@ mod manager_unit_test {
             let value = 20u128;
             let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
             receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-            let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0)
-                .await
-                .unwrap();
+            let signed_receipt =
+                EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -458,21 +459,23 @@ mod manager_unit_test {
             rav_request_1.expected_rav.clone(),
             &keys.0,
         )
-        .await
         .unwrap();
-        // assert!(manager
-        //     .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
-        //     .await
-        //     .is_ok());
+        assert!(manager
+            .verify_and_store_rav(
+                rav_request_1.expected_rav,
+                signed_rav_1,
+                |address: Address| async move { Ok(keys.1 == address) }
+            )
+            .await
+            .is_ok());
 
         stored_signed_receipts.clear();
         for query_id in 10..20 {
             let value = 20u128;
             let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
             receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-            let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0)
-                .await
-                .unwrap();
+            let signed_receipt =
+                EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
             stored_signed_receipts.push(signed_receipt.clone());
             query_appraisal_storage
                 .write()
@@ -524,11 +527,14 @@ mod manager_unit_test {
             rav_request_2.expected_rav.clone(),
             &keys.0,
         )
-        .await
         .unwrap();
-        // assert!(manager
-        //     .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
-        //     .await
-        //     .is_ok());
+        assert!(manager
+            .verify_and_store_rav(
+                rav_request_2.expected_rav,
+                signed_rav_2,
+                |address: Address| async move { Ok(keys.1 == address) }
+            )
+            .await
+            .is_ok());
     }
 }
