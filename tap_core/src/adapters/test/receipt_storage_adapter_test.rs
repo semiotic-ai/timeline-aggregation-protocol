@@ -5,7 +5,7 @@
 mod receipt_storage_adapter_unit_test {
     use rand::seq::SliceRandom;
     use rand::thread_rng;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::str::FromStr;
     use std::sync::Arc;
 
@@ -20,21 +20,31 @@ mod receipt_storage_adapter_unit_test {
         receipt_storage_adapter::ReceiptStore,
         receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     };
+    use crate::checks::tests::get_full_list_of_checks;
+    use crate::checks::ReceiptCheck;
     use crate::tap_eip712_domain;
     use crate::tap_receipt::ReceivedReceipt;
-    use crate::{
-        eip_712_signed_message::EIP712SignedMessage, tap_receipt::get_full_list_of_checks,
-        tap_receipt::Receipt,
-    };
+    use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
         tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
+    #[fixture]
+    fn checks(domain_separator: Eip712Domain) -> Vec<ReceiptCheck> {
+        get_full_list_of_checks(
+            domain_separator,
+            HashSet::new(),
+            Arc::new(RwLock::new(HashSet::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+        )
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn receipt_adapter_test(domain_separator: Eip712Domain) {
+    async fn receipt_adapter_test(domain_separator: Eip712Domain, checks: Vec<ReceiptCheck>) {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
@@ -57,7 +67,7 @@ mod receipt_storage_adapter_unit_test {
             )
             .unwrap(),
             query_id,
-            &get_full_list_of_checks(),
+            &checks,
         );
 
         let receipt_store_result = receipt_adapter.store_receipt(received_receipt).await;
@@ -95,7 +105,7 @@ mod receipt_storage_adapter_unit_test {
 
     #[rstest]
     #[tokio::test]
-    async fn multi_receipt_adapter_test(domain_separator: Eip712Domain) {
+    async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, checks: Vec<ReceiptCheck>) {
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
         let mut receipt_adapter = ReceiptStorageAdapterMock::new(receipt_storage);
 
@@ -118,7 +128,7 @@ mod receipt_storage_adapter_unit_test {
                 )
                 .unwrap(),
                 query_id as u64,
-                &get_full_list_of_checks(),
+                &checks,
             ));
         }
         let mut receipt_ids = Vec::new();
@@ -186,6 +196,7 @@ mod receipt_storage_adapter_unit_test {
     #[test]
     fn safe_truncate_receipts_test(
         domain_separator: Eip712Domain,
+        checks: Vec<ReceiptCheck>,
         #[case] input: Vec<u64>,
         #[case] limit: u64,
         #[case] expected: Vec<u64>,
@@ -215,7 +226,7 @@ mod receipt_storage_adapter_unit_test {
                     )
                     .unwrap(),
                     i as u64, // Will use that to check the IDs
-                    &get_full_list_of_checks(),
+                    &checks,
                 ),
             ));
         }

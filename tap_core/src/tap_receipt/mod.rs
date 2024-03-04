@@ -17,7 +17,7 @@ pub use received_receipt::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::checks::{CheckingChecks, ReceiptCheck};
+use crate::checks::CheckingChecks;
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
@@ -42,32 +42,3 @@ pub enum ReceiptError {
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
 pub type ReceiptCheckResults = HashMap<&'static str, CheckingChecks>;
-// #[derive(Hash, Eq, PartialEq, Debug, Clone, EnumString, Display, Serialize, Deserialize)]
-// pub enum ReceiptCheck {
-//     CheckUnique,
-//     CheckAllocationId,
-//     CheckTimestamp,
-//     CheckValue,
-//     CheckSignature,
-// }
-
-pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
-    let all_checks_list = ReceiptCheckResults::new();
-    // all_checks_list.insert(ReceiptCheck::CheckUnique, None);
-    // all_checks_list.insert(ReceiptCheck::CheckAllocationId, None);
-    // all_checks_list.insert(ReceiptCheck::CheckTimestamp, None);
-    // all_checks_list.insert(ReceiptCheck::CheckValue, None);
-    // all_checks_list.insert(ReceiptCheck::CheckSignature, None);
-
-    all_checks_list
-}
-
-pub fn get_full_list_of_checks() -> Vec<ReceiptCheck> {
-    vec![
-        // ReceiptCheck::CheckUnique,
-        // ReceiptCheck::CheckAllocationId,
-        // ReceiptCheck::CheckTimestamp,
-        // ReceiptCheck::CheckValue,
-        // ReceiptCheck::CheckSignature,
-    ]
-}

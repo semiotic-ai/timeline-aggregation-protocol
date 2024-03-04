@@ -17,9 +17,10 @@ mod receipt_checks_adapter_unit_test {
     use tokio::sync::RwLock;
 
     use crate::{
+        checks::{tests::get_full_list_of_checks, ReceiptCheck},
         eip_712_signed_message::EIP712SignedMessage,
         tap_eip712_domain,
-        tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
+        tap_receipt::{Receipt, ReceivedReceipt},
     };
 
     #[fixture]
@@ -27,9 +28,23 @@ mod receipt_checks_adapter_unit_test {
         tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
+    #[fixture]
+    fn checks(domain_separator: Eip712Domain) -> Vec<ReceiptCheck> {
+        get_full_list_of_checks(
+            domain_separator,
+            HashSet::new(),
+            Arc::new(RwLock::new(HashSet::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+        )
+    }
+
     #[rstest]
     #[tokio::test]
-    async fn receipt_checks_adapter_test(domain_separator: Eip712Domain) {
+    async fn receipt_checks_adapter_test(
+        domain_separator: Eip712Domain,
+        checks: Vec<ReceiptCheck>,
+    ) {
         let sender_ids = [
             Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
@@ -54,6 +69,7 @@ mod receipt_checks_adapter_unit_test {
             .then(|id| {
                 let wallet = wallet.clone();
                 let domain_separator = &domain_separator;
+                let checks = checks.clone();
                 async move {
                     (
                         id,
@@ -65,7 +81,7 @@ mod receipt_checks_adapter_unit_test {
                             )
                             .unwrap(),
                             id,
-                            &get_full_list_of_checks(),
+                            &checks,
                         ),
                     )
                 }
@@ -95,7 +111,7 @@ mod receipt_checks_adapter_unit_test {
                 )
                 .unwrap(),
                 10u64,
-                &get_full_list_of_checks(),
+                &checks,
             ),
         );
 

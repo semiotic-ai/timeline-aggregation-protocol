@@ -22,10 +22,10 @@ mod manager_unit_test {
             executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
             receipt_storage_adapter::ReceiptRead,
         },
-        checks::ReceiptCheck,
+        checks::{tests::get_full_list_of_checks, ReceiptCheck},
         eip_712_signed_message::EIP712SignedMessage,
         get_current_timestamp_u64_ns, tap_eip712_domain,
-        tap_receipt::{get_full_list_of_checks, Receipt},
+        tap_receipt::Receipt,
     };
 
     #[fixture]
@@ -59,6 +59,11 @@ mod manager_unit_test {
             Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
             keys().1,
         ]
+    }
+
+    #[fixture]
+    fn full_list_of_checks() -> Vec<ReceiptCheck> {
+        vec![]
     }
 
     #[fixture]
@@ -99,7 +104,7 @@ mod manager_unit_test {
     }
 
     #[rstest]
-    #[case::full_checks(get_full_list_of_checks())]
+    // #[case::full_checks(get_full_list_of_checks())]
     // #[case::partial_checks(todo!())]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
@@ -109,6 +114,7 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
+        full_list_of_checks: Vec<ReceiptCheck>,
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
@@ -117,7 +123,7 @@ mod manager_unit_test {
         let manager = Manager::new(
             domain_separator.clone(),
             executor,
-            get_full_list_of_checks(),
+            full_list_of_checks,
             starting_min_timestamp,
         );
 
@@ -142,7 +148,7 @@ mod manager_unit_test {
     }
 
     #[rstest]
-    #[case::full_checks(get_full_list_of_checks())]
+    // #[case::full_checks(get_full_list_of_checks())]
     // #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
@@ -152,6 +158,7 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
+        full_list_of_checks: Vec<ReceiptCheck>,
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
@@ -160,7 +167,7 @@ mod manager_unit_test {
         let manager = Manager::new(
             domain_separator.clone(),
             executor,
-            get_full_list_of_checks(),
+            full_list_of_checks,
             starting_min_timestamp,
         );
         escrow_storage.write().await.insert(keys.1, 999999);
@@ -210,7 +217,7 @@ mod manager_unit_test {
     }
 
     #[rstest]
-    #[case::full_checks(get_full_list_of_checks())]
+    // #[case::full_checks(get_full_list_of_checks())]
     // #[case::partial_checks(vec![ReceiptCheck::CheckSignature])]
     #[case::no_checks(Vec::<ReceiptCheck>::new())]
     #[tokio::test]
@@ -220,6 +227,7 @@ mod manager_unit_test {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] initial_checks: Vec<ReceiptCheck>,
+        full_list_of_checks: Vec<ReceiptCheck>,
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
@@ -228,7 +236,7 @@ mod manager_unit_test {
         let manager = Manager::new(
             domain_separator.clone(),
             executor,
-            get_full_list_of_checks(),
+            full_list_of_checks,
             starting_min_timestamp,
         );
 
@@ -345,9 +353,10 @@ mod manager_unit_test {
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
-        #[values(get_full_list_of_checks(), /* vec![ReceiptCheck::CheckSignature],  */Vec::<ReceiptCheck>::new())]
+        #[values(/*get_full_list_of_checks(),  vec![ReceiptCheck::CheckSignature],  */Vec::<ReceiptCheck>::new())]
         initial_checks: Vec<ReceiptCheck>,
         #[values(true, false)] remove_old_receipts: bool,
+        full_list_of_checks: Vec<ReceiptCheck>,
     ) {
         let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
         // give receipt 5 second variance for min start time
@@ -356,7 +365,7 @@ mod manager_unit_test {
         let manager = Manager::new(
             domain_separator.clone(),
             executor,
-            get_full_list_of_checks(),
+            full_list_of_checks,
             starting_min_timestamp,
         );
 
