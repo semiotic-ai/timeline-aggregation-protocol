@@ -248,7 +248,7 @@ impl ReceiptWithState<Checking> {
         // Don't check if already failed
         let check = self.state.checks.remove(check_name);
         if let Some(check) = check {
-            let result = check.execute(&self).await;
+            let result = check.execute(self).await;
             self.state.checks.insert(check_name, result);
         }
     }

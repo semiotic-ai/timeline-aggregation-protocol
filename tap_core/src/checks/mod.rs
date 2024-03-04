@@ -19,7 +19,7 @@ impl CheckingChecks {
     pub async fn execute(self, receipt: &ReceiptWithState<Checking>) -> Self {
         match self {
             Self::Pending(check) => {
-                let result = check.check(&receipt).await;
+                let result = check.check(receipt).await;
                 Self::Executed(result)
             }
             Self::Executed(_) => self,

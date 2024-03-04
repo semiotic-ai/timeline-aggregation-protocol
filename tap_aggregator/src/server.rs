@@ -152,15 +152,13 @@ fn aggregate_receipts_(
     }
 
     let res = match api_version {
-        TapRpcApiVersion::V0_0 => {
-            check_and_aggregate_receipts(
-                domain_separator,
-                &receipts,
-                previous_rav,
-                wallet,
-                accepted_addresses,
-            )
-        }
+        TapRpcApiVersion::V0_0 => check_and_aggregate_receipts(
+            domain_separator,
+            &receipts,
+            previous_rav,
+            wallet,
+            accepted_addresses,
+        ),
     };
 
     // Handle aggregation error

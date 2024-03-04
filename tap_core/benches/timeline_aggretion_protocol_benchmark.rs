@@ -11,7 +11,7 @@
 use std::str::FromStr;
 
 use alloy_primitives::Address;
-use alloy_sol_types::{eip712_domain, Eip712Domain};
+use alloy_sol_types::{Eip712Domain};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ethers::signers::{LocalWallet, Signer, Wallet};
 use ethers_core::k256::ecdsa::SigningKey;

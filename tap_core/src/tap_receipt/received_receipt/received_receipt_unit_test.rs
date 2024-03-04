@@ -215,7 +215,7 @@ async fn partial_then_full_check_valid_receipt(
     received_receipt
         .perform_check(arbitrary_check_to_perform)
         .await;
-    assert!(received_receipt.check_is_complete(&arbitrary_check_to_perform));
+    assert!(received_receipt.check_is_complete(arbitrary_check_to_perform));
 
     received_receipt
         .perform_checks(&checks.iter().map(|c| c.typetag_name()).collect::<Vec<_>>())

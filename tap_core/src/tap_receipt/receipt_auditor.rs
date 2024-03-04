@@ -20,10 +20,7 @@ pub struct ReceiptAuditor<E> {
 }
 
 impl<E> ReceiptAuditor<E> {
-    pub fn new(
-        domain_separator: Eip712Domain,
-        executor: E,
-    ) -> Self {
+    pub fn new(domain_separator: Eip712Domain, executor: E) -> Self {
         Self {
             domain_separator,
             executor,
