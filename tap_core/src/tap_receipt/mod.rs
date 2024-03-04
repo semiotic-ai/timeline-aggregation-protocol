@@ -4,7 +4,7 @@
 mod receipt;
 mod receipt_auditor;
 mod received_receipt;
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::collections::HashMap;
 
 use alloy_primitives::Address;
 pub use receipt::Receipt;
@@ -15,7 +15,6 @@ pub use received_receipt::{
 };
 
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString};
 use thiserror::Error;
 
 use crate::checks::{CheckingChecks, ReceiptCheck};
@@ -53,7 +52,7 @@ pub type ReceiptCheckResults = HashMap<&'static str, CheckingChecks>;
 // }
 
 pub fn get_full_list_of_receipt_check_results() -> ReceiptCheckResults {
-    let mut all_checks_list = ReceiptCheckResults::new();
+    let all_checks_list = ReceiptCheckResults::new();
     // all_checks_list.insert(ReceiptCheck::CheckUnique, None);
     // all_checks_list.insert(ReceiptCheck::CheckAllocationId, None);
     // all_checks_list.insert(ReceiptCheck::CheckTimestamp, None);
@@ -72,6 +71,3 @@ pub fn get_full_list_of_checks() -> Vec<ReceiptCheck> {
         // ReceiptCheck::CheckSignature,
     ]
 }
-
-#[cfg(test)]
-pub mod tests;

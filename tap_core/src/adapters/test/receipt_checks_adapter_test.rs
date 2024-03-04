@@ -17,7 +17,6 @@ mod receipt_checks_adapter_unit_test {
     use tokio::sync::RwLock;
 
     use crate::{
-        adapters::receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
         eip_712_signed_message::EIP712SignedMessage,
         tap_receipt::{get_full_list_of_checks, Receipt, ReceivedReceipt},
     };
@@ -40,14 +39,14 @@ mod receipt_checks_adapter_unit_test {
             Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
             Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
         ];
-        let sender_ids_set = Arc::new(RwLock::new(HashSet::from(sender_ids)));
+        let _sender_ids_set = Arc::new(RwLock::new(HashSet::from(sender_ids)));
 
         let allocation_ids = [
             Address::from_str("0xabababababababababababababababababababab").unwrap(),
             Address::from_str("0xbabababababababababababababababababababa").unwrap(),
             Address::from_str("0xdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf").unwrap(),
         ];
-        let allocation_ids_set = Arc::new(RwLock::new(HashSet::from(allocation_ids)));
+        let _allocation_ids_set = Arc::new(RwLock::new(HashSet::from(allocation_ids)));
 
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
@@ -81,14 +80,14 @@ mod receipt_checks_adapter_unit_test {
 
         let query_appraisals = (0..11).map(|id| (id, 100u128)).collect::<HashMap<_, _>>();
 
-        let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
+        let _query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
 
-        let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
-            Arc::clone(&receipt_storage),
-            query_appraisals_storage,
-            allocation_ids_set,
-            sender_ids_set,
-        );
+        // let receipt_checks_adapter = ReceiptChecksAdapterMock::new(
+        //     Arc::clone(&receipt_storage),
+        //     query_appraisals_storage,
+        //     allocation_ids_set,
+        //     sender_ids_set,
+        // );
 
         let new_receipt = (
             10u64,

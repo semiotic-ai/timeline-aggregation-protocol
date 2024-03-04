@@ -69,7 +69,7 @@ struct UniqueCheck;
 #[async_trait::async_trait]
 #[typetag::serde]
 impl Check for UniqueCheck {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+    async fn check(&self, _receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
         println!("UniqueCheck");
         Ok(())
     }
@@ -133,7 +133,7 @@ struct AllocationId;
 #[async_trait::async_trait]
 #[typetag::serde]
 impl Check for AllocationId {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+    async fn check(&self, _receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
         println!("AllocationId");
         Ok(())
     }
