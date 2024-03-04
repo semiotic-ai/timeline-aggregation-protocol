@@ -88,8 +88,8 @@ mod tap_tests {
     #[rstest]
     #[case::basic_rav_test (vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
-    #[tokio::test]
-    async fn signed_rav_is_valid_with_no_previous_rav(
+    #[test]
+    fn signed_rav_is_valid_with_no_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -104,7 +104,6 @@ mod tap_tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -113,17 +112,15 @@ mod tap_tests {
 
         let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
             .unwrap();
-        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0)
-            .await
-            .unwrap();
+        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
 
     #[rstest]
     #[case::basic_rav_test(vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
-    #[tokio::test]
-    async fn signed_rav_is_valid_with_previous_rav(
+    #[test]
+    fn signed_rav_is_valid_with_previous_rav(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -138,7 +135,6 @@ mod tap_tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -150,9 +146,8 @@ mod tap_tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0)
-            .await
-            .unwrap();
+        let signed_prev_rav =
+            EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0).unwrap();
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
@@ -161,16 +156,14 @@ mod tap_tests {
             Some(signed_prev_rav),
         )
         .unwrap();
-        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0)
-            .await
-            .unwrap();
+        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
 
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
 
     #[rstest]
-    #[tokio::test]
-    async fn verify_signature(
+    #[test]
+    fn verify_signature(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -180,7 +173,6 @@ mod tap_tests {
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
 
         assert!(signed_message.verify(&domain_separator, keys.1).is_ok());

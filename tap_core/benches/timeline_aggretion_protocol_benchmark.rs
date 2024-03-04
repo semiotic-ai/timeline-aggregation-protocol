@@ -11,8 +11,7 @@
 use std::str::FromStr;
 
 use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use criterion::async_executor::AsyncStdExecutor;
+use alloy_sol_types::{eip712_domain, Eip712Domain};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ethers::signers::{LocalWallet, Signer, Wallet};
 use ethers_core::k256::ecdsa::SigningKey;
@@ -22,9 +21,8 @@ use tap_core::{
     eip_712_signed_message::EIP712SignedMessage,
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
-use tokio::runtime::Runtime;
 
-pub async fn create_and_sign_receipt(
+pub fn create_and_sign_receipt(
     domain_separator: &Eip712Domain,
     allocation_id: Address,
     value: u128,
@@ -35,14 +33,11 @@ pub async fn create_and_sign_receipt(
         Receipt::new(allocation_id, value).unwrap(),
         wallet,
     )
-    .await
     .unwrap()
 }
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let domain_seperator = tap_eip712_domain(1, Address::from([0x11u8; 20]));
-
-    let async_runtime = Runtime::new().unwrap();
 
     let wallet = LocalWallet::new(&mut OsRng);
     let address: [u8; 20] = wallet.address().into();
@@ -53,7 +48,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let value = 12345u128;
 
     c.bench_function("Create Receipt", |b| {
-        b.to_async(AsyncStdExecutor).iter(|| {
+        b.iter(|| {
             create_and_sign_receipt(
                 black_box(&domain_seperator),
                 black_box(allocation_id),
@@ -63,12 +58,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    let receipt = async_runtime.block_on(create_and_sign_receipt(
-        &domain_seperator,
-        allocation_id,
-        value,
-        &wallet,
-    ));
+    let receipt = create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet);
 
     c.bench_function("Validate Receipt", |b| {
         b.iter(|| {
@@ -82,14 +72,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     for log_number_of_receipts in 10..30 {
         let receipts = (0..2 ^ log_number_of_receipts)
-            .map(|_| {
-                async_runtime.block_on(create_and_sign_receipt(
-                    &domain_seperator,
-                    allocation_id,
-                    value,
-                    &wallet,
-                ))
-            })
+            .map(|_| create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet))
             .collect::<Vec<_>>();
 
         rav_group.bench_function(
@@ -105,14 +88,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             },
         );
 
-        let signed_rav = async_runtime
-            .block_on(EIP712SignedMessage::new(
-                &domain_seperator,
-                ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None)
-                    .unwrap(),
-                &wallet,
-            ))
-            .unwrap();
+        let signed_rav = EIP712SignedMessage::new(
+            &domain_seperator,
+            ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+            &wallet,
+        )
+        .unwrap();
 
         rav_group.bench_function(
             &format!("Validate RAV w/ 2^{} receipt's", log_number_of_receipts),

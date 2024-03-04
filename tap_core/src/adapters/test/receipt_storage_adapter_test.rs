@@ -55,7 +55,6 @@ mod receipt_storage_adapter_unit_test {
                 Receipt::new(allocation_id, value).unwrap(),
                 &wallet,
             )
-            .await
             .unwrap(),
             query_id,
             &get_full_list_of_checks(),
@@ -117,7 +116,6 @@ mod receipt_storage_adapter_unit_test {
                     Receipt::new(allocation_id, value).unwrap(),
                     &wallet,
                 )
-                .await
                 .unwrap(),
                 query_id as u64,
                 &get_full_list_of_checks(),
@@ -185,8 +183,8 @@ mod receipt_storage_adapter_unit_test {
     #[case(vec![1, 2, 3, 3, 4, 5], 3, vec![1, 2])]
     #[case(vec![1, 2, 3, 4, 4, 4], 3, vec![1, 2, 3])]
     #[case(vec![1, 1, 1, 1, 2, 3], 3, vec![])]
-    #[tokio::test]
-    async fn safe_truncate_receipts_test(
+    #[test]
+    fn safe_truncate_receipts_test(
         domain_separator: Eip712Domain,
         #[case] input: Vec<u64>,
         #[case] limit: u64,
@@ -215,7 +213,6 @@ mod receipt_storage_adapter_unit_test {
                         },
                         &wallet,
                     )
-                    .await
                     .unwrap(),
                     i as u64, // Will use that to check the IDs
                     &get_full_list_of_checks(),

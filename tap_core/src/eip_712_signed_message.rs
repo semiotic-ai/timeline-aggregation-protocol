@@ -21,7 +21,7 @@ pub struct EIP712SignedMessage<M: SolStruct> {
 
 impl<M: SolStruct> EIP712SignedMessage<M> {
     /// creates signed message with signed EIP712 hash of `message` using `signing_wallet`
-    pub async fn new(
+    pub fn new(
         domain_separator: &Eip712Domain,
         message: M,
         signing_wallet: &LocalWallet,

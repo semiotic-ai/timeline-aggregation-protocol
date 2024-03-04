@@ -14,7 +14,7 @@ use tap_core::{
     receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
 };
 
-pub async fn check_and_aggregate_receipts(
+pub fn check_and_aggregate_receipts(
     domain_separator: &Eip712Domain,
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
@@ -69,7 +69,7 @@ pub async fn check_and_aggregate_receipts(
     let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
 
     // Sign the rav and return
-    Ok(EIP712SignedMessage::new(domain_separator, rav, wallet).await?)
+    Ok(EIP712SignedMessage::new(domain_separator, rav, wallet)?)
 }
 
 fn check_signature_is_from_one_of_addresses<M: SolStruct>(
@@ -170,8 +170,8 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
-    async fn check_signatures_unique_fail(
+    #[test]
+    fn check_signatures_unique_fail(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -183,7 +183,6 @@ mod tests {
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
         receipts.push(receipt.clone());
         receipts.push(receipt);
@@ -193,8 +192,8 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
-    async fn check_signatures_unique_ok(
+    #[test]
+    fn check_signatures_unique_ok(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -207,7 +206,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
         receipts.push(
@@ -216,7 +214,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
 
@@ -225,9 +222,9 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
-    async fn check_receipt_timestamps(
+    fn check_receipt_timestamps(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -247,7 +244,6 @@ mod tests {
                     },
                     &keys.0,
                 )
-                .await
                 .unwrap(),
             );
         }
@@ -262,7 +258,6 @@ mod tests {
             },
             &keys.0,
         )
-        .await
         .unwrap();
         assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_ok());
 
@@ -277,7 +272,6 @@ mod tests {
             },
             &keys.0,
         )
-        .await
         .unwrap();
         assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
 
@@ -292,16 +286,15 @@ mod tests {
             },
             &keys.0,
         )
-        .await
         .unwrap();
         assert!(aggregator::check_receipt_timestamps(&receipts, Some(&rav)).is_err());
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     /// Test check_allocation_id with 2 receipts that have the correct allocation id
     /// and 1 receipt that has the wrong allocation id
-    async fn check_allocation_id_fail(
+    fn check_allocation_id_fail(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -313,7 +306,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
         receipts.push(
@@ -322,7 +314,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
         receipts.push(
@@ -331,7 +322,6 @@ mod tests {
                 Receipt::new(allocation_ids[1], 44).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
 
@@ -341,9 +331,9 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
+    #[test]
     /// Test check_allocation_id with 3 receipts that have the correct allocation id
-    async fn check_allocation_id_ok(
+    fn check_allocation_id_ok(
         keys: (LocalWallet, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
@@ -355,7 +345,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
         receipts.push(
@@ -364,7 +353,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
         receipts.push(
@@ -373,7 +361,6 @@ mod tests {
                 Receipt::new(allocation_ids[0], 44).unwrap(),
                 &keys.0,
             )
-            .await
             .unwrap(),
         );
 

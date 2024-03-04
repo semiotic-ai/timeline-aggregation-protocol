@@ -64,7 +64,6 @@ mod receipt_checks_adapter_unit_test {
                                 Receipt::new(allocation_ids[0], value).unwrap(),
                                 &wallet,
                             )
-                            .await
                             .unwrap(),
                             id,
                             &get_full_list_of_checks(),
@@ -95,7 +94,6 @@ mod receipt_checks_adapter_unit_test {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &wallet,
                 )
-                .await
                 .unwrap(),
                 10u64,
                 &get_full_list_of_checks(),

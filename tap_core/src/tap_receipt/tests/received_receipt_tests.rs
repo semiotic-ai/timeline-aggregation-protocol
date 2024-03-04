@@ -136,7 +136,6 @@ mod received_receipt_unit_test {
             Receipt::new(allocation_ids[0], 10).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
         let query_id = 1;
         let checks = get_full_list_of_checks();
@@ -171,7 +170,6 @@ mod received_receipt_unit_test {
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
 
         let query_id = 1;
@@ -229,7 +227,6 @@ mod received_receipt_unit_test {
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
 
         let query_id = 1;
@@ -264,10 +261,7 @@ mod received_receipt_unit_test {
         //     .await;
         // assert!(received_receipt.check_is_complete(&arbitrary_check_to_perform));
 
-        assert!(received_receipt
-            .finalize_receipt_checks()
-            .await
-            .is_ok());
+        assert!(received_receipt.finalize_receipt_checks().await.is_ok());
     }
 
     #[rstest]
@@ -289,7 +283,6 @@ mod received_receipt_unit_test {
             Receipt::new(allocation_ids[0], query_value).unwrap(),
             &keys.0,
         )
-        .await
         .unwrap();
 
         let query_id = 1;
@@ -316,9 +309,6 @@ mod received_receipt_unit_test {
             _ => panic!("ReceivedReceipt should be in Checking state"),
         };
 
-        assert!(received_receipt
-            .finalize_receipt_checks()
-            .await
-            .is_ok());
+        assert!(received_receipt.finalize_receipt_checks().await.is_ok());
     }
 }
