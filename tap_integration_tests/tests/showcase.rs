@@ -26,8 +26,7 @@ use tokio::sync::RwLock;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::{
-        executor_mock::ExecutorMock, rav_storage_adapter_mock::RAVStorageAdapterMock,
-        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
+        executor_mock::ExecutorMock, receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
     },
     checks::ReceiptCheck,
     eip_712_signed_message::EIP712SignedMessage,
@@ -165,12 +164,6 @@ fn receipt_storage_adapter(
     receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
 ) -> ReceiptStorageAdapterMock {
     ReceiptStorageAdapterMock::new(receipt_storage)
-}
-
-// A structure for storing received RAVs.
-#[fixture]
-fn rav_storage_adapter() -> RAVStorageAdapterMock {
-    RAVStorageAdapterMock::new(Arc::new(RwLock::new(None)))
 }
 
 // These are the checks that the Indexer will perform when requesting a RAV.
