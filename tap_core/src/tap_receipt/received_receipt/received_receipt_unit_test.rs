@@ -10,7 +10,9 @@ use rstest::*;
 use tokio::sync::RwLock;
 
 use crate::{
-    adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
+    adapters::executor_mock::{
+        EscrowStorage, ExecutorMock, QueryAppraisals, RAVStorage, ReceiptStorage,
+    },
     checks::{tests::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
@@ -79,22 +81,23 @@ fn sender_ids() -> Vec<Address> {
 }
 
 #[fixture]
-fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
+fn receipt_storage() -> ReceiptStorage {
     Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[fixture]
-fn executor_mock() -> (ExecutorMock, EscrowStorage, QueryAppraisals) {
-    let rav_storage = Arc::new(RwLock::new(None));
-    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+fn query_appraisal_storage() -> QueryAppraisals {
+    Arc::new(RwLock::new(HashMap::new()))
+}
 
-    let executor = ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage.clone());
+#[fixture]
+fn rav_storage() -> RAVStorage {
+    Arc::new(RwLock::new(None))
+}
 
-    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-
-    let query_appraisal_storage = Arc::new(RwLock::new(HashMap::new()));
-    (executor, sender_escrow_storage, query_appraisal_storage)
+#[fixture]
+fn escrow_storage() -> EscrowStorage {
+    Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[fixture]
@@ -102,22 +105,39 @@ fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
 
+struct ExecutorFixture {
+    executor: ExecutorMock,
+    escrow_storage: EscrowStorage,
+    query_appraisals: QueryAppraisals,
+    checks: Vec<ReceiptCheck>,
+}
+
 #[fixture]
-fn checks(
+fn executor_mock(
     domain_separator: Eip712Domain,
-    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
-) -> Vec<ReceiptCheck> {
-    let (_, _, query_appraisal_storage) = executor_mock;
-    get_full_list_of_checks(
+    receipt_storage: ReceiptStorage,
+    query_appraisal_storage: QueryAppraisals,
+    rav_storage: RAVStorage,
+    escrow_storage: EscrowStorage,
+) -> ExecutorFixture {
+    let executor = ExecutorMock::new(rav_storage, receipt_storage.clone(), escrow_storage.clone());
+
+    let checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
         receipt_storage,
-        query_appraisal_storage,
-    )
+        query_appraisal_storage.clone(),
+    );
+
+    ExecutorFixture {
+        executor,
+        escrow_storage,
+        query_appraisals: query_appraisal_storage,
+        checks,
+    }
 }
 
 #[rstest]
@@ -126,8 +146,10 @@ async fn initialization_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    checks: Vec<ReceiptCheck>,
+    executor_mock: ExecutorFixture,
 ) {
+    let ExecutorFixture { checks, .. } = executor_mock;
+
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], 10).unwrap(),
@@ -153,13 +175,18 @@ async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
-    checks: Vec<ReceiptCheck>,
+    executor_mock: ExecutorFixture,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
+    let ExecutorFixture {
+        checks,
+        executor,
+        escrow_storage,
+        query_appraisals,
+        ..
+    } = executor_mock;
     // give receipt 5 second variance for min start time
-    let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-    let _receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
+    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
+    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -179,13 +206,10 @@ async fn partial_then_full_check_valid_receipt(
         .await
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisal_storage
-        .write()
-        .await
-        .insert(query_id, query_value);
+    query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let _receipt_id = 0u64;
+    let receipt_id = 0u64;
 
     let mut received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
@@ -212,12 +236,17 @@ async fn partial_then_finalize_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
-    checks: Vec<ReceiptCheck>,
+    executor_mock: ExecutorFixture,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
+    let ExecutorFixture {
+        checks,
+        executor,
+        escrow_storage,
+        query_appraisals,
+        ..
+    } = executor_mock;
     // give receipt 5 second variance for min start time
-    let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
+    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
     let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
@@ -238,13 +267,10 @@ async fn partial_then_finalize_valid_receipt(
         .await
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisal_storage
-        .write()
-        .await
-        .insert(query_id, query_value);
+    query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let _receipt_id = 0u64;
+    let receipt_id = 0u64;
 
     let mut received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
@@ -260,7 +286,6 @@ async fn partial_then_finalize_valid_receipt(
     assert!(received_receipt.check_is_complete(arbitrary_check_to_perform));
 
     let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks().await;
-    println!("{:?}", awaiting_escrow_receipt);
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
@@ -276,13 +301,18 @@ async fn standard_lifetime_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: (ExecutorMock, EscrowStorage, QueryAppraisals),
-    checks: Vec<ReceiptCheck>,
+    executor_mock: ExecutorFixture,
 ) {
-    let (executor, escrow_storage, query_appraisal_storage) = executor_mock;
+    let ExecutorFixture {
+        checks,
+        executor,
+        escrow_storage,
+        query_appraisals,
+        ..
+    } = executor_mock;
     // give receipt 5 second variance for min start time
-    let _starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-    let _receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
+    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
+    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -302,13 +332,10 @@ async fn standard_lifetime_valid_receipt(
         .await
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisal_storage
-        .write()
-        .await
-        .insert(query_id, query_value);
+    query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let _receipt_id = 0u64;
+    let receipt_id = 0u64;
 
     let received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,

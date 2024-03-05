@@ -139,13 +139,14 @@ pub mod tests {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
             let receipt_storage = self.receipt_storage.read().await;
             // let receipt_id = receipt.
-            receipt_storage
+            let unique = receipt_storage
                 .iter()
                 .all(|(_stored_receipt_id, stored_receipt)| {
                     stored_receipt.signed_receipt().message != receipt.signed_receipt().message
-                })
-                .then_some(())
-                .ok_or(ReceiptError::NonUniqueReceipt)
+                        || stored_receipt.query_id() == receipt.query_id
+                });
+
+            unique.then_some(()).ok_or(ReceiptError::NonUniqueReceipt)
         }
 
         async fn check_batch(

@@ -18,6 +18,8 @@ use tokio::sync::RwLock;
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
+pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceivedReceipt>>>;
+pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 
 use thiserror::Error;
 
@@ -30,8 +32,8 @@ pub enum AdapterErrorMock {
 #[derive(Clone)]
 pub struct ExecutorMock {
     /// local RAV store with rwlocks to allow sharing with other compenents as needed
-    rav_storage: Arc<RwLock<Option<SignedRAV>>>,
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
+    rav_storage: RAVStorage,
+    receipt_storage: ReceiptStorage,
     unique_id: Arc<RwLock<u64>>,
 
     sender_escrow_storage: EscrowStorage,
@@ -39,9 +41,9 @@ pub struct ExecutorMock {
 
 impl ExecutorMock {
     pub fn new(
-        rav_storage: Arc<RwLock<Option<SignedRAV>>>,
-        receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-        sender_escrow_storage: Arc<RwLock<HashMap<Address, u128>>>,
+        rav_storage: RAVStorage,
+        receipt_storage: ReceiptStorage,
+        sender_escrow_storage: EscrowStorage,
     ) -> Self {
         ExecutorMock {
             rav_storage,
