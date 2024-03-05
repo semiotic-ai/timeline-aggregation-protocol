@@ -166,7 +166,7 @@ where
             mut reserved_receipts,
         } = received_receipts.into();
 
-        for received_receipt in checking_receipts {
+        for received_receipt in checking_receipts.into_iter() {
             let ReceiptWithId {
                 receipt,
                 receipt_id: _,

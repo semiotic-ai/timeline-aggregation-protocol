@@ -1,11 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-use std::{
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-    time::{SystemTime, UNIX_EPOCH},
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
 };
 
 use alloy_primitives::Address;
@@ -28,7 +25,6 @@ use tap_core::{
     },
     checks::ReceiptCheck,
     tap_manager::{Manager, SignedRAV, SignedReceipt},
-    Error as TapCoreError,
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -81,7 +77,7 @@ where
                 domain_separator,
                 executor,
                 required_checks,
-                get_current_timestamp_u64_ns()?,
+                0,
             )),
             initial_checks,
             receipt_count: Arc::new(AtomicU64::new(0)),
@@ -237,16 +233,6 @@ where
         false => Err(Error::msg("Invalid receipts found")),
     }?;
     Ok(())
-}
-
-// get_current_timestamp_u64_ns function returns current system time since UNIX_EPOCH as a 64-bit unsigned integer.
-fn get_current_timestamp_u64_ns() -> Result<u64> {
-    Ok(SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| TapCoreError::InvalidSystemTime {
-            source_error_message: err.to_string(),
-        })?
-        .as_nanos() as u64)
 }
 
 fn to_rpc_error(e: Box<dyn std::error::Error>, msg: &str) -> jsonrpsee::types::ErrorObjectOwned {
