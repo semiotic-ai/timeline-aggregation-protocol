@@ -9,7 +9,7 @@ use std::{
     convert::TryInto,
     net::{SocketAddr, TcpListener},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use alloy_primitives::Address;
@@ -21,14 +21,11 @@ use jsonrpsee::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
-use tokio::sync::RwLock;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
-    adapters::executor_mock::{
-        EscrowStorage, ExecutorMock, QueryAppraisals, RAVStorage, ReceiptStorage,
-    },
-    checks::{mock::get_full_list_of_checks, ReceiptCheck},
+    adapters::executor_mock::{ExecutorMock, QueryAppraisals},
+    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_manager::SignedRAV,
@@ -157,11 +154,6 @@ fn available_escrow(query_price: &[u128], num_batches: u64) -> u128 {
 }
 
 #[fixture]
-fn receipt_storage() -> ReceiptStorage {
-    Arc::new(RwLock::new(HashMap::new()))
-}
-
-#[fixture]
 fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
     Arc::new(RwLock::new(
         query_price
@@ -170,16 +162,6 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
             .map(|(i, p)| (i as u64, *p))
             .collect(),
     ))
-}
-
-#[fixture]
-fn rav_storage() -> RAVStorage {
-    Arc::new(RwLock::new(None))
-}
-
-#[fixture]
-fn escrow_storage() -> EscrowStorage {
-    Arc::new(RwLock::new(HashMap::new()))
 }
 
 struct ExecutorFixture {
@@ -192,20 +174,26 @@ fn executor(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
-    receipt_storage: ReceiptStorage,
     query_appraisals: QueryAppraisals,
-    rav_storage: RAVStorage,
-    escrow_storage: EscrowStorage,
 ) -> ExecutorFixture {
-    let executor = ExecutorMock::new(rav_storage, receipt_storage.clone(), escrow_storage.clone());
-
-    let checks = get_full_list_of_checks(
+    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+    let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+    let rav_storage = Arc::new(RwLock::new(None));
+    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let executor = ExecutorMock::new(
+        rav_storage,
+        receipt_storage.clone(),
+        escrow_storage.clone(),
+        timestamp_check.clone(),
+    );
+    let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
         receipt_storage,
         query_appraisals,
     );
+    checks.push(timestamp_check);
 
     ExecutorFixture { executor, checks }
 }
@@ -880,7 +868,7 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    executor.increase_escrow(sender_id, available_escrow).await;
+    executor.increase_escrow(sender_id, available_escrow);
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(

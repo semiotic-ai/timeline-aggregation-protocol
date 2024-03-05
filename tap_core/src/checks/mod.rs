@@ -3,8 +3,7 @@
 
 use crate::tap_receipt::{Checking, ReceiptError, ReceiptResult, ReceiptWithState};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 pub type ReceiptCheck = Arc<dyn Check>;
 
@@ -70,8 +69,8 @@ impl TimestampCheck {
         }
     }
     /// Updates the minimum timestamp that will be accepted for a receipt (exclusive).
-    pub async fn update_min_timestamp_ns(&self, min_timestamp_ns: u64) {
-        *self.min_timestamp_ns.write().await = min_timestamp_ns;
+    pub fn update_min_timestamp_ns(&self, min_timestamp_ns: u64) {
+        *self.min_timestamp_ns.write().unwrap() = min_timestamp_ns;
     }
 }
 
@@ -79,7 +78,7 @@ impl TimestampCheck {
 #[typetag::serde]
 impl Check for TimestampCheck {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
-        let min_timestamp_ns = *self.min_timestamp_ns.read().await;
+        let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
         if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
             return Err(ReceiptError::InvalidTimestamp {
@@ -136,7 +135,7 @@ pub mod mock {
     #[typetag::serde]
     impl Check for UniqueCheck {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
-            let receipt_storage = self.receipt_storage.read().await;
+            let receipt_storage = self.receipt_storage.read().unwrap();
             // let receipt_id = receipt.
             let unique = receipt_storage
                 .iter()
@@ -179,7 +178,7 @@ pub mod mock {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
             let query_id = receipt.query_id;
             let value = receipt.signed_receipt().message.value;
-            let query_appraisals = self.query_appraisals.read().await;
+            let query_appraisals = self.query_appraisals.read().unwrap();
             let appraised_value =
                 query_appraisals
                     .get(&query_id)
@@ -211,7 +210,7 @@ pub mod mock {
             if self
                 .allocation_ids
                 .read()
-                .await
+                .unwrap()
                 .contains(&received_allocation_id)
             {
                 Ok(())

@@ -77,7 +77,6 @@ where
                 domain_separator,
                 executor,
                 required_checks,
-                0,
             )),
             initial_checks,
             receipt_count: Arc::new(AtomicU64::new(0)),

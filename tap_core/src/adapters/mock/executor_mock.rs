@@ -5,6 +5,7 @@ use crate::adapters::escrow_adapter::EscrowAdapter;
 use crate::adapters::receipt_storage_adapter::{
     safe_truncate_receipts, ReceiptRead, ReceiptStore, StoredReceipt,
 };
+use crate::checks::TimestampCheck;
 use crate::tap_receipt::ReceivedReceipt;
 use crate::{
     adapters::rav_storage_adapter::{RAVRead, RAVStore},
@@ -13,8 +14,8 @@ use crate::{
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::ops::RangeBounds;
+use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
@@ -37,6 +38,8 @@ pub struct ExecutorMock {
     unique_id: Arc<RwLock<u64>>,
 
     sender_escrow_storage: EscrowStorage,
+
+    timestamp_check: Arc<TimestampCheck>,
 }
 
 impl ExecutorMock {
@@ -44,12 +47,14 @@ impl ExecutorMock {
         rav_storage: RAVStorage,
         receipt_storage: ReceiptStorage,
         sender_escrow_storage: EscrowStorage,
+        timestamp_check: Arc<TimestampCheck>,
     ) -> Self {
         ExecutorMock {
             rav_storage,
             receipt_storage,
             unique_id: Arc::new(RwLock::new(0)),
             sender_escrow_storage,
+            timestamp_check,
         }
     }
 
@@ -57,7 +62,7 @@ impl ExecutorMock {
         &self,
         receipt_id: u64,
     ) -> Result<ReceivedReceipt, AdapterErrorMock> {
-        let receipt_storage = self.receipt_storage.read().await;
+        let receipt_storage = self.receipt_storage.read().unwrap();
 
         receipt_storage
             .get(&receipt_id)
@@ -71,7 +76,7 @@ impl ExecutorMock {
         &self,
         timestamp_ns: u64,
     ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
-        let receipt_storage = self.receipt_storage.read().await;
+        let receipt_storage = self.receipt_storage.read().unwrap();
         Ok(receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
@@ -90,7 +95,7 @@ impl ExecutorMock {
     }
 
     pub async fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
-        let mut receipt_storage = self.receipt_storage.write().await;
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage
             .remove(&receipt_id)
             .map(|_| ())
@@ -114,8 +119,10 @@ impl RAVStore for ExecutorMock {
     type AdapterError = AdapterErrorMock;
 
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
-        let mut rav_storage = self.rav_storage.write().await;
+        let mut rav_storage = self.rav_storage.write().unwrap();
+        let timestamp = rav.message.timestampNs;
         *rav_storage = Some(rav);
+        self.timestamp_check.update_min_timestamp_ns(timestamp);
         Ok(())
     }
 }
@@ -125,7 +132,7 @@ impl RAVRead for ExecutorMock {
     type AdapterError = AdapterErrorMock;
 
     async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
-        Ok(self.rav_storage.read().await.clone())
+        Ok(self.rav_storage.read().unwrap().clone())
     }
 }
 
@@ -133,9 +140,9 @@ impl RAVRead for ExecutorMock {
 impl ReceiptStore for ExecutorMock {
     type AdapterError = AdapterErrorMock;
     async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
-        let mut id_pointer = self.unique_id.write().await;
+        let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
-        let mut receipt_storage = self.receipt_storage.write().await;
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage.insert(*id_pointer, receipt);
         *id_pointer += 1;
         Ok(id_previous)
@@ -145,7 +152,7 @@ impl ReceiptStore for ExecutorMock {
         receipt_id: u64,
         receipt: ReceivedReceipt,
     ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage = self.receipt_storage.write().await;
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
 
         if !receipt_storage.contains_key(&receipt_id) {
             return Err(AdapterErrorMock::AdapterError {
@@ -154,14 +161,14 @@ impl ReceiptStore for ExecutorMock {
         };
 
         receipt_storage.insert(receipt_id, receipt);
-        *self.unique_id.write().await += 1;
+        *self.unique_id.write().unwrap() += 1;
         Ok(())
     }
     async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_ns: R,
     ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage = self.receipt_storage.write().await;
+        let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage.retain(|_, rx_receipt| {
             !timestamp_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
         });
@@ -177,7 +184,7 @@ impl ReceiptRead for ExecutorMock {
         timestamp_range_ns: R,
         limit: Option<u64>,
     ) -> Result<Vec<StoredReceipt>, Self::AdapterError> {
-        let receipt_storage = self.receipt_storage.read().await;
+        let receipt_storage = self.receipt_storage.read().unwrap();
         let mut receipts_in_range: Vec<(u64, ReceivedReceipt)> = receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
@@ -194,8 +201,8 @@ impl ReceiptRead for ExecutorMock {
 }
 
 impl ExecutorMock {
-    pub async fn escrow(&self, sender_id: Address) -> Result<u128, AdapterErrorMock> {
-        let sender_escrow_storage = self.sender_escrow_storage.read().await;
+    pub fn escrow(&self, sender_id: Address) -> Result<u128, AdapterErrorMock> {
+        let sender_escrow_storage = self.sender_escrow_storage.read().unwrap();
         if let Some(escrow) = sender_escrow_storage.get(&sender_id) {
             return Ok(*escrow);
         }
@@ -204,23 +211,19 @@ impl ExecutorMock {
         })
     }
 
-    pub async fn increase_escrow(&mut self, sender_id: Address, value: u128) {
-        let mut sender_escrow_storage = self.sender_escrow_storage.write().await;
+    pub fn increase_escrow(&mut self, sender_id: Address, value: u128) {
+        let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
-            let mut sender_escrow_storage = self.sender_escrow_storage.write().await;
+            let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
             sender_escrow_storage.insert(sender_id, current_value + value);
         } else {
             sender_escrow_storage.insert(sender_id, value);
         }
     }
 
-    pub async fn reduce_escrow(
-        &self,
-        sender_id: Address,
-        value: u128,
-    ) -> Result<(), AdapterErrorMock> {
-        let mut sender_escrow_storage = self.sender_escrow_storage.write().await;
+    pub fn reduce_escrow(&self, sender_id: Address, value: u128) -> Result<(), AdapterErrorMock> {
+        let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
             let checked_new_value = current_value.checked_sub(value);
@@ -239,13 +242,13 @@ impl ExecutorMock {
 impl EscrowAdapter for ExecutorMock {
     type AdapterError = AdapterErrorMock;
     async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
-        self.escrow(sender_id).await
+        self.escrow(sender_id)
     }
     async fn subtract_escrow(
         &self,
         sender_id: Address,
         value: u128,
     ) -> Result<(), Self::AdapterError> {
-        self.reduce_escrow(sender_id, value).await
+        self.reduce_escrow(sender_id, value)
     }
 }

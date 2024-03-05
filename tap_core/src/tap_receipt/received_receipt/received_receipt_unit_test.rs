@@ -1,19 +1,20 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::{Arc, RwLock},
+};
 
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
-use tokio::sync::RwLock;
 
 use crate::{
-    adapters::executor_mock::{
-        EscrowStorage, ExecutorMock, QueryAppraisals, RAVStorage, ReceiptStorage,
-    },
-    checks::{mock::get_full_list_of_checks, ReceiptCheck},
+    adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
+    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_receipt::{Receipt, ReceiptAuditor, ReceiptCheckResults, ReceivedReceipt},
@@ -81,26 +82,6 @@ fn sender_ids() -> Vec<Address> {
 }
 
 #[fixture]
-fn receipt_storage() -> ReceiptStorage {
-    Arc::new(RwLock::new(HashMap::new()))
-}
-
-#[fixture]
-fn query_appraisal_storage() -> QueryAppraisals {
-    Arc::new(RwLock::new(HashMap::new()))
-}
-
-#[fixture]
-fn rav_storage() -> RAVStorage {
-    Arc::new(RwLock::new(None))
-}
-
-#[fixture]
-fn escrow_storage() -> EscrowStorage {
-    Arc::new(RwLock::new(HashMap::new()))
-}
-
-#[fixture]
 fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
@@ -117,25 +98,32 @@ fn executor_mock(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
-    receipt_storage: ReceiptStorage,
-    query_appraisal_storage: QueryAppraisals,
-    rav_storage: RAVStorage,
-    escrow_storage: EscrowStorage,
 ) -> ExecutorFixture {
-    let executor = ExecutorMock::new(rav_storage, receipt_storage.clone(), escrow_storage.clone());
+    let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+    let rav_storage = Arc::new(RwLock::new(None));
+    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+    let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
-    let checks = get_full_list_of_checks(
+    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let executor = ExecutorMock::new(
+        rav_storage,
+        receipt_storage.clone(),
+        escrow_storage.clone(),
+        timestamp_check.clone(),
+    );
+    let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
         receipt_storage,
-        query_appraisal_storage.clone(),
+        query_appraisals.clone(),
     );
+    checks.push(timestamp_check);
 
     ExecutorFixture {
         executor,
         escrow_storage,
-        query_appraisals: query_appraisal_storage,
+        query_appraisals,
         checks,
     }
 }
@@ -199,10 +187,13 @@ async fn partial_then_full_check_valid_receipt(
     // add escrow for sender
     escrow_storage
         .write()
-        .await
+        .unwrap()
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisals.write().await.insert(query_id, query_value);
+    query_appraisals
+        .write()
+        .unwrap()
+        .insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
 
@@ -258,10 +249,13 @@ async fn partial_then_finalize_valid_receipt(
     // add escrow for sender
     escrow_storage
         .write()
-        .await
+        .unwrap()
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisals.write().await.insert(query_id, query_value);
+    query_appraisals
+        .write()
+        .unwrap()
+        .insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
 
@@ -321,10 +315,13 @@ async fn standard_lifetime_valid_receipt(
     // add escrow for sender
     escrow_storage
         .write()
-        .await
+        .unwrap()
         .insert(keys.1, query_value + 500);
     // appraise query
-    query_appraisals.write().await.insert(query_id, query_value);
+    query_appraisals
+        .write()
+        .unwrap()
+        .insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
 

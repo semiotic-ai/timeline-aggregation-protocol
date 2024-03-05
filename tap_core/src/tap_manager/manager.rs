@@ -1,8 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
-
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use futures::Future;
@@ -14,7 +12,7 @@ use crate::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
-    checks::{ReceiptCheck, TimestampCheck},
+    checks::ReceiptCheck,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
@@ -31,8 +29,6 @@ pub struct Manager<E> {
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
-
-    timestamp_check: Arc<TimestampCheck>,
 }
 
 impl<E> Manager<E>
@@ -46,17 +42,13 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        mut required_checks: Vec<ReceiptCheck>,
-        starting_min_timestamp_ns: u64,
+        required_checks: Vec<ReceiptCheck>,
     ) -> Self {
-        let timestamp_check = Arc::new(TimestampCheck::new(starting_min_timestamp_ns));
-        required_checks.push(timestamp_check.clone());
         let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
         Self {
             executor,
             required_checks,
             receipt_auditor,
-            timestamp_check,
         }
     }
 }
@@ -92,20 +84,12 @@ where
             });
         }
 
-        self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestampNs)
-            .await;
-
         self.executor
             .update_last_rav(signed_rav)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
-
-        self.timestamp_check
-            .update_min_timestamp_ns(expected_rav.timestampNs)
-            .await;
 
         Ok(())
     }
