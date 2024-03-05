@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use alloy_primitives::Address;
