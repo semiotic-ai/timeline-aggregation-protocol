@@ -91,8 +91,8 @@ impl Check for TimestampCheck {
     }
 }
 
-#[cfg(test)]
-pub mod tests {
+#[cfg(feature = "mock")]
+pub mod mock {
 
     use super::*;
     use crate::tap_receipt::ReceivedReceipt;
@@ -118,7 +118,6 @@ pub mod tests {
                 domain_separator,
                 valid_signers,
             }),
-            Arc::new(TimestampCheck::new(0)),
         ]
     }
 

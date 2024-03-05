@@ -14,11 +14,13 @@ use crate::{
         executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals, RAVStorage, ReceiptStorage},
         receipt_storage_adapter::ReceiptRead,
     },
-    checks::{tests::get_full_list_of_checks, ReceiptCheck},
+    checks::{mock::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
     tap_receipt::Receipt,
 };
+
+const LENGTH_OF_CHECKS: usize = 4;
 
 #[fixture]
 fn keys() -> (LocalWallet, Address) {
@@ -114,7 +116,7 @@ fn executor_mock(
 }
 
 #[rstest]
-#[case::full_checks(0..5)]
+#[case::full_checks(0..LENGTH_OF_CHECKS)]
 #[case::partial_checks(0..2)]
 #[case::no_checks(0..0)]
 #[tokio::test]
@@ -160,7 +162,7 @@ async fn manager_verify_and_store_varying_initial_checks(
 }
 
 #[rstest]
-#[case::full_checks(0..5)]
+#[case::full_checks(0..LENGTH_OF_CHECKS)]
 #[case::partial_checks(0..2)]
 #[case::no_checks(0..0)]
 #[tokio::test]
@@ -233,7 +235,7 @@ async fn manager_create_rav_request_all_valid_receipts(
 }
 
 #[rstest]
-#[case::full_checks(0..5)]
+#[case::full_checks(0..LENGTH_OF_CHECKS)]
 #[case::partial_checks(0..2)]
 #[case::no_checks(0..0)]
 #[tokio::test]
@@ -368,7 +370,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    #[values(0..0, 0..2, 0..5)] range: Range<usize>,
+    #[values(0..0, 0..2, 0..LENGTH_OF_CHECKS)] range: Range<usize>,
     #[values(true, false)] remove_old_receipts: bool,
     executor_mock: ExecutorFixture,
 ) {

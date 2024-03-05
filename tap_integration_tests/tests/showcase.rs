@@ -25,12 +25,14 @@ use tokio::sync::RwLock;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
-    adapters::executor_mock::ExecutorMock,
-    checks::ReceiptCheck,
+    adapters::executor_mock::{
+        EscrowStorage, ExecutorMock, QueryAppraisals, RAVStorage, ReceiptStorage,
+    },
+    checks::{mock::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_manager::SignedRAV,
-    tap_receipt::{Receipt, ReceivedReceipt},
+    tap_receipt::Receipt,
 };
 
 use crate::indexer_mock;
@@ -118,6 +120,16 @@ fn allocation_ids() -> Vec<Address> {
     ]
 }
 
+#[fixture]
+fn sender_ids() -> Vec<Address> {
+    vec![
+        Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
+        Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
+        Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+        keys_sender().1,
+    ]
+}
+
 // Domain separator is used to sign receipts/RAVs according to EIP-712
 #[fixture]
 fn domain_separator() -> Eip712Domain {
@@ -144,52 +156,60 @@ fn available_escrow(query_price: Vec<u128>, num_batches: u64) -> u128 {
 }
 
 #[fixture]
-fn executor(receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>) -> ExecutorMock {
-    let rav_storage = Arc::new(RwLock::new(None));
-
-    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-
-    ExecutorMock::new(rav_storage, receipt_storage, sender_escrow_storage)
-}
-
-#[fixture]
-fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
+fn receipt_storage() -> ReceiptStorage {
     Arc::new(RwLock::new(HashMap::new()))
 }
 
-// These are the checks that the Indexer will perform when requesting a RAV.
-// Testing with all checks enabled.
 #[fixture]
-fn required_checks() -> Vec<ReceiptCheck> {
-    vec![
-        // ReceiptCheck::CheckAllocationId,
-        // ReceiptCheck::CheckSignature,
-        // ReceiptCheck::CheckTimestamp,
-        // ReceiptCheck::CheckUnique,
-        // ReceiptCheck::CheckValue,
-    ]
-}
-
-// These are the checks that the Indexer will perform for each received receipt, i.e. before requesting a RAV.
-// Testing with all checks enabled.
-#[fixture]
-fn initial_checks() -> Vec<ReceiptCheck> {
-    vec![
-        // ReceiptCheck::CheckAllocationId,
-        // ReceiptCheck::CheckSignature,
-        // ReceiptCheck::CheckTimestamp,
-        // ReceiptCheck::CheckUnique,
-        // ReceiptCheck::CheckValue,
-    ]
+fn query_appraisals() -> QueryAppraisals {
+    Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[fixture]
-fn indexer_1_adapters(executor: ExecutorMock) -> ExecutorMock {
+fn rav_storage() -> RAVStorage {
+    Arc::new(RwLock::new(None))
+}
+
+#[fixture]
+fn escrow_storage() -> EscrowStorage {
+    Arc::new(RwLock::new(HashMap::new()))
+}
+
+struct ExecutorFixture {
+    executor: ExecutorMock,
+    checks: Vec<ReceiptCheck>,
+}
+
+#[fixture]
+fn executor(
+    domain_separator: Eip712Domain,
+    allocation_ids: Vec<Address>,
+    sender_ids: Vec<Address>,
+    receipt_storage: ReceiptStorage,
+    query_appraisals: QueryAppraisals,
+    rav_storage: RAVStorage,
+    escrow_storage: EscrowStorage,
+) -> ExecutorFixture {
+    let executor = ExecutorMock::new(rav_storage, receipt_storage.clone(), escrow_storage.clone());
+
+    let checks = get_full_list_of_checks(
+        domain_separator,
+        sender_ids.iter().cloned().collect(),
+        Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
+        receipt_storage,
+        query_appraisals,
+    );
+
+    ExecutorFixture { executor, checks }
+}
+
+#[fixture]
+fn indexer_1_adapters(executor: ExecutorFixture) -> ExecutorFixture {
     executor
 }
 
 #[fixture]
-fn indexer_2_adapters(executor: ExecutorMock) -> ExecutorMock {
+fn indexer_2_adapters(executor: ExecutorFixture) -> ExecutorFixture {
     executor
 }
 
@@ -342,10 +362,8 @@ async fn single_indexer_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
     let sender_id = keys_sender.1;
@@ -357,14 +375,14 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor = indexer_1_adapters;
+    let ExecutorFixture { executor, checks } = indexer_1_adapters;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks.clone(),
+        checks,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -384,11 +402,9 @@ async fn two_indexers_test_servers(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
-    indexer_2_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
+    indexer_2_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(
     ServerHandle,
@@ -407,16 +423,23 @@ async fn two_indexers_test_servers(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor_1 = indexer_1_adapters;
-    let executor_2 = indexer_2_adapters;
+    let ExecutorFixture {
+        executor: executor_1,
+        checks: checks_1,
+    } = indexer_1_adapters;
+
+    let ExecutorFixture {
+        executor: executor_2,
+        checks: checks_2,
+    } = indexer_2_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor_1,
         sender_id,
         available_escrow,
-        initial_checks.clone(),
-        required_checks.clone(),
+        checks_1.clone(),
+        checks_1,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -427,8 +450,8 @@ async fn two_indexers_test_servers(
         executor_2,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks_2.clone(),
+        checks_2,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -451,10 +474,8 @@ async fn single_indexer_wrong_sender_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
     let sender_id = wrong_keys_sender.1;
@@ -466,15 +487,17 @@ async fn single_indexer_wrong_sender_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor = indexer_1_adapters;
+    let ExecutorFixture {
+        executor, checks, ..
+    } = indexer_1_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks.clone(),
+        checks,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
