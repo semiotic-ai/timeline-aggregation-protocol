@@ -15,7 +15,7 @@ use crate::{
     },
     checks::{tests::get_full_list_of_checks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
-    get_current_timestamp_u64_ns, tap_eip712_domain,
+    tap_eip712_domain,
     tap_receipt::{Receipt, ReceiptAuditor, ReceiptCheckResults, ReceivedReceipt},
 };
 
@@ -179,14 +179,10 @@ async fn partial_then_full_check_valid_receipt(
 ) {
     let ExecutorFixture {
         checks,
-        executor,
         escrow_storage,
         query_appraisals,
         ..
     } = executor_mock;
-    // give receipt 5 second variance for min start time
-    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
-    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -209,7 +205,6 @@ async fn partial_then_full_check_valid_receipt(
     query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let receipt_id = 0u64;
 
     let mut received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
@@ -246,7 +241,6 @@ async fn partial_then_finalize_valid_receipt(
         ..
     } = executor_mock;
     // give receipt 5 second variance for min start time
-    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
     let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
@@ -270,7 +264,6 @@ async fn partial_then_finalize_valid_receipt(
     query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let receipt_id = 0u64;
 
     let mut received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
@@ -311,7 +304,6 @@ async fn standard_lifetime_valid_receipt(
         ..
     } = executor_mock;
     // give receipt 5 second variance for min start time
-    let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
     let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
@@ -335,12 +327,18 @@ async fn standard_lifetime_valid_receipt(
     query_appraisals.write().await.insert(query_id, query_value);
 
     let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
-    let receipt_id = 0u64;
 
     let received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
         _ => panic!("ReceivedReceipt should be in Checking state"),
     };
 
-    assert!(received_receipt.finalize_receipt_checks().await.is_ok());
+    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks().await;
+    assert!(awaiting_escrow_receipt.is_ok());
+
+    let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
+    let receipt = awaiting_escrow_receipt
+        .check_and_reserve_escrow(&receipt_auditor)
+        .await;
+    assert!(receipt.is_ok());
 }
