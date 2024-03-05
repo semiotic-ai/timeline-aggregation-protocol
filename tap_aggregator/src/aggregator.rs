@@ -199,23 +199,20 @@ mod tests {
         domain_separator: Eip712Domain,
     ) {
         // Create 2 different receipts
-        let mut receipts = Vec::new();
-        receipts.push(
+        let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
-        receipts.push(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
+        ];
 
         let res = aggregator::check_signatures_unique(&receipts);
         assert!(res.is_ok());
@@ -299,31 +296,26 @@ mod tests {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
-        let mut receipts = Vec::new();
-        receipts.push(
+        let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
-        receipts.push(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
-        receipts.push(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[1], 44).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
+        ];
 
         let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
 
@@ -338,31 +330,26 @@ mod tests {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
-        let mut receipts = Vec::new();
-        receipts.push(
+        let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
-        receipts.push(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
-        receipts.push(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 44).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-        );
+        ];
 
         let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
 
