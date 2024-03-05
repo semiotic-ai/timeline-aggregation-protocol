@@ -139,7 +139,7 @@ fn domain_separator() -> Eip712Domain {
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.
 #[fixture]
 #[once]
-fn query_price() -> Vec<u128> {
+fn query_price() -> &'static [u128] {
     let seed: Vec<u8> = (0..32u8).collect(); // A seed of your choice
     let mut rng: StdRng = SeedableRng::from_seed(seed.try_into().unwrap());
     let mut v = Vec::new();
@@ -147,12 +147,12 @@ fn query_price() -> Vec<u128> {
     for _ in 0..num_queries() {
         v.push(rng.gen::<u128>() % 100);
     }
-    v
+    Box::leak(v.into_boxed_slice())
 }
 
 // Available escrow is set by a Sender. It's assumed the Indexer has way of knowing this value.
 #[fixture]
-fn available_escrow(query_price: &Vec<u128>, num_batches: u64) -> u128 {
+fn available_escrow(query_price: &[u128], num_batches: u64) -> u128 {
     (num_batches as u128) * query_price.iter().sum::<u128>()
 }
 
@@ -162,7 +162,7 @@ fn receipt_storage() -> ReceiptStorage {
 }
 
 #[fixture]
-fn query_appraisals(query_price: &Vec<u128>) -> QueryAppraisals {
+fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
     Arc::new(RwLock::new(
         query_price
             .iter()
@@ -225,7 +225,7 @@ fn indexer_2_adapters(executor: ExecutorFixture) -> ExecutorFixture {
 #[fixture]
 fn requests_1(
     keys_sender: (LocalWallet, Address),
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -245,7 +245,7 @@ fn requests_1(
 #[fixture]
 fn requests_2(
     keys_sender: (LocalWallet, Address),
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -265,7 +265,7 @@ fn requests_2(
 #[fixture]
 fn repeated_timestamp_request(
     keys_sender: (LocalWallet, Address),
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
@@ -304,7 +304,7 @@ fn repeated_timestamp_request(
 #[fixture]
 fn repeated_timestamp_incremented_by_one_request(
     keys_sender: (LocalWallet, Address),
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
@@ -343,7 +343,7 @@ fn repeated_timestamp_incremented_by_one_request(
 #[fixture]
 fn wrong_requests(
     wrong_keys_sender: (LocalWallet, Address),
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -837,7 +837,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
 }
 
 fn generate_requests(
-    query_price: &Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     sender_key: &LocalWallet,
     allocation_id: Address,
