@@ -66,7 +66,8 @@ impl ReceiptState for AwaitingReserve {}
 impl ReceiptState for Reserved {}
 impl ReceiptState for Failed {}
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub enum ReceivedReceipt {
     AwaitingReserve(ReceiptWithState<AwaitingReserve>),
     Checking(ReceiptWithState<Checking>),
