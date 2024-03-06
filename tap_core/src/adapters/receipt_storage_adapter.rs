@@ -58,7 +58,15 @@ pub trait ReceiptStore {
         receipt_id: u64,
         receipt: ReceivedReceipt,
     ) -> Result<(), Self::AdapterError>;
+}
 
+#[async_trait]
+pub trait ReceiptDelete {
+    /// Defines the user-specified error type.
+    ///
+    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// Errors of this type are returned to the user when an operation fails.
+    type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
     /// Removes all `ReceivedReceipts` within a specific timestamp range from the storage.
     ///
     /// This method should be implemented to remove all `ReceivedReceipts` within a specific timestamp

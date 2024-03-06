@@ -10,7 +10,7 @@ use crate::{
     adapters::{
         escrow_adapter::EscrowAdapter,
         rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_storage_adapter::{ReceiptRead, ReceiptStore},
+        receipt_storage_adapter::{ReceiptDelete, ReceiptRead, ReceiptStore},
     },
     checks::ReceiptCheck,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
@@ -242,7 +242,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptStore + RAVRead,
+    E: ReceiptDelete + RAVRead,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
     /// therefore already aggregated into the RAV.
