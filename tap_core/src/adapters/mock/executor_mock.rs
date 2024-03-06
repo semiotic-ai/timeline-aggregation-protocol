@@ -148,23 +148,6 @@ impl ReceiptStore for ExecutorMock {
         *id_pointer += 1;
         Ok(id_previous)
     }
-    async fn update_receipt_by_id(
-        &self,
-        receipt_id: u64,
-        receipt: ReceivedReceipt,
-    ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage = self.receipt_storage.write().unwrap();
-
-        if !receipt_storage.contains_key(&receipt_id) {
-            return Err(AdapterErrorMock::AdapterError {
-                error: "Invalid receipt_id".to_owned(),
-            });
-        };
-
-        receipt_storage.insert(receipt_id, receipt);
-        *self.unique_id.write().unwrap() += 1;
-        Ok(())
-    }
 }
 
 #[async_trait]

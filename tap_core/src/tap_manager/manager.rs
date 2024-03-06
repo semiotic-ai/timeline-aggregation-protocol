@@ -292,18 +292,8 @@ where
     ) -> std::result::Result<(), Error> {
         let mut received_receipt =
             ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
-        // The receipt id is needed before `perform_checks` can be called on received receipt
-        // since it is needed for uniqueness check. Since the receipt_id is defined when it is stored
-        // This function first stores it, then checks it, then updates what was stored.
 
-        let receipt_id = self
-            .executor
-            .store_receipt(received_receipt.clone())
-            .await
-            .map_err(|err| Error::AdapterError {
-                source_error: anyhow::Error::new(err),
-            })?;
-
+        // perform checks
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
             received_receipt
                 .perform_checks(
@@ -316,8 +306,9 @@ where
                 .await;
         }
 
+        // store the receipt
         self.executor
-            .update_receipt_by_id(receipt_id, received_receipt)
+            .store_receipt(received_receipt.clone())
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
