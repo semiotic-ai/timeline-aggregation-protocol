@@ -271,7 +271,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptStore + EscrowAdapter,
+    E: ReceiptStore,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
