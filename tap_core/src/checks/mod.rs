@@ -1,16 +1,28 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::tap_receipt::{Checking, ReceiptError, ReceiptResult, ReceiptWithState};
+use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
 pub type ReceiptCheck = Arc<dyn Check>;
 
+pub type CheckResult<T> = Result<T, CheckError>;
+
+#[derive(Serialize, Deserialize, Clone, thiserror::Error, Debug)]
+#[error("Error while checking: {0}")]
+pub struct CheckError(pub String);
+
+impl From<ReceiptError> for CheckError {
+    fn from(value: ReceiptError) -> Self {
+        Self(value.to_string())
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum CheckingChecks {
     Pending(ReceiptCheck),
-    Executed(ReceiptResult<()>),
+    Executed(CheckResult<()>),
 }
 
 impl CheckingChecks {
@@ -44,9 +56,9 @@ impl CheckingChecks {
 #[async_trait::async_trait]
 #[typetag::serde(tag = "type")]
 pub trait Check: std::fmt::Debug + Send + Sync {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()>;
+    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()>;
 
-    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<ReceiptResult<()>> {
+    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult<()>> {
         let mut results = Vec::new();
         for receipt in receipts {
             let result = self.check(receipt).await;
@@ -77,14 +89,15 @@ impl TimestampCheck {
 #[async_trait::async_trait]
 #[typetag::serde]
 impl Check for TimestampCheck {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
         if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
             return Err(ReceiptError::InvalidTimestamp {
                 received_timestamp: signed_receipt.message.timestamp_ns,
                 timestamp_min: min_timestamp_ns,
-            });
+            }
+            .into());
         }
         Ok(())
     }
@@ -134,7 +147,7 @@ pub mod mock {
     #[async_trait::async_trait]
     #[typetag::serde]
     impl Check for UniqueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let receipt_storage = self.receipt_storage.read().unwrap();
             // let receipt_id = receipt.
             let unique = receipt_storage
@@ -144,13 +157,15 @@ pub mod mock {
                         || stored_receipt.query_id() == receipt.query_id
                 });
 
-            unique.then_some(()).ok_or(ReceiptError::NonUniqueReceipt)
+            unique
+                .then_some(())
+                .ok_or(ReceiptError::NonUniqueReceipt.into())
         }
 
         async fn check_batch(
             &self,
             receipts: &[ReceiptWithState<Checking>],
-        ) -> Vec<ReceiptResult<()>> {
+        ) -> Vec<CheckResult<()>> {
             let mut signatures: HashSet<ethers::types::Signature> = HashSet::new();
             let mut results = Vec::new();
 
@@ -159,7 +174,7 @@ pub mod mock {
                 if signatures.insert(signature) {
                     results.push(Ok(()));
                 } else {
-                    results.push(Err(ReceiptError::NonUniqueReceipt));
+                    results.push(Err(ReceiptError::NonUniqueReceipt.into()));
                 }
             }
             results
@@ -175,7 +190,7 @@ pub mod mock {
     #[async_trait::async_trait]
     #[typetag::serde]
     impl Check for ValueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let query_id = receipt.query_id;
             let value = receipt.signed_receipt().message.value;
             let query_appraisals = self.query_appraisals.read().unwrap();
@@ -189,7 +204,8 @@ pub mod mock {
             if value != *appraised_value {
                 Err(ReceiptError::InvalidValue {
                     received_value: value,
-                })
+                }
+                .into())
             } else {
                 Ok(())
             }
@@ -205,7 +221,7 @@ pub mod mock {
     #[async_trait::async_trait]
     #[typetag::serde]
     impl Check for AllocationIdCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let received_allocation_id = receipt.signed_receipt().message.allocation_id;
             if self
                 .allocation_ids
@@ -217,7 +233,8 @@ pub mod mock {
             } else {
                 Err(ReceiptError::InvalidAllocationID {
                     received_allocation_id,
-                })
+                }
+                .into())
             }
         }
     }
@@ -231,7 +248,7 @@ pub mod mock {
     #[async_trait::async_trait]
     #[typetag::serde]
     impl Check for SignatureCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> ReceiptResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let recovered_address = receipt
                 .signed_receipt()
                 .recover_signer(&self.domain_separator)
@@ -241,7 +258,8 @@ pub mod mock {
             if !self.valid_signers.contains(&recovered_address) {
                 Err(ReceiptError::InvalidSignature {
                     source_error_message: "Invalid signer".to_string(),
-                })
+                }
+                .into())
             } else {
                 Ok(())
             }
