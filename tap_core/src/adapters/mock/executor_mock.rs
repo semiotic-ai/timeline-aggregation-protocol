@@ -3,7 +3,7 @@
 
 use crate::adapters::escrow_adapter::EscrowAdapter;
 use crate::adapters::receipt_storage_adapter::{
-    safe_truncate_receipts, ReceiptRead, ReceiptStore, StoredReceipt,
+    safe_truncate_receipts, ReceiptDelete, ReceiptRead, ReceiptStore, StoredReceipt,
 };
 use crate::checks::TimestampCheck;
 use crate::tap_receipt::ReceivedReceipt;
@@ -139,6 +139,7 @@ impl RAVRead for ExecutorMock {
 #[async_trait]
 impl ReceiptStore for ExecutorMock {
     type AdapterError = AdapterErrorMock;
+
     async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
@@ -164,6 +165,12 @@ impl ReceiptStore for ExecutorMock {
         *self.unique_id.write().unwrap() += 1;
         Ok(())
     }
+}
+
+#[async_trait]
+impl ReceiptDelete for ExecutorMock {
+    type AdapterError = AdapterErrorMock;
+
     async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_ns: R,
@@ -175,7 +182,6 @@ impl ReceiptStore for ExecutorMock {
         Ok(())
     }
 }
-
 #[async_trait]
 impl ReceiptRead for ExecutorMock {
     type AdapterError = AdapterErrorMock;
