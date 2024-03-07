@@ -208,9 +208,7 @@ impl ReceiptWithState<Checking> {
             check
                 .check(self)
                 .await
-                .map_err(|e| ReceiptError::CheckFailedToComplete {
-                    source_error_message: e.to_string(),
-                })?;
+                .map_err(|e| ReceiptError::CheckFailedToComplete(e.to_string()))?;
         }
         Ok(())
     }

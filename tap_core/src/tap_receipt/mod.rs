@@ -33,8 +33,8 @@ pub enum ReceiptError {
     NonUniqueReceipt,
     #[error("Attempt to collect escrow failed")]
     SubtractEscrowFailed,
-    #[error("Issue encountered while performing check: {source_error_message}")]
-    CheckFailedToComplete { source_error_message: String },
+    #[error("Issue encountered while performing check: {0}")]
+    CheckFailedToComplete(String),
 }
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;

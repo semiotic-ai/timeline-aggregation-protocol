@@ -6,30 +6,16 @@ use std::sync::{Arc, RwLock};
 
 pub type ReceiptCheck = Arc<dyn Check>;
 
-pub type CheckResult<T> = Result<T, CheckError>;
+pub type CheckResult = anyhow::Result<()>;
 
-#[derive(thiserror::Error, Debug)]
-#[error("Error while checking: {0}")]
-pub struct CheckError(pub String);
-
-impl From<ReceiptError> for CheckError {
-    fn from(value: ReceiptError) -> Self {
-        Self(value.to_string())
-    }
+#[async_trait::async_trait]
+pub trait Check {
+    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult;
 }
 
 #[async_trait::async_trait]
-pub trait Check: Send + Sync {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()>;
-
-    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult<()>> {
-        let mut results = Vec::new();
-        for receipt in receipts {
-            let result = self.check(receipt).await;
-            results.push(result);
-        }
-        results
-    }
+pub trait CheckBatch {
+    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult>;
 }
 
 #[derive(Debug)]
@@ -51,7 +37,7 @@ impl TimestampCheck {
 
 #[async_trait::async_trait]
 impl Check for TimestampCheck {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
+    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
         if signed_receipt.message.timestamp_ns < min_timestamp_ns {
@@ -94,15 +80,8 @@ pub mod mock {
     struct UniqueCheck;
 
     #[async_trait::async_trait]
-    impl Check for UniqueCheck {
-        async fn check(&self, _: &ReceiptWithState<Checking>) -> CheckResult<()> {
-            unimplemented!()
-        }
-
-        async fn check_batch(
-            &self,
-            receipts: &[ReceiptWithState<Checking>],
-        ) -> Vec<CheckResult<()>> {
+    impl CheckBatch for UniqueCheck {
+        async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult> {
             let mut signatures: HashSet<ethers::types::Signature> = HashSet::new();
             let mut results = Vec::new();
 
@@ -124,16 +103,16 @@ pub mod mock {
 
     #[async_trait::async_trait]
     impl Check for ValueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
             let value = receipt.signed_receipt().message.value;
             let query_appraisals = self.query_appraisals.read().unwrap();
             let hash = receipt.signed_receipt().unique_hash();
             let appraised_value =
                 query_appraisals
                     .get(&hash)
-                    .ok_or(ReceiptError::CheckFailedToComplete {
-                        source_error_message: "Could not find query_appraisals".into(),
-                    })?;
+                    .ok_or(ReceiptError::CheckFailedToComplete(
+                        "Could not find query_appraisals".into(),
+                    ))?;
 
             if value != *appraised_value {
                 Err(ReceiptError::InvalidValue {
@@ -152,7 +131,7 @@ pub mod mock {
 
     #[async_trait::async_trait]
     impl Check for AllocationIdCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
             let received_allocation_id = receipt.signed_receipt().message.allocation_id;
             if self
                 .allocation_ids
@@ -177,7 +156,7 @@ pub mod mock {
 
     #[async_trait::async_trait]
     impl Check for SignatureCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
             let recovered_address = receipt
                 .signed_receipt()
                 .recover_signer(&self.domain_separator)
