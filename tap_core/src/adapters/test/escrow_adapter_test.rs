@@ -3,20 +3,37 @@
 
 #[cfg(test)]
 mod escrow_adapter_unit_test {
-    use std::{collections::HashMap, sync::Arc};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, RwLock},
+    };
 
     use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
     use rstest::*;
-    use tokio::sync::RwLock;
 
-    use crate::adapters::{escrow_adapter::EscrowAdapter, escrow_adapter_mock::EscrowAdapterMock};
+    use crate::{
+        adapters::{escrow_adapter::EscrowAdapter, executor_mock::ExecutorMock},
+        checks::TimestampCheck,
+    };
+
+    #[fixture]
+    fn executor() -> ExecutorMock {
+        let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
+        let rav_storage = Arc::new(RwLock::new(None));
+        let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+
+        let timestamp_check = Arc::new(TimestampCheck::new(0));
+        ExecutorMock::new(
+            rav_storage,
+            receipt_storage.clone(),
+            escrow_storage.clone(),
+            timestamp_check,
+        )
+    }
 
     #[rstest]
     #[tokio::test]
-    async fn escrow_adapter_test() {
-        let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-        let mut escrow_adapter = EscrowAdapterMock::new(escrow_storage);
-
+    async fn escrow_adapter_test(mut executor: ExecutorMock) {
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -35,42 +52,31 @@ mod escrow_adapter_unit_test {
 
         let initial_value = 500u128;
 
-        escrow_adapter
-            .increase_escrow(sender_id, initial_value)
-            .await;
+        executor.increase_escrow(sender_id, initial_value);
 
         // Check that sender exists and has valid value through adapter
-        assert!(escrow_adapter.get_available_escrow(sender_id).await.is_ok());
+        assert!(executor.get_available_escrow(sender_id).await.is_ok());
         assert_eq!(
-            escrow_adapter
-                .get_available_escrow(sender_id)
-                .await
-                .unwrap(),
+            executor.get_available_escrow(sender_id).await.unwrap(),
             initial_value
         );
 
         // Check that subtracting is valid for valid sender, and results in expected value
-        assert!(escrow_adapter
+        assert!(executor
             .subtract_escrow(sender_id, initial_value)
             .await
             .is_ok());
-        assert!(escrow_adapter.get_available_escrow(sender_id).await.is_ok());
-        assert_eq!(
-            escrow_adapter
-                .get_available_escrow(sender_id)
-                .await
-                .unwrap(),
-            0
-        );
+        assert!(executor.get_available_escrow(sender_id).await.is_ok());
+        assert_eq!(executor.get_available_escrow(sender_id).await.unwrap(), 0);
 
         // Check that subtracting to negative escrow results in err
-        assert!(escrow_adapter
+        assert!(executor
             .subtract_escrow(sender_id, initial_value)
             .await
             .is_err());
 
         // Check that accessing non initialized sender results in err
-        assert!(escrow_adapter
+        assert!(executor
             .get_available_escrow(invalid_sender_id)
             .await
             .is_err());

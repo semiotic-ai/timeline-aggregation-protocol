@@ -7,10 +7,9 @@
 use std::{
     collections::{HashMap, HashSet},
     convert::TryInto,
-    iter::FromIterator,
     net::{SocketAddr, TcpListener},
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 use alloy_primitives::Address;
@@ -22,20 +21,15 @@ use jsonrpsee::{
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
-use tokio::sync::RwLock;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
-    adapters::{
-        escrow_adapter_mock::EscrowAdapterMock, executor_mock::ExecutorMock,
-        rav_storage_adapter_mock::RAVStorageAdapterMock,
-        receipt_checks_adapter_mock::ReceiptChecksAdapterMock,
-        receipt_storage_adapter_mock::ReceiptStorageAdapterMock,
-    },
+    adapters::executor_mock::{ExecutorMock, QueryAppraisals},
+    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
     tap_manager::SignedRAV,
-    tap_receipt::{Receipt, ReceiptCheck, ReceivedReceipt},
+    tap_receipt::Receipt,
 };
 
 use crate::indexer_mock;
@@ -123,6 +117,16 @@ fn allocation_ids() -> Vec<Address> {
     ]
 }
 
+#[fixture]
+fn sender_ids() -> Vec<Address> {
+    vec![
+        Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
+        Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
+        Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+        keys_sender().1,
+    ]
+}
+
 // Domain separator is used to sign receipts/RAVs according to EIP-712
 #[fixture]
 fn domain_separator() -> Eip712Domain {
@@ -131,7 +135,8 @@ fn domain_separator() -> Eip712Domain {
 
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.
 #[fixture]
-fn query_price() -> Vec<u128> {
+#[once]
+fn query_price() -> &'static [u128] {
     let seed: Vec<u8> = (0..32u8).collect(); // A seed of your choice
     let mut rng: StdRng = SeedableRng::from_seed(seed.try_into().unwrap());
     let mut v = Vec::new();
@@ -139,133 +144,76 @@ fn query_price() -> Vec<u128> {
     for _ in 0..num_queries() {
         v.push(rng.gen::<u128>() % 100);
     }
-    v
+    Box::leak(v.into_boxed_slice())
 }
 
 // Available escrow is set by a Sender. It's assumed the Indexer has way of knowing this value.
 #[fixture]
-fn available_escrow(query_price: Vec<u128>, num_batches: u64) -> u128 {
-    (num_batches as u128) * query_price.into_iter().sum::<u128>()
+fn available_escrow(query_price: &[u128], num_batches: u64) -> u128 {
+    (num_batches as u128) * query_price.iter().sum::<u128>()
 }
 
-// The escrow adapter, a storage struct that the Indexer uses to track the available escrow for each Sender
 #[fixture]
-fn escrow_adapter() -> EscrowAdapterMock {
-    EscrowAdapterMock::new(Arc::new(RwLock::new(HashMap::new())))
+fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
+    Arc::new(RwLock::new(
+        query_price
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (i as u64, *p))
+            .collect(),
+    ))
+}
+
+struct ExecutorFixture {
+    executor: ExecutorMock,
+    checks: Vec<ReceiptCheck>,
 }
 
 #[fixture]
 fn executor(
-    keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) -> ExecutorMock {
-    let (_, sender_address) = keys_sender;
-    let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
-    let query_appraisal_storage = Arc::new(RwLock::new(query_appraisals));
-    let allocation_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from_iter(allocation_ids)));
-    let sender_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from([sender_address])));
+    sender_ids: Vec<Address>,
+    query_appraisals: QueryAppraisals,
+) -> ExecutorFixture {
+    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
+    let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
-
-    let sender_escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-
-    ExecutorMock::new(
+    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let executor = ExecutorMock::new(
         rav_storage,
+        receipt_storage.clone(),
+        escrow_storage.clone(),
+        timestamp_check.clone(),
+    );
+    let mut checks = get_full_list_of_checks(
+        domain_separator,
+        sender_ids.iter().cloned().collect(),
+        Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
         receipt_storage,
-        sender_escrow_storage,
-        query_appraisal_storage,
-        allocation_ids,
-        sender_ids,
-    )
+        query_appraisals,
+    );
+    checks.push(timestamp_check);
+
+    ExecutorFixture { executor, checks }
 }
 
 #[fixture]
-fn receipt_storage() -> Arc<RwLock<HashMap<u64, ReceivedReceipt>>> {
-    Arc::new(RwLock::new(HashMap::new()))
-}
-// A storage struct used by the Indexer to store Receipts, all recieved receipts are stored here. There are flags which indicate the validity of the receipt.
-#[fixture]
-fn receipt_storage_adapter(
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) -> ReceiptStorageAdapterMock {
-    ReceiptStorageAdapterMock::new(receipt_storage)
-}
-
-// This adapter is used by the Indexer to check the validity of the receipt.
-#[fixture]
-fn receipt_checks_adapter(
-    keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
-    allocation_ids: Vec<Address>,
-    receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-) -> ReceiptChecksAdapterMock {
-    let (_, sender_address) = keys_sender;
-    let query_appraisals: HashMap<_, _> = (0u64..).zip(query_price).collect();
-    let query_appraisals_storage = Arc::new(RwLock::new(query_appraisals));
-    let allocation_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from_iter(allocation_ids)));
-    let sender_ids: Arc<RwLock<HashSet<Address>>> =
-        Arc::new(RwLock::new(HashSet::from([sender_address])));
-
-    ReceiptChecksAdapterMock::new(
-        receipt_storage,
-        query_appraisals_storage,
-        allocation_ids,
-        sender_ids,
-    )
-}
-
-// A structure for storing received RAVs.
-#[fixture]
-fn rav_storage_adapter() -> RAVStorageAdapterMock {
-    RAVStorageAdapterMock::new(Arc::new(RwLock::new(None)))
-}
-
-// These are the checks that the Indexer will perform when requesting a RAV.
-// Testing with all checks enabled.
-#[fixture]
-fn required_checks() -> Vec<ReceiptCheck> {
-    vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
-    ]
-}
-
-// These are the checks that the Indexer will perform for each received receipt, i.e. before requesting a RAV.
-// Testing with all checks enabled.
-#[fixture]
-fn initial_checks() -> Vec<ReceiptCheck> {
-    vec![
-        ReceiptCheck::CheckAllocationId,
-        ReceiptCheck::CheckSignature,
-        ReceiptCheck::CheckTimestamp,
-        ReceiptCheck::CheckUnique,
-        ReceiptCheck::CheckValue,
-    ]
-}
-
-#[fixture]
-fn indexer_1_adapters(executor: ExecutorMock) -> ExecutorMock {
+fn indexer_1_adapters(executor: ExecutorFixture) -> ExecutorFixture {
     executor
 }
 
 #[fixture]
-fn indexer_2_adapters(executor: ExecutorMock) -> ExecutorMock {
+fn indexer_2_adapters(executor: ExecutorFixture) -> ExecutorFixture {
     executor
 }
 
 // Helper fixture to generate a batch of receipts to be sent to the Indexer.
 // Messages are formatted according to TAP spec and signed according to EIP-712.
 #[fixture]
-async fn requests_1(
+fn requests_1(
     keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -278,15 +226,14 @@ async fn requests_1(
         &sender_key,
         allocation_ids[0],
         &domain_separator,
-    )
-    .await?;
+    )?;
     Ok(requests)
 }
 
 #[fixture]
-async fn requests_2(
+fn requests_2(
     keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -299,15 +246,14 @@ async fn requests_2(
         &sender_key,
         allocation_ids[1],
         &domain_separator,
-    )
-    .await?;
+    )?;
     Ok(requests)
 }
 
 #[fixture]
-async fn repeated_timestamp_request(
+fn repeated_timestamp_request(
     keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
@@ -322,8 +268,7 @@ async fn repeated_timestamp_request(
         &sender_key,
         allocation_ids[0],
         &domain_separator,
-    )
-    .await?;
+    )?;
 
     // Create a new receipt with the timestamp equal to the latest receipt in the first RAV request batch
     let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
@@ -340,14 +285,14 @@ async fn repeated_timestamp_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize].0 =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key).await?;
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key)?;
     Ok(requests)
 }
 
 #[fixture]
-async fn repeated_timestamp_incremented_by_one_request(
+fn repeated_timestamp_incremented_by_one_request(
     keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
@@ -361,8 +306,7 @@ async fn repeated_timestamp_incremented_by_one_request(
         &sender_key,
         allocation_ids[0],
         &domain_separator,
-    )
-    .await?;
+    )?;
 
     // Create a new receipt with the timestamp equal to the latest receipt timestamp+1 in the first RAV request batch
     let repeat_timestamp = requests[receipt_threshold_1 as usize - 1]
@@ -380,14 +324,14 @@ async fn repeated_timestamp_incremented_by_one_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize].0 =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key).await?;
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key)?;
     Ok(requests)
 }
 
 #[fixture]
-async fn wrong_requests(
+fn wrong_requests(
     wrong_keys_sender: (LocalWallet, Address),
-    query_price: Vec<u128>,
+    query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
@@ -401,8 +345,7 @@ async fn wrong_requests(
         &sender_key,
         allocation_ids[0],
         &domain_separator,
-    )
-    .await?;
+    )?;
     Ok(requests)
 }
 
@@ -414,10 +357,8 @@ async fn single_indexer_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
     let sender_id = keys_sender.1;
@@ -429,14 +370,14 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor = indexer_1_adapters;
+    let ExecutorFixture { executor, checks } = indexer_1_adapters;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks.clone(),
+        checks,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -456,11 +397,9 @@ async fn two_indexers_test_servers(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
-    indexer_2_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
+    indexer_2_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(
     ServerHandle,
@@ -479,16 +418,23 @@ async fn two_indexers_test_servers(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor_1 = indexer_1_adapters;
-    let executor_2 = indexer_2_adapters;
+    let ExecutorFixture {
+        executor: executor_1,
+        checks: checks_1,
+    } = indexer_1_adapters;
+
+    let ExecutorFixture {
+        executor: executor_2,
+        checks: checks_2,
+    } = indexer_2_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor_1,
         sender_id,
         available_escrow,
-        initial_checks.clone(),
-        required_checks.clone(),
+        checks_1.clone(),
+        checks_1,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -499,8 +445,8 @@ async fn two_indexers_test_servers(
         executor_2,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks_2.clone(),
+        checks_2,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -523,10 +469,8 @@ async fn single_indexer_wrong_sender_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorMock,
+    indexer_1_adapters: ExecutorFixture,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
-    required_checks: Vec<ReceiptCheck>,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
     let sender_id = wrong_keys_sender.1;
@@ -538,15 +482,17 @@ async fn single_indexer_wrong_sender_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let executor = indexer_1_adapters;
+    let ExecutorFixture {
+        executor, checks, ..
+    } = indexer_1_adapters;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         executor,
         sender_id,
         available_escrow,
-        initial_checks,
-        required_checks,
+        checks.clone(),
+        checks,
         receipt_threshold_1,
         sender_aggregator_addr,
     )
@@ -567,13 +513,13 @@ async fn test_manager_one_indexer(
         (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
         Error,
     >,
-    #[future] requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
     let indexer_1_address = "http://".to_string() + &socket_addr.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
-    let requests = requests_1.await?;
+    let requests = requests_1?;
 
     for (receipt_1, id) in requests {
         let result = client_1.request("request", (id, receipt_1)).await;
@@ -601,8 +547,8 @@ async fn test_manager_two_indexers(
         ),
         Error,
     >,
-    #[future] requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
-    #[future] requests_2: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_2: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
 ) -> Result<()> {
     let (
         _server_handle_1,
@@ -617,8 +563,8 @@ async fn test_manager_two_indexers(
     let indexer_2_address = "http://".to_string() + &socket_addr_2.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
     let client_2 = HttpClientBuilder::default().build(indexer_2_address)?;
-    let requests_1 = requests_1.await?;
-    let requests_2 = requests_2.await?;
+    let requests_1 = requests_1?;
+    let requests_2 = requests_2?;
 
     for ((receipt_1, id_1), (receipt_2, id_2)) in requests_1.iter().zip(requests_2) {
         let future_1 = client_1.request("request", (id_1, receipt_1));
@@ -638,14 +584,14 @@ async fn test_manager_wrong_aggregator_keys(
         (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
         Error,
     >,
-    #[future] requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
     receipt_threshold_1: u64,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_wrong_sender_test_server.await?;
     let indexer_1_address = "http://".to_string() + &socket_addr.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
-    let requests = requests_1.await?;
+    let requests = requests_1?;
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
@@ -681,14 +627,14 @@ async fn test_manager_wrong_requestor_keys(
         (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
         Error,
     >,
-    #[future] wrong_requests: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    wrong_requests: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
     receipt_threshold_1: u64,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
     let indexer_1_address = "http://".to_string() + &socket_addr.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
-    let requests = wrong_requests.await?;
+    let requests = wrong_requests?;
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
@@ -727,10 +673,8 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
         ),
         Error,
     >,
-    #[future] repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
-    #[future] repeated_timestamp_incremented_by_one_request: Result<
-        Vec<(EIP712SignedMessage<Receipt>, u64)>,
-    >,
+    repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    repeated_timestamp_incremented_by_one_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
     receipt_threshold_1: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // This test checks that tap_core is correctly filtering receipts by timestamp.
@@ -747,7 +691,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
     let indexer_2_address = "http://".to_string() + &socket_addr_2.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
     let client_2 = HttpClientBuilder::default().build(indexer_2_address)?;
-    let requests = repeated_timestamp_request.await?;
+    let requests = repeated_timestamp_request?;
 
     let mut counter = 1;
     for (receipt_1, id) in requests {
@@ -774,7 +718,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 
     // Here the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
     // No errors are expected.
-    let requests = repeated_timestamp_incremented_by_one_request.await?;
+    let requests = repeated_timestamp_incremented_by_one_request?;
     for (receipt_1, id) in requests {
         let result = client_2.request("request", (id, receipt_1)).await;
         match result {
@@ -793,10 +737,8 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    #[future] repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
-    #[future] repeated_timestamp_incremented_by_one_request: Result<
-        Vec<(EIP712SignedMessage<Receipt>, u64)>,
-    >,
+    repeated_timestamp_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    repeated_timestamp_incremented_by_one_request: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
     receipt_threshold_1: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // This test checks that tap_aggregator is correctly rejecting receipts with invalid timestamps
@@ -814,7 +756,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     // The second batch has one receipt with the same timestamp as the latest receipt in the first batch.
     // The first RAV will have the same timestamp as one receipt in the second batch.
     // tap_aggregator should reject the second RAV request due to the repeated timestamp.
-    let requests = repeated_timestamp_request.await?;
+    let requests = repeated_timestamp_request?;
     let first_batch = &requests[0..receipt_threshold_1 as usize];
     let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
 
@@ -847,7 +789,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     // This is the second part of the test, two batches of receipts are sent to the aggregator.
     // The second batch has one receipt with the timestamp = timestamp+1 of the latest receipt in the first batch.
     // tap_aggregator should accept the second RAV request.
-    let requests = repeated_timestamp_incremented_by_one_request.await?;
+    let requests = repeated_timestamp_incremented_by_one_request?;
     let first_batch = &requests[0..receipt_threshold_1 as usize];
     let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
 
@@ -882,8 +824,8 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     Ok(())
 }
 
-async fn generate_requests(
-    query_price: Vec<u128>,
+fn generate_requests(
+    query_price: &[u128],
     num_batches: u64,
     sender_key: &LocalWallet,
     allocation_id: Address,
@@ -893,14 +835,13 @@ async fn generate_requests(
 
     let mut counter = 0;
     for _ in 0..num_batches {
-        for value in &query_price {
+        for value in query_price {
             requests.push((
                 EIP712SignedMessage::new(
                     domain_separator,
                     Receipt::new(allocation_id, *value)?,
                     sender_key,
-                )
-                .await?,
+                )?,
                 counter,
             ));
             counter += 1;
@@ -927,7 +868,7 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    executor.increase_escrow(sender_id, available_escrow).await;
+    executor.increase_escrow(sender_id, available_escrow);
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(
@@ -939,6 +880,7 @@ async fn start_indexer_server(
         receipt_threshold,
         aggregate_server_address,
         aggregate_server_api_version(),
+        sender_id,
     )
     .await?;
 

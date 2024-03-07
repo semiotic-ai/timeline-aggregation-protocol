@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct RAVRequest {
     pub valid_receipts: Vec<SignedReceipt>,
     pub previous_rav: Option<SignedRAV>,

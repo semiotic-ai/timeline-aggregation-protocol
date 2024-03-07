@@ -3,5 +3,4 @@
 
 pub mod escrow_adapter_test;
 pub mod rav_storage_adapter_test;
-pub mod receipt_checks_adapter_test;
 pub mod receipt_storage_adapter_test;

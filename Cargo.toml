@@ -1,11 +1,8 @@
 [workspace]
-members = [
-    "tap_core",
-    "tap_aggregator",
-    "tap_integration_tests"
-]
+resolver = "2"
+members = ["tap_core", "tap_aggregator", "tap_integration_tests"]
 
 [workspace.package]
-version="0.1.0"
+version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"

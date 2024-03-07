@@ -17,22 +17,22 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheck, ReceiptCheckResults};
+use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheckResults};
 use crate::{
-    adapters::{
-        escrow_adapter::EscrowAdapter, receipt_checks_adapter::ReceiptChecksAdapter,
-        receipt_storage_adapter::StoredReceipt,
-    },
+    adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
+    checks::{CheckingChecks, ReceiptCheck},
     eip_712_signed_message::EIP712SignedMessage,
-    Error, Result,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Checking {
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(bound(deserialize = "'de: 'static"))]
 pub struct Failed {
     /// A list of checks to be completed for the receipt, along with their current result
     pub(crate) checks: ReceiptCheckResults,
@@ -80,7 +80,7 @@ pub struct ReceiptWithId<T>
 where
     T: ReceiptState,
 {
-    pub(crate) receipt_id: u64,
+    pub receipt_id: u64,
     pub(crate) receipt: ReceiptWithState<T>,
 }
 
@@ -223,7 +223,7 @@ impl ReceiptWithState<AwaitingReserve> {
         auditor: &ReceiptAuditor<A>,
     ) -> ResultReceipt<Reserved>
     where
-        A: EscrowAdapter + ReceiptChecksAdapter,
+        A: EscrowAdapter,
     {
         match auditor.check_and_reserve_escrow(&self).await {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
@@ -243,43 +243,14 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_check<A>(
-        &mut self,
-        check: &ReceiptCheck,
-        receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<A>,
-    ) where
-        A: EscrowAdapter + ReceiptChecksAdapter,
-    {
+    pub async fn perform_check(&mut self, check_name: &'static str) {
         // Only perform check if it is incomplete
         // Don't check if already failed
-        if !self.check_is_complete(check) && !self.any_check_resulted_in_error() {
-            let _ = self.update_check(
-                check,
-                Some(
-                    receipt_auditor
-                        .check(check, &self.signed_receipt, self.query_id, receipt_id)
-                        .await,
-                ),
-            );
+        let check = self.state.checks.remove(check_name);
+        if let Some(check) = check {
+            let result = check.execute(self).await;
+            self.state.checks.insert(check_name, result);
         }
-    }
-
-    pub async fn perform_check_batch<A>(
-        batch: &mut [Self],
-        check: &ReceiptCheck,
-        receipt_auditor: &ReceiptAuditor<A>,
-    ) -> Result<()>
-    where
-        A: EscrowAdapter + ReceiptChecksAdapter,
-    {
-        let results = receipt_auditor.check_batch(check, batch).await;
-
-        for (receipt, result) in batch.iter_mut().zip(results) {
-            receipt.update_check(check, Some(result))?;
-        }
-
-        Ok(())
     }
 
     /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
@@ -292,16 +263,9 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks<A>(
-        &mut self,
-        checks: &[ReceiptCheck],
-        receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<A>,
-    ) where
-        A: EscrowAdapter + ReceiptChecksAdapter,
-    {
+    pub async fn perform_checks(&mut self, checks: &[&'static str]) {
         for check in checks {
-            self.perform_check(check, receipt_id, receipt_auditor).await;
+            self.perform_check(check).await;
         }
     }
 
@@ -309,18 +273,10 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
-    pub async fn finalize_receipt_checks<A>(
-        mut self,
-        receipt_id: u64,
-        receipt_auditor: &ReceiptAuditor<A>,
-    ) -> ResultReceipt<AwaitingReserve>
-    where
-        A: EscrowAdapter + ReceiptChecksAdapter,
-    {
+    pub async fn finalize_receipt_checks(mut self) -> ResultReceipt<AwaitingReserve> {
         let incomplete_checks = self.incomplete_checks();
 
-        self.perform_checks(incomplete_checks.as_slice(), receipt_id, receipt_auditor)
-            .await;
+        self.perform_checks(incomplete_checks.as_slice()).await;
 
         if self.any_check_resulted_in_error() {
             let failed = self.perform_state_changes_into();
@@ -331,74 +287,33 @@ impl ReceiptWithState<Checking> {
         }
     }
 
-    /// Returns all checks that completed with errors
-    pub fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
-        self.state
-            .checks
-            .iter()
-            .filter_map(|(check, result)| {
-                if let Some(unwrapped_result) = result {
-                    if unwrapped_result.is_err() {
-                        return Some(((*check).clone(), Some((*unwrapped_result).clone())));
-                    }
-                }
-                None
-            })
-            .collect()
-    }
-
     /// Returns all checks that have not been completed
-    pub fn incomplete_checks(&self) -> Vec<ReceiptCheck> {
-        let incomplete_checks: Vec<ReceiptCheck> = self
+    pub(crate) fn incomplete_checks(&self) -> Vec<&'static str> {
+        let incomplete_checks = self
             .state
             .checks
             .iter()
             .filter_map(|(check, result)| {
-                if result.is_none() {
-                    Some((*check).clone())
-                } else {
-                    None
+                if result.is_complete() {
+                    return None;
                 }
+                Some(*check)
             })
             .collect();
         incomplete_checks
     }
 
-    pub(crate) fn update_check(
-        &mut self,
-        check: &ReceiptCheck,
-        result: Option<super::ReceiptResult<()>>,
-    ) -> Result<()> {
-        if !self.state.checks.contains_key(check) {
-            return Err(Error::InvalidCheckError {
-                check_string: check.to_string(),
-            });
-        }
-
-        self.state.checks.insert(check.clone(), result);
-        Ok(())
-    }
-
-    /// returns true `check` has a result, otherwise false
-    pub(crate) fn check_is_complete(&self, check: &ReceiptCheck) -> bool {
-        matches!(self.state.checks.get(check), Some(Some(_)))
-    }
-
     fn any_check_resulted_in_error(&self) -> bool {
-        self.state.checks.iter().any(|(_, status)| match &status {
-            Some(result) => result.is_err(),
-            None => false,
-        })
-    }
-
-    pub fn checking_is_complete(&self) -> bool {
-        self.state.checks.iter().all(|(_, status)| status.is_some())
+        self.state
+            .checks
+            .iter()
+            .any(|(_, status)| status.is_failed())
     }
 
     fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
         required_checks
             .iter()
-            .map(|check| (check.clone(), None))
+            .map(|check| (check.typetag_name(), CheckingChecks::Pending(check.clone())))
             .collect()
     }
 }
@@ -438,3 +353,5 @@ where
         self.query_id
     }
 }
+#[cfg(test)]
+pub mod received_receipt_unit_test;
