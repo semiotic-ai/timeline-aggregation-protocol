@@ -182,8 +182,6 @@ async fn partial_then_full_check_valid_receipt(
 
     let query_id = 1;
 
-    // prepare adapters and storage to correctly validate receipt
-
     // add escrow for sender
     escrow_storage
         .write()
@@ -231,7 +229,6 @@ async fn partial_then_finalize_valid_receipt(
         query_appraisals,
         ..
     } = executor_mock;
-    // give receipt 5 second variance for min start time
     let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
@@ -243,8 +240,6 @@ async fn partial_then_finalize_valid_receipt(
     .unwrap();
 
     let query_id = 1;
-
-    // prepare adapters and storage to correctly validate receipt
 
     // add escrow for sender
     escrow_storage
@@ -297,7 +292,6 @@ async fn standard_lifetime_valid_receipt(
         query_appraisals,
         ..
     } = executor_mock;
-    // give receipt 5 second variance for min start time
     let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
@@ -309,8 +303,6 @@ async fn standard_lifetime_valid_receipt(
     .unwrap();
 
     let query_id = 1;
-
-    // prepare adapters and storage to correctly validate receipt
 
     // add escrow for sender
     escrow_storage
