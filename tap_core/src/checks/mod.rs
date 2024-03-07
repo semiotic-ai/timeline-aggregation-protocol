@@ -4,7 +4,7 @@
 use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
 use std::sync::{Arc, RwLock};
 
-pub type ReceiptCheck = Arc<dyn Check>;
+pub type ReceiptCheck = Arc<dyn Check + Sync + Send>;
 
 pub type CheckResult = anyhow::Result<()>;
 
