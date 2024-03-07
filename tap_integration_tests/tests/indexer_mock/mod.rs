@@ -48,7 +48,6 @@ pub trait Rpc {
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<E> {
     manager: Arc<Manager<E>>, // Manager object reference counted with an Arc
-    initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     receipt_count: Arc<AtomicU64>, // Thread-safe atomic counter for receipts
     threshold: u64,           // The count at which a RAV request will be triggered
     aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
@@ -65,7 +64,6 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        initial_checks: Vec<ReceiptCheck>,
         required_checks: Vec<ReceiptCheck>,
         threshold: u64,
         sender_id: Address,
@@ -78,7 +76,6 @@ where
                 executor,
                 required_checks,
             )),
-            initial_checks,
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
             sender_id,
@@ -97,14 +94,10 @@ where
 {
     async fn request(
         &self,
-        request_id: u64,
+        _request_id: u64,
         receipt: SignedReceipt,
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
-        let verify_result = match self
-            .manager
-            .verify_and_store_receipt(receipt, request_id, self.initial_checks.as_slice())
-            .await
-        {
+        let verify_result = match self.manager.verify_and_store_receipt(receipt).await {
             Ok(_) => Ok(()),
             Err(e) => Err(to_rpc_error(
                 Box::new(e),
@@ -149,12 +142,11 @@ pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
     executor: E,                          // Executor instance
-    initial_checks: Vec<ReceiptCheck>, // Vector of initial checks to be performed on each request
     required_checks: Vec<ReceiptCheck>, // Vector of required checks to be performed on each request
-    threshold: u64,                    // The count at which a RAV request will be triggered
-    aggregate_server_address: String,  // Address of the aggregator server
+    threshold: u64,                     // The count at which a RAV request will be triggered
+    aggregate_server_address: String,   // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server
-    sender_id: Address,                // The sender address
+    sender_id: Address,                 // The sender address
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
 where
     E: ReceiptStore
@@ -178,7 +170,6 @@ where
     let rpc_manager = RpcManager::new(
         domain_separator,
         executor,
-        initial_checks,
         required_checks,
         threshold,
         sender_id,

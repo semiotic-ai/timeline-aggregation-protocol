@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
-use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
 pub type ReceiptCheck = Arc<dyn Check>;
 
 pub type CheckResult<T> = Result<T, CheckError>;
 
-#[derive(Serialize, Deserialize, Clone, thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 #[error("Error while checking: {0}")]
 pub struct CheckError(pub String);
 
@@ -19,43 +18,8 @@ impl From<ReceiptError> for CheckError {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum CheckingChecks {
-    Pending(ReceiptCheck),
-    Executed(CheckResult<()>),
-}
-
-impl CheckingChecks {
-    pub fn new(check: ReceiptCheck) -> Self {
-        Self::Pending(check)
-    }
-
-    pub async fn execute(self, receipt: &ReceiptWithState<Checking>) -> Self {
-        match self {
-            Self::Pending(check) => {
-                let result = check.check(receipt).await;
-                Self::Executed(result)
-            }
-            Self::Executed(_) => self,
-        }
-    }
-
-    pub fn is_failed(&self) -> bool {
-        matches!(self, Self::Executed(Err(_)))
-    }
-
-    pub fn is_pending(&self) -> bool {
-        matches!(self, Self::Pending(_))
-    }
-
-    pub fn is_complete(&self) -> bool {
-        matches!(self, Self::Executed(_))
-    }
-}
-
 #[async_trait::async_trait]
-#[typetag::serde(tag = "type")]
-pub trait Check: std::fmt::Debug + Send + Sync {
+pub trait Check: Send + Sync {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()>;
 
     async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult<()>> {
@@ -68,9 +32,8 @@ pub trait Check: std::fmt::Debug + Send + Sync {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct TimestampCheck {
-    #[serde(skip)]
     min_timestamp_ns: RwLock<u64>,
 }
 
@@ -87,12 +50,11 @@ impl TimestampCheck {
 }
 
 #[async_trait::async_trait]
-#[typetag::serde]
 impl Check for TimestampCheck {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
-        if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
+        if signed_receipt.message.timestamp_ns < min_timestamp_ns {
             return Err(ReceiptError::InvalidTimestamp {
                 received_timestamp: signed_receipt.message.timestamp_ns,
                 timestamp_min: min_timestamp_ns,
@@ -107,24 +69,20 @@ impl Check for TimestampCheck {
 pub mod mock {
 
     use super::*;
-    use crate::tap_receipt::ReceivedReceipt;
+    use crate::eip_712_signed_message::MessageId;
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
-    use std::{
-        collections::{HashMap, HashSet},
-        fmt::Debug,
-    };
+    use std::collections::{HashMap, HashSet};
 
     pub fn get_full_list_of_checks(
         domain_separator: Eip712Domain,
         valid_signers: HashSet<Address>,
         allocation_ids: Arc<RwLock<HashSet<Address>>>,
-        receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-        query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
+        _query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
     ) -> Vec<ReceiptCheck> {
         vec![
-            Arc::new(UniqueCheck { receipt_storage }),
-            Arc::new(ValueCheck { query_appraisals }),
+            // Arc::new(UniqueCheck ),
+            // Arc::new(ValueCheck { query_appraisals }),
             Arc::new(AllocationIdCheck { allocation_ids }),
             Arc::new(SignatureCheck {
                 domain_separator,
@@ -133,33 +91,12 @@ pub mod mock {
         ]
     }
 
-    #[derive(Serialize, Deserialize)]
-    struct UniqueCheck {
-        #[serde(skip)]
-        receipt_storage: Arc<RwLock<HashMap<u64, ReceivedReceipt>>>,
-    }
-    impl Debug for UniqueCheck {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "UniqueCheck")
-        }
-    }
+    struct UniqueCheck;
 
     #[async_trait::async_trait]
-    #[typetag::serde]
     impl Check for UniqueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
-            let receipt_storage = self.receipt_storage.read().unwrap();
-            // let receipt_id = receipt.
-            let unique = receipt_storage
-                .iter()
-                .all(|(_stored_receipt_id, stored_receipt)| {
-                    stored_receipt.signed_receipt().message != receipt.signed_receipt().message
-                        || stored_receipt.query_id() == receipt.query_id
-                });
-
-            unique
-                .then_some(())
-                .ok_or(ReceiptError::NonUniqueReceipt.into())
+        async fn check(&self, _: &ReceiptWithState<Checking>) -> CheckResult<()> {
+            unimplemented!()
         }
 
         async fn check_batch(
@@ -181,22 +118,19 @@ pub mod mock {
         }
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
     struct ValueCheck {
-        #[serde(skip)]
-        query_appraisals: Arc<RwLock<HashMap<u64, u128>>>,
+        query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
     }
 
     #[async_trait::async_trait]
-    #[typetag::serde]
     impl Check for ValueCheck {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
-            let query_id = receipt.query_id;
             let value = receipt.signed_receipt().message.value;
             let query_appraisals = self.query_appraisals.read().unwrap();
+            let hash = receipt.signed_receipt().unique_hash();
             let appraised_value =
                 query_appraisals
-                    .get(&query_id)
+                    .get(&hash)
                     .ok_or(ReceiptError::CheckFailedToComplete {
                         source_error_message: "Could not find query_appraisals".into(),
                     })?;
@@ -212,14 +146,11 @@ pub mod mock {
         }
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
     struct AllocationIdCheck {
-        #[serde(skip)]
         allocation_ids: Arc<RwLock<HashSet<Address>>>,
     }
 
     #[async_trait::async_trait]
-    #[typetag::serde]
     impl Check for AllocationIdCheck {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let received_allocation_id = receipt.signed_receipt().message.allocation_id;
@@ -239,14 +170,12 @@ pub mod mock {
         }
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
     struct SignatureCheck {
         domain_separator: Eip712Domain,
         valid_signers: HashSet<Address>,
     }
 
     #[async_trait::async_trait]
-    #[typetag::serde]
     impl Check for SignatureCheck {
         async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult<()> {
             let recovered_address = receipt
@@ -255,6 +184,7 @@ pub mod mock {
                 .map_err(|e| ReceiptError::InvalidSignature {
                     source_error_message: e.to_string(),
                 })?;
+            println!("{:?}, {:?}", self.valid_signers, recovered_address);
             if !self.valid_signers.contains(&recovered_address) {
                 Err(ReceiptError::InvalidSignature {
                     source_error_message: "Invalid signer".to_string(),

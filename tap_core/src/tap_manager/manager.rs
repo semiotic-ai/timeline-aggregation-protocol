@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use futures::Future;
@@ -24,8 +26,12 @@ use crate::{
 pub struct Manager<E> {
     /// Executor that implements adapters
     executor: E,
+
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    required_checks: Vec<ReceiptCheck>,
+    checks: Arc<[ReceiptCheck]>,
+
+    // /// Checks that must be completed for each receipt before being confirmed or denied for rav request
+    // finalize_checks: Arc<[ReceiptCheck]>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
@@ -42,13 +48,15 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        required_checks: Vec<ReceiptCheck>,
+        initial_checks: impl Into<Arc<[ReceiptCheck]>>,
+        // finalize_checks: impl Into<Arc<[ReceiptCheck]>>,
     ) -> Self {
         let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
         Self {
             executor,
-            required_checks,
             receipt_auditor,
+            checks: initial_checks.into(),
+            // finalize_checks: finalize_checks.into(),
         }
     }
 }
@@ -155,7 +163,7 @@ where
                 receipt,
                 receipt_id: _,
             } = received_receipt;
-            let receipt = receipt.finalize_receipt_checks().await;
+            let receipt = receipt.finalize_receipt_checks(&self.checks).await;
 
             match receipt {
                 Ok(checked) => awaiting_reserve_receipts.push(checked),
@@ -287,28 +295,18 @@ where
     pub async fn verify_and_store_receipt(
         &self,
         signed_receipt: SignedReceipt,
-        query_id: u64,
-        initial_checks: &[ReceiptCheck],
     ) -> std::result::Result<(), Error> {
-        let mut received_receipt =
-            ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
+        let mut received_receipt = ReceivedReceipt::new(signed_receipt);
 
         // perform checks
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            received_receipt
-                .perform_checks(
-                    initial_checks
-                        .iter()
-                        .map(|check| check.typetag_name())
-                        .collect::<Vec<_>>()
-                        .as_slice(),
-                )
-                .await;
+            // received_receipt.perform_checks(&self.checks).await?;
+            received_receipt.perform_checks(&[]).await?;
         }
 
         // store the receipt
         self.executor
-            .store_receipt(received_receipt.clone())
+            .store_receipt(received_receipt)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),

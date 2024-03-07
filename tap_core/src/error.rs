@@ -4,7 +4,7 @@
 //! Module containing Error type and Result typedef
 //!
 
-use crate::receipt_aggregate_voucher::ReceiptAggregateVoucher;
+use crate::{receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::ReceiptError};
 use alloy_primitives::Address;
 use ethers::signers::WalletError;
 use ethers_core::types::SignatureError;
@@ -55,6 +55,9 @@ pub enum Error {
         min_timestamp_ns: u64,
         max_timestamp_ns: u64,
     },
+
+    #[error("Receipt error: {0}")]
+    ReceiptError(#[from] ReceiptError),
 }
 
 pub type Result<T> = StdResult<T, Error>;

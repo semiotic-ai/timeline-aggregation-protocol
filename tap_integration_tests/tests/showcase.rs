@@ -26,7 +26,7 @@ use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::executor_mock::{ExecutorMock, QueryAppraisals},
     checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
-    eip_712_signed_message::EIP712SignedMessage,
+    eip_712_signed_message::{EIP712SignedMessage, MessageId},
     tap_eip712_domain,
     tap_manager::SignedRAV,
     tap_receipt::Receipt,
@@ -159,7 +159,8 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
         query_price
             .iter()
             .enumerate()
-            .map(|(i, p)| (i as u64, *p))
+            // TODO update this
+            .map(|(i, p)| (MessageId([i as u8; 32]), *p))
             .collect(),
     ))
 }
@@ -190,7 +191,6 @@ fn executor(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
-        receipt_storage,
         query_appraisals,
     );
     checks.push(timestamp_check);
@@ -376,7 +376,6 @@ async fn single_indexer_test_server(
         executor,
         sender_id,
         available_escrow,
-        checks.clone(),
         checks,
         receipt_threshold_1,
         sender_aggregator_addr,
@@ -433,7 +432,6 @@ async fn two_indexers_test_servers(
         executor_1,
         sender_id,
         available_escrow,
-        checks_1.clone(),
         checks_1,
         receipt_threshold_1,
         sender_aggregator_addr,
@@ -445,7 +443,6 @@ async fn two_indexers_test_servers(
         executor_2,
         sender_id,
         available_escrow,
-        checks_2.clone(),
         checks_2,
         receipt_threshold_1,
         sender_aggregator_addr,
@@ -491,7 +488,6 @@ async fn single_indexer_wrong_sender_test_server(
         executor,
         sender_id,
         available_escrow,
-        checks.clone(),
         checks,
         receipt_threshold_1,
         sender_aggregator_addr,
@@ -858,7 +854,6 @@ async fn start_indexer_server(
     mut executor: ExecutorMock,
     sender_id: Address,
     available_escrow: u128,
-    initial_checks: Vec<ReceiptCheck>,
     required_checks: Vec<ReceiptCheck>,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,
@@ -875,7 +870,6 @@ async fn start_indexer_server(
         http_port,
         domain_separator,
         executor,
-        initial_checks,
         required_checks,
         receipt_threshold,
         aggregate_server_address,

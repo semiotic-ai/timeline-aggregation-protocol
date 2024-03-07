@@ -9,8 +9,7 @@ use crate::{
     tap_receipt::{Failed, ReceiptWithState},
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(bound(deserialize = "'de: 'static"))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RAVRequest {
     pub valid_receipts: Vec<SignedReceipt>,
     pub previous_rav: Option<SignedRAV>,

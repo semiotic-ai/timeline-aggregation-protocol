@@ -17,36 +17,8 @@ use crate::{
     checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
-    tap_receipt::{Receipt, ReceiptAuditor, ReceiptCheckResults, ReceivedReceipt},
+    tap_receipt::{Receipt, ReceiptAuditor, ReceivedReceipt},
 };
-
-use super::{Checking, ReceiptWithState};
-
-impl ReceiptWithState<Checking> {
-    fn check_is_complete(&self, check: &str) -> bool {
-        self.state.checks.get(check).unwrap().is_complete()
-    }
-
-    fn checking_is_complete(&self) -> bool {
-        self.state
-            .checks
-            .iter()
-            .all(|(_, status)| status.is_complete())
-    }
-    /// Returns all checks that completed with errors
-    fn completed_checks_with_errors(&self) -> ReceiptCheckResults {
-        self.state
-            .checks
-            .iter()
-            .filter_map(|(check, result)| {
-                if result.is_failed() {
-                    return Some((*check, result.clone()));
-                }
-                None
-            })
-            .collect()
-    }
-}
 
 #[fixture]
 fn keys() -> (LocalWallet, Address) {
@@ -115,7 +87,6 @@ fn executor_mock(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
-        receipt_storage,
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
@@ -134,27 +105,20 @@ async fn initialization_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
 ) {
-    let ExecutorFixture { checks, .. } = executor_mock;
-
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], 10).unwrap(),
         &keys.0,
     )
     .unwrap();
-    let query_id = 1;
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+    let received_receipt = ReceivedReceipt::new(signed_receipt);
 
-    let received_receipt = match received_receipt {
+    match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
         _ => panic!("ReceivedReceipt should be in Checking state"),
     };
-
-    assert!(received_receipt.completed_checks_with_errors().is_empty());
-    assert!(received_receipt.incomplete_checks().len() == checks.len());
 }
 
 #[rstest]
@@ -180,7 +144,7 @@ async fn partial_then_full_check_valid_receipt(
     )
     .unwrap();
 
-    let query_id = 1;
+    let query_id = signed_receipt.unique_hash();
 
     // add escrow for sender
     escrow_storage
@@ -193,25 +157,15 @@ async fn partial_then_full_check_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+    let received_receipt = ReceivedReceipt::new(signed_receipt);
 
     let mut received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
         _ => panic!("ReceivedReceipt should be in Checking state"),
     };
 
-    // perform single arbitrary check
-    let arbitrary_check_to_perform = checks[0].typetag_name();
-
-    received_receipt
-        .perform_check(arbitrary_check_to_perform)
-        .await;
-    assert!(received_receipt.check_is_complete(arbitrary_check_to_perform));
-
-    received_receipt
-        .perform_checks(&checks.iter().map(|c| c.typetag_name()).collect::<Vec<_>>())
-        .await;
-    assert!(received_receipt.checking_is_complete());
+    let result = received_receipt.perform_checks(&checks).await;
+    assert!(result.is_ok());
 }
 
 #[rstest]
@@ -238,8 +192,7 @@ async fn partial_then_finalize_valid_receipt(
         &keys.0,
     )
     .unwrap();
-
-    let query_id = 1;
+    let query_id = signed_receipt.unique_hash();
 
     // add escrow for sender
     escrow_storage
@@ -252,22 +205,14 @@ async fn partial_then_finalize_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+    let received_receipt = ReceivedReceipt::new(signed_receipt);
 
-    let mut received_receipt = match received_receipt {
+    let received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
         _ => panic!("ReceivedReceipt should be in Checking state"),
     };
 
-    // perform single arbitrary check
-    let arbitrary_check_to_perform = checks[0].typetag_name();
-
-    received_receipt
-        .perform_check(arbitrary_check_to_perform)
-        .await;
-    assert!(received_receipt.check_is_complete(arbitrary_check_to_perform));
-
-    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks().await;
+    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
@@ -302,7 +247,7 @@ async fn standard_lifetime_valid_receipt(
     )
     .unwrap();
 
-    let query_id = 1;
+    let query_id = signed_receipt.unique_hash();
 
     // add escrow for sender
     escrow_storage
@@ -315,14 +260,14 @@ async fn standard_lifetime_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt, query_id, &checks);
+    let received_receipt = ReceivedReceipt::new(signed_receipt);
 
     let received_receipt = match received_receipt {
         ReceivedReceipt::Checking(checking) => checking,
         _ => panic!("ReceivedReceipt should be in Checking state"),
     };
 
-    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks().await;
+    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();

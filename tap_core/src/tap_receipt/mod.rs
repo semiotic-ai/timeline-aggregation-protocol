@@ -4,7 +4,6 @@
 mod receipt;
 mod receipt_auditor;
 mod received_receipt;
-use std::collections::HashMap;
 
 use alloy_primitives::Address;
 pub use receipt::Receipt;
@@ -16,8 +15,6 @@ pub use received_receipt::{
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use crate::checks::CheckingChecks;
 
 #[derive(Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
@@ -41,4 +38,3 @@ pub enum ReceiptError {
 }
 
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
-pub type ReceiptCheckResults = HashMap<&'static str, CheckingChecks>;

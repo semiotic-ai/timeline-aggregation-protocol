@@ -13,51 +13,28 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
-use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptCheckResults};
+use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptError, ReceiptResult};
 use crate::{
     adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
-    checks::{CheckingChecks, ReceiptCheck},
+    checks::ReceiptCheck,
     eip_712_signed_message::EIP712SignedMessage,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(bound(deserialize = "'de: 'static"))]
-pub struct Checking {
-    /// A list of checks to be completed for the receipt, along with their current result
-    pub(crate) checks: ReceiptCheckResults,
-}
+#[derive(Debug, Clone)]
+pub struct Checking;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(bound(deserialize = "'de: 'static"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Failed {
     /// A list of checks to be completed for the receipt, along with their current result
-    pub(crate) checks: ReceiptCheckResults,
+    pub error: ReceiptError,
 }
 
-impl From<Checking> for Failed {
-    fn from(checking: Checking) -> Self {
-        Self {
-            checks: checking.checks,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct AwaitingReserve;
 
-impl From<AwaitingReserve> for Failed {
-    fn from(_checking: AwaitingReserve) -> Self {
-        Self {
-            checks: HashMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct Reserved;
 
 pub trait ReceiptState {}
@@ -66,8 +43,7 @@ impl ReceiptState for AwaitingReserve {}
 impl ReceiptState for Reserved {}
 impl ReceiptState for Failed {}
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
+#[derive(Clone)]
 pub enum ReceivedReceipt {
     AwaitingReserve(ReceiptWithState<AwaitingReserve>),
     Checking(ReceiptWithState<Checking>),
@@ -171,17 +147,10 @@ impl From<Vec<StoredReceipt>> for CategorizedReceiptsWithState {
 
 impl ReceivedReceipt {
     /// Initialize a new received receipt with provided signed receipt, query id, and checks
-    pub fn new(
-        signed_receipt: EIP712SignedMessage<Receipt>,
-        query_id: u64,
-        required_checks: &[ReceiptCheck],
-    ) -> Self {
-        let checks = ReceiptWithState::get_empty_required_checks_hashmap(required_checks);
-
+    pub fn new(signed_receipt: EIP712SignedMessage<Receipt>) -> Self {
         let received_receipt = ReceiptWithState {
             signed_receipt,
-            query_id,
-            state: Checking { checks },
+            _state: Checking,
         };
         received_receipt.into()
     }
@@ -191,15 +160,6 @@ impl ReceivedReceipt {
             | ReceivedReceipt::Checking(ReceiptWithState { signed_receipt, .. })
             | ReceivedReceipt::Failed(ReceiptWithState { signed_receipt, .. })
             | ReceivedReceipt::Reserved(ReceiptWithState { signed_receipt, .. }) => signed_receipt,
-        }
-    }
-
-    pub fn query_id(&self) -> u64 {
-        match self {
-            ReceivedReceipt::AwaitingReserve(ReceiptWithState { query_id, .. })
-            | ReceivedReceipt::Checking(ReceiptWithState { query_id, .. })
-            | ReceivedReceipt::Failed(ReceiptWithState { query_id, .. })
-            | ReceivedReceipt::Reserved(ReceiptWithState { query_id, .. }) => *query_id,
         }
     }
 }
@@ -212,10 +172,8 @@ where
 {
     /// An EIP712 signed receipt message
     pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
-    /// A unique identifier for the query associated with the receipt
-    pub(crate) query_id: u64,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
-    pub(crate) state: S,
+    pub(crate) _state: S,
 }
 
 impl ReceiptWithState<AwaitingReserve> {
@@ -228,32 +186,12 @@ impl ReceiptWithState<AwaitingReserve> {
     {
         match auditor.check_and_reserve_escrow(&self).await {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
-            Err(_) => Err(self.perform_state_changes_into()),
+            Err(e) => Err(self.perform_state_error(e)),
         }
     }
 }
 
 impl ReceiptWithState<Checking> {
-    /// Completes a single *incomplete* check and stores the result, *if the check already has a result it is skipped.*
-    ///
-    /// Returns `Err` only if unable to complete the check, returns `Ok` if the check was completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveEscrow`.
-    ///
-    /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
-    ///
-    pub async fn perform_check(&mut self, check_name: &'static str) {
-        // Only perform check if it is incomplete
-        // Don't check if already failed
-        let check = self.state.checks.remove(check_name);
-        if let Some(check) = check {
-            let result = check.execute(self).await;
-            self.state.checks.insert(check_name, result);
-        }
-    }
-
     /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if the checks were completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
@@ -264,58 +202,35 @@ impl ReceiptWithState<Checking> {
     ///
     /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
     ///
-    pub async fn perform_checks(&mut self, checks: &[&'static str]) {
+    pub async fn perform_checks(&mut self, checks: &[ReceiptCheck]) -> ReceiptResult<()> {
         for check in checks {
-            self.perform_check(check).await;
+            // return early on an error
+            check
+                .check(self)
+                .await
+                .map_err(|e| ReceiptError::CheckFailedToComplete {
+                    source_error_message: e.to_string(),
+                })?;
         }
+        Ok(())
     }
 
     /// Completes all remaining checks and stores the results
     ///
     /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
     ///
-    pub async fn finalize_receipt_checks(mut self) -> ResultReceipt<AwaitingReserve> {
-        let incomplete_checks = self.incomplete_checks();
+    pub async fn finalize_receipt_checks(
+        mut self,
+        checks: &[ReceiptCheck],
+    ) -> ResultReceipt<AwaitingReserve> {
+        let all_checks_passed = self.perform_checks(checks).await;
 
-        self.perform_checks(incomplete_checks.as_slice()).await;
-
-        if self.any_check_resulted_in_error() {
-            let failed = self.perform_state_changes_into();
-            Err(failed)
+        if let Err(e) = all_checks_passed {
+            Err(self.perform_state_error(e))
         } else {
             let checked = self.perform_state_changes(AwaitingReserve);
             Ok(checked)
         }
-    }
-
-    /// Returns all checks that have not been completed
-    pub(crate) fn incomplete_checks(&self) -> Vec<&'static str> {
-        let incomplete_checks = self
-            .state
-            .checks
-            .iter()
-            .filter_map(|(check, result)| {
-                if result.is_complete() {
-                    return None;
-                }
-                Some(*check)
-            })
-            .collect();
-        incomplete_checks
-    }
-
-    fn any_check_resulted_in_error(&self) -> bool {
-        self.state
-            .checks
-            .iter()
-            .any(|(_, status)| status.is_failed())
-    }
-
-    fn get_empty_required_checks_hashmap(required_checks: &[ReceiptCheck]) -> ReceiptCheckResults {
-        required_checks
-            .iter()
-            .map(|check| (check.typetag_name(), CheckingChecks::Pending(check.clone())))
-            .collect()
     }
 }
 
@@ -323,15 +238,10 @@ impl<S> ReceiptWithState<S>
 where
     S: ReceiptState,
 {
-    fn perform_state_changes_into<T>(self) -> ReceiptWithState<T>
-    where
-        T: ReceiptState,
-        S: Into<T>,
-    {
+    fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed> {
         ReceiptWithState {
             signed_receipt: self.signed_receipt,
-            query_id: self.query_id,
-            state: self.state.into(),
+            _state: Failed { error },
         }
     }
 
@@ -341,17 +251,12 @@ where
     {
         ReceiptWithState {
             signed_receipt: self.signed_receipt,
-            query_id: self.query_id,
-            state: new_state,
+            _state: new_state,
         }
     }
 
     pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
         &self.signed_receipt
-    }
-
-    pub fn query_id(&self) -> u64 {
-        self.query_id
     }
 }
 #[cfg(test)]

@@ -6,6 +6,7 @@ use crate::adapters::receipt_storage_adapter::{
     safe_truncate_receipts, ReceiptDelete, ReceiptRead, ReceiptStore, StoredReceipt,
 };
 use crate::checks::TimestampCheck;
+use crate::eip_712_signed_message::MessageId;
 use crate::tap_receipt::ReceivedReceipt;
 use crate::{
     adapters::rav_storage_adapter::{RAVRead, RAVStore},
@@ -18,7 +19,7 @@ use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
-pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
+pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
 pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceivedReceipt>>>;
 pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 
