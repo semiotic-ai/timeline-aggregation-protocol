@@ -17,7 +17,7 @@ use crate::{
         executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
         receipt_storage_adapter::ReceiptRead,
     },
-    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
+    checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
     tap_receipt::Receipt,
@@ -65,7 +65,7 @@ struct ExecutorFixture {
     executor: ExecutorMock,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Vec<ReceiptCheck>,
+    checks: Checks,
 }
 
 #[fixture]
@@ -93,6 +93,7 @@ fn executor_mock(
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
+    let checks = Checks::new(checks);
 
     ExecutorFixture {
         executor,

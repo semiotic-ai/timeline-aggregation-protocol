@@ -2,11 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
-use std::sync::{Arc, RwLock};
+use std::{
+    ops::Deref,
+    sync::{Arc, RwLock},
+};
 
 pub type ReceiptCheck = Arc<dyn Check + Sync + Send>;
 
 pub type CheckResult = anyhow::Result<()>;
+
+pub struct Checks(Arc<[ReceiptCheck]>);
+
+impl Checks {
+    pub fn new(checks: Vec<ReceiptCheck>) -> Self {
+        Self(checks.into())
+    }
+}
+
+impl Deref for Checks {
+    type Target = [ReceiptCheck];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
 
 #[async_trait::async_trait]
 pub trait Check {

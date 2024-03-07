@@ -25,7 +25,7 @@ use rstest::*;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::executor_mock::{ExecutorMock, QueryAppraisals},
-    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
+    checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
     eip_712_signed_message::{EIP712SignedMessage, MessageId},
     tap_eip712_domain,
     tap_manager::SignedRAV,
@@ -167,7 +167,7 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
 
 struct ExecutorFixture {
     executor: ExecutorMock,
-    checks: Vec<ReceiptCheck>,
+    checks: Checks,
 }
 
 #[fixture]
@@ -194,6 +194,8 @@ fn executor(
         query_appraisals,
     );
     checks.push(timestamp_check);
+
+    let checks = Checks::new(checks);
 
     ExecutorFixture { executor, checks }
 }
@@ -854,7 +856,7 @@ async fn start_indexer_server(
     mut executor: ExecutorMock,
     sender_id: Address,
     available_escrow: u128,
-    required_checks: Vec<ReceiptCheck>,
+    required_checks: Checks,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,
 ) -> Result<(ServerHandle, SocketAddr)> {

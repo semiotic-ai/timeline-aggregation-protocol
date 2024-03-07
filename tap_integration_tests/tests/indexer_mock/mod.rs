@@ -23,7 +23,7 @@ use tap_core::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
-    checks::ReceiptCheck,
+    checks::Checks,
     tap_manager::{Manager, SignedRAV, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
@@ -64,7 +64,7 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        required_checks: Vec<ReceiptCheck>,
+        required_checks: Checks,
         threshold: u64,
         sender_id: Address,
         aggregate_server_address: String,
@@ -142,11 +142,11 @@ pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
     executor: E,                          // Executor instance
-    required_checks: Vec<ReceiptCheck>, // Vector of required checks to be performed on each request
-    threshold: u64,                     // The count at which a RAV request will be triggered
-    aggregate_server_address: String,   // Address of the aggregator server
+    required_checks: Checks, // Vector of required checks to be performed on each request
+    threshold: u64,          // The count at which a RAV request will be triggered
+    aggregate_server_address: String, // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server
-    sender_id: Address,                 // The sender address
+    sender_id: Address,      // The sender address
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
 where
     E: ReceiptStore

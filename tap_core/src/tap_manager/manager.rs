@@ -1,8 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
-
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use futures::Future;
@@ -14,7 +12,7 @@ use crate::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptDelete, ReceiptRead, ReceiptStore},
     },
-    checks::ReceiptCheck,
+    checks::Checks,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
@@ -28,10 +26,8 @@ pub struct Manager<E> {
     executor: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    checks: Arc<[ReceiptCheck]>,
+    checks: Checks,
 
-    // /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    // finalize_checks: Arc<[ReceiptCheck]>,
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
@@ -48,7 +44,7 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         executor: E,
-        initial_checks: impl Into<Arc<[ReceiptCheck]>>,
+        initial_checks: impl Into<Checks>,
         // finalize_checks: impl Into<Arc<[ReceiptCheck]>>,
     ) -> Self {
         let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
