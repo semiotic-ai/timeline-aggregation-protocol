@@ -53,4 +53,6 @@ pub trait EscrowAdapter {
         sender_id: Address,
         value: u128,
     ) -> Result<(), Self::AdapterError>;
+
+    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError>;
 }

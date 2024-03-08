@@ -1,18 +1,16 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
-use futures::Future;
 
 use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
     adapters::{
         escrow_adapter::EscrowAdapter,
         rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_storage_adapter::{ReceiptRead, ReceiptStore},
+        receipt_storage_adapter::{ReceiptDelete, ReceiptRead, ReceiptStore},
     },
-    checks::ReceiptCheck,
+    checks::Checks,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
         CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
@@ -24,8 +22,10 @@ use crate::{
 pub struct Manager<E> {
     /// Executor that implements adapters
     executor: E,
+
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    required_checks: Vec<ReceiptCheck>,
+    checks: Checks,
+
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     receipt_auditor: ReceiptAuditor<E>,
@@ -39,23 +39,19 @@ where
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(
-        domain_separator: Eip712Domain,
-        executor: E,
-        required_checks: Vec<ReceiptCheck>,
-    ) -> Self {
+    pub fn new(domain_separator: Eip712Domain, executor: E, checks: impl Into<Checks>) -> Self {
         let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
         Self {
             executor,
-            required_checks,
             receipt_auditor,
+            checks: checks.into(),
         }
     }
 }
 
 impl<E> Manager<E>
 where
-    E: RAVStore,
+    E: RAVStore + EscrowAdapter,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -63,18 +59,13 @@ where
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub async fn verify_and_store_rav<F, Fut>(
+    pub async fn verify_and_store_rav(
         &self,
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
-        verify_signer: F,
-    ) -> std::result::Result<(), Error>
-    where
-        F: FnOnce(Address) -> Fut,
-        Fut: Future<Output = Result<bool, Error>>,
-    {
+    ) -> std::result::Result<(), Error> {
         self.receipt_auditor
-            .check_rav_signature(&signed_rav, verify_signer)
+            .check_rav_signature(&signed_rav)
             .await?;
 
         if signed_rav.message != expected_rav {
@@ -155,7 +146,7 @@ where
                 receipt,
                 receipt_id: _,
             } = received_receipt;
-            let receipt = receipt.finalize_receipt_checks().await;
+            let receipt = receipt.finalize_receipt_checks(&self.checks).await;
 
             match receipt {
                 Ok(checked) => awaiting_reserve_receipts.push(checked),
@@ -242,7 +233,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptStore + RAVRead,
+    E: ReceiptDelete + RAVRead,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
     /// therefore already aggregated into the RAV.
@@ -271,7 +262,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptStore + EscrowAdapter,
+    E: ReceiptStore,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
@@ -287,37 +278,17 @@ where
     pub async fn verify_and_store_receipt(
         &self,
         signed_receipt: SignedReceipt,
-        query_id: u64,
-        initial_checks: &[ReceiptCheck],
     ) -> std::result::Result<(), Error> {
-        let mut received_receipt =
-            ReceivedReceipt::new(signed_receipt, query_id, &self.required_checks);
-        // The receipt id is needed before `perform_checks` can be called on received receipt
-        // since it is needed for uniqueness check. Since the receipt_id is defined when it is stored
-        // This function first stores it, then checks it, then updates what was stored.
+        let mut received_receipt = ReceivedReceipt::new(signed_receipt);
 
-        let receipt_id = self
-            .executor
-            .store_receipt(received_receipt.clone())
-            .await
-            .map_err(|err| Error::AdapterError {
-                source_error: anyhow::Error::new(err),
-            })?;
-
+        // perform checks
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            received_receipt
-                .perform_checks(
-                    initial_checks
-                        .iter()
-                        .map(|check| check.typetag_name())
-                        .collect::<Vec<_>>()
-                        .as_slice(),
-                )
-                .await;
+            received_receipt.perform_checks(&self.checks).await?;
         }
 
+        // store the receipt
         self.executor
-            .update_receipt_by_id(receipt_id, received_receipt)
+            .store_receipt(received_receipt)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),

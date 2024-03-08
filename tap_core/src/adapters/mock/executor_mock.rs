@@ -3,9 +3,10 @@
 
 use crate::adapters::escrow_adapter::EscrowAdapter;
 use crate::adapters::receipt_storage_adapter::{
-    safe_truncate_receipts, ReceiptRead, ReceiptStore, StoredReceipt,
+    safe_truncate_receipts, ReceiptDelete, ReceiptRead, ReceiptStore, StoredReceipt,
 };
 use crate::checks::TimestampCheck;
+use crate::eip_712_signed_message::MessageId;
 use crate::tap_receipt::ReceivedReceipt;
 use crate::{
     adapters::rav_storage_adapter::{RAVRead, RAVStore},
@@ -18,7 +19,7 @@ use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
-pub type QueryAppraisals = Arc<RwLock<HashMap<u64, u128>>>;
+pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
 pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceivedReceipt>>>;
 pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 
@@ -36,10 +37,9 @@ pub struct ExecutorMock {
     rav_storage: RAVStorage,
     receipt_storage: ReceiptStorage,
     unique_id: Arc<RwLock<u64>>,
-
     sender_escrow_storage: EscrowStorage,
-
     timestamp_check: Arc<TimestampCheck>,
+    sender_address: Option<Address>,
 }
 
 impl ExecutorMock {
@@ -55,7 +55,13 @@ impl ExecutorMock {
             unique_id: Arc::new(RwLock::new(0)),
             sender_escrow_storage,
             timestamp_check,
+            sender_address: None,
         }
+    }
+
+    pub fn with_sender_address(mut self, sender_address: Address) -> Self {
+        self.sender_address = Some(sender_address);
+        self
     }
 
     pub async fn retrieve_receipt_by_id(
@@ -139,6 +145,7 @@ impl RAVRead for ExecutorMock {
 #[async_trait]
 impl ReceiptStore for ExecutorMock {
     type AdapterError = AdapterErrorMock;
+
     async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
@@ -147,23 +154,12 @@ impl ReceiptStore for ExecutorMock {
         *id_pointer += 1;
         Ok(id_previous)
     }
-    async fn update_receipt_by_id(
-        &self,
-        receipt_id: u64,
-        receipt: ReceivedReceipt,
-    ) -> Result<(), Self::AdapterError> {
-        let mut receipt_storage = self.receipt_storage.write().unwrap();
+}
 
-        if !receipt_storage.contains_key(&receipt_id) {
-            return Err(AdapterErrorMock::AdapterError {
-                error: "Invalid receipt_id".to_owned(),
-            });
-        };
+#[async_trait]
+impl ReceiptDelete for ExecutorMock {
+    type AdapterError = AdapterErrorMock;
 
-        receipt_storage.insert(receipt_id, receipt);
-        *self.unique_id.write().unwrap() += 1;
-        Ok(())
-    }
     async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_ns: R,
@@ -175,7 +171,6 @@ impl ReceiptStore for ExecutorMock {
         Ok(())
     }
 }
-
 #[async_trait]
 impl ReceiptRead for ExecutorMock {
     type AdapterError = AdapterErrorMock;
@@ -250,5 +245,12 @@ impl EscrowAdapter for ExecutorMock {
         value: u128,
     ) -> Result<(), Self::AdapterError> {
         self.reduce_escrow(sender_id, value)
+    }
+
+    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
+        Ok(self
+            .sender_address
+            .map(|sender| signer_address == sender)
+            .unwrap_or(false))
     }
 }

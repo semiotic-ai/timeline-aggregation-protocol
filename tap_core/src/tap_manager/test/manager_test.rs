@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::{
     collections::HashMap,
-    ops::Range,
     str::FromStr,
     sync::{Arc, RwLock},
 };
@@ -18,13 +17,11 @@ use crate::{
         executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
         receipt_storage_adapter::ReceiptRead,
     },
-    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
+    checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
     tap_receipt::Receipt,
 };
-
-const LENGTH_OF_CHECKS: usize = 4;
 
 #[fixture]
 fn keys() -> (LocalWallet, Address) {
@@ -68,7 +65,7 @@ struct ExecutorFixture {
     executor: ExecutorMock,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Vec<ReceiptCheck>,
+    checks: Checks,
 }
 
 #[fixture]
@@ -76,6 +73,7 @@ fn executor_mock(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
+    keys: (LocalWallet, Address),
 ) -> ExecutorFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
@@ -87,16 +85,17 @@ fn executor_mock(
         receipt_storage.clone(),
         escrow_storage.clone(),
         timestamp_check.clone(),
-    );
+    )
+    .with_sender_address(keys.1);
 
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
-        receipt_storage,
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
+    let checks = Checks::new(checks);
 
     ExecutorFixture {
         executor,
@@ -107,15 +106,11 @@ fn executor_mock(
 }
 
 #[rstest]
-#[case::full_checks(0..LENGTH_OF_CHECKS)]
-#[case::partial_checks(0..2)]
-#[case::no_checks(0..0)]
 #[tokio::test]
 async fn manager_verify_and_store_varying_initial_checks(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    #[case] range: Range<usize>,
     executor_mock: ExecutorFixture,
 ) {
     let ExecutorFixture {
@@ -125,10 +120,8 @@ async fn manager_verify_and_store_varying_initial_checks(
         escrow_storage,
         ..
     } = executor_mock;
-    // give receipt 5 second variance for min start time
-    let manager = Manager::new(domain_separator.clone(), executor, checks.clone());
+    let manager = Manager::new(domain_separator.clone(), executor, checks);
 
-    let query_id = 1;
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
@@ -136,25 +129,22 @@ async fn manager_verify_and_store_varying_initial_checks(
         &keys.0,
     )
     .unwrap();
+    let query_id = signed_receipt.unique_hash();
     query_appraisals.write().unwrap().insert(query_id, value);
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
     assert!(manager
-        .verify_and_store_receipt(signed_receipt, query_id, &checks[range])
+        .verify_and_store_receipt(signed_receipt)
         .await
         .is_ok());
 }
 
 #[rstest]
-#[case::full_checks(0..LENGTH_OF_CHECKS)]
-#[case::partial_checks(0..2)]
-#[case::no_checks(0..0)]
 #[tokio::test]
 async fn manager_create_rav_request_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    #[case] range: Range<usize>,
     executor_mock: ExecutorFixture,
 ) {
     let ExecutorFixture {
@@ -164,13 +154,11 @@ async fn manager_create_rav_request_all_valid_receipts(
         escrow_storage,
         ..
     } = executor_mock;
-    let initial_checks = &checks[range];
-
-    let manager = Manager::new(domain_separator.clone(), executor, checks.clone());
+    let manager = Manager::new(domain_separator.clone(), executor, checks);
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
     let mut stored_signed_receipts = Vec::new();
-    for query_id in 0..10 {
+    for _ in 0..10 {
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
@@ -178,15 +166,15 @@ async fn manager_create_rav_request_all_valid_receipts(
             &keys.0,
         )
         .unwrap();
+        let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt)
             .await
             .is_ok());
     }
     let rav_request_result = manager.create_rav_request(0, None).await;
-    println!("{:?}", rav_request_result);
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -202,25 +190,17 @@ async fn manager_create_rav_request_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 }
 
 #[rstest]
-#[case::full_checks(0..LENGTH_OF_CHECKS)]
-#[case::partial_checks(0..2)]
-#[case::no_checks(0..0)]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    #[case] range: Range<usize>,
     executor_mock: ExecutorFixture,
 ) {
     let ExecutorFixture {
@@ -230,16 +210,14 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         escrow_storage,
         ..
     } = executor_mock;
-    let initial_checks = &checks[range];
-    // give receipt 5 second variance for min start time
 
-    let manager = Manager::new(domain_separator.clone(), executor, checks.clone());
+    let manager = Manager::new(domain_separator.clone(), executor, checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
     let mut stored_signed_receipts = Vec::new();
     let mut expected_accumulated_value = 0;
-    for query_id in 0..10 {
+    for _ in 0..10 {
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
@@ -247,10 +225,11 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             &keys.0,
         )
         .unwrap();
+        let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -278,16 +257,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 
     stored_signed_receipts.clear();
-    for query_id in 10..20 {
+    for _ in 10..20 {
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
@@ -295,10 +270,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             &keys.0,
         )
         .unwrap();
+
+        let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -326,11 +303,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 }
@@ -341,7 +314,6 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    #[values(0..0, 0..2, 0..LENGTH_OF_CHECKS)] range: Range<usize>,
     #[values(true, false)] remove_old_receipts: bool,
     executor_mock: ExecutorFixture,
 ) {
@@ -352,11 +324,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         escrow_storage,
         ..
     } = executor_mock;
-    let initial_checks = &checks[range];
-    // give receipt 5 second variance for min start time
     let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-    let manager = Manager::new(domain_separator.clone(), executor, checks.clone());
+    let manager = Manager::new(domain_separator.clone(), executor, checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -367,10 +337,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+
+        let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -408,11 +380,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request_1.expected_rav,
-            signed_rav_1,
-            |address: Address| async move { Ok(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
         .await
         .is_ok());
 
@@ -422,10 +390,11 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt, query_id, initial_checks)
+            .verify_and_store_receipt(signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -472,11 +441,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request_2.expected_rav,
-            signed_rav_2,
-            |address: Address| async move { Ok(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
         .await
         .is_ok());
 }

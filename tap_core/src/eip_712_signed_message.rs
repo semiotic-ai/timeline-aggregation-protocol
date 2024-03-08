@@ -19,6 +19,9 @@ pub struct EIP712SignedMessage<M: SolStruct> {
     pub signature: Signature,
 }
 
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub struct MessageId(pub [u8; 32]);
+
 impl<M: SolStruct> EIP712SignedMessage<M> {
     /// creates signed message with signed EIP712 hash of `message` using `signing_wallet`
     pub fn new(
@@ -55,5 +58,10 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
         self.signature
             .verify(recovery_message_hash, expected_address)?;
         Ok(())
+    }
+
+    /// Use this a simple key for testing
+    pub fn unique_hash(&self) -> MessageId {
+        MessageId(self.message.eip712_hash_struct().into())
     }
 }

@@ -5,14 +5,13 @@
 mod receipt_storage_adapter_unit_test {
     use rand::seq::SliceRandom;
     use rand::thread_rng;
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
 
     use crate::checks::TimestampCheck;
     use crate::{
         adapters::{executor_mock::ExecutorMock, receipt_storage_adapter::ReceiptStore},
-        checks::{mock::get_full_list_of_checks, ReceiptCheck},
         eip_712_signed_message::EIP712SignedMessage,
         tap_eip712_domain,
         tap_receipt::{Receipt, ReceivedReceipt},
@@ -28,45 +27,24 @@ mod receipt_storage_adapter_unit_test {
         tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
-    struct ExecutorFixture {
-        executor: ExecutorMock,
-        checks: Vec<ReceiptCheck>,
-    }
-
     #[fixture]
-    fn executor_mock(domain_separator: Eip712Domain) -> ExecutorFixture {
+    fn executor() -> ExecutorMock {
         let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
         let rav_storage = Arc::new(RwLock::new(None));
-        let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
         let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
         let timestamp_check = Arc::new(TimestampCheck::new(0));
-        let executor = ExecutorMock::new(
+        ExecutorMock::new(
             rav_storage,
             receipt_storage.clone(),
             escrow_storage.clone(),
             timestamp_check.clone(),
-        );
-        let mut checks = get_full_list_of_checks(
-            domain_separator,
-            HashSet::new(),
-            Arc::new(RwLock::new(HashSet::new())),
-            receipt_storage,
-            query_appraisals.clone(),
-        );
-        checks.push(timestamp_check);
-
-        ExecutorFixture { executor, checks }
+        )
     }
 
     #[rstest]
     #[tokio::test]
-    async fn receipt_adapter_test(domain_separator: Eip712Domain, executor_mock: ExecutorFixture) {
-        let ExecutorFixture {
-            mut executor,
-            checks,
-        } = executor_mock;
-
+    async fn receipt_adapter_test(domain_separator: Eip712Domain, mut executor: ExecutorMock) {
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -76,7 +54,6 @@ mod receipt_storage_adapter_unit_test {
             Address::from_str("0xabababababababababababababababababababab").unwrap();
 
         // Create receipts
-        let query_id = 10u64;
         let value = 100u128;
         let received_receipt = ReceivedReceipt::new(
             EIP712SignedMessage::new(
@@ -85,8 +62,6 @@ mod receipt_storage_adapter_unit_test {
                 &wallet,
             )
             .unwrap(),
-            query_id,
-            &checks,
         );
 
         let receipt_store_result = executor.store_receipt(received_receipt).await;
@@ -114,13 +89,8 @@ mod receipt_storage_adapter_unit_test {
     #[tokio::test]
     async fn multi_receipt_adapter_test(
         domain_separator: Eip712Domain,
-        executor_mock: ExecutorFixture,
+        mut executor: ExecutorMock,
     ) {
-        let ExecutorFixture {
-            mut executor,
-            checks,
-        } = executor_mock;
-
         let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -131,7 +101,7 @@ mod receipt_storage_adapter_unit_test {
 
         // Create receipts
         let mut received_receipts = Vec::new();
-        for (query_id, value) in (50..60).enumerate() {
+        for value in 50..60 {
             received_receipts.push(ReceivedReceipt::new(
                 EIP712SignedMessage::new(
                     &domain_separator,
@@ -139,20 +109,13 @@ mod receipt_storage_adapter_unit_test {
                     &wallet,
                 )
                 .unwrap(),
-                query_id as u64,
-                &checks,
             ));
         }
         let mut receipt_ids = Vec::new();
         let mut receipt_timestamps = Vec::new();
         for received_receipt in received_receipts {
-            receipt_ids.push(
-                executor
-                    .store_receipt(received_receipt.clone())
-                    .await
-                    .unwrap(),
-            );
-            receipt_timestamps.push(received_receipt.signed_receipt().message.timestamp_ns)
+            receipt_timestamps.push(received_receipt.signed_receipt().message.timestamp_ns);
+            receipt_ids.push(executor.store_receipt(received_receipt).await.unwrap());
         }
 
         // Retreive receipts with timestamp
@@ -205,7 +168,6 @@ mod receipt_storage_adapter_unit_test {
     #[test]
     fn safe_truncate_receipts_test(
         domain_separator: Eip712Domain,
-        executor_mock: ExecutorFixture,
         #[case] input: Vec<u64>,
         #[case] limit: u64,
         #[case] expected: Vec<u64>,
@@ -214,7 +176,6 @@ mod receipt_storage_adapter_unit_test {
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
          .unwrap();
-        let checks = executor_mock.checks;
 
         // Vec of (id, receipt)
         let mut receipts_orig: Vec<(u64, ReceivedReceipt)> = Vec::new();
@@ -235,13 +196,11 @@ mod receipt_storage_adapter_unit_test {
                         &wallet,
                     )
                     .unwrap(),
-                    i as u64, // Will use that to check the IDs
-                    &checks,
                 ),
             ));
         }
 
-        let mut receipts_truncated = receipts_orig.clone();
+        let mut receipts_truncated = receipts_orig;
 
         // shuffle the input receipts
         receipts_truncated.shuffle(&mut thread_rng());
@@ -259,9 +218,6 @@ mod receipt_storage_adapter_unit_test {
                 elem_trun.1.signed_receipt().message.timestamp_ns,
                 *expected_timestamp
             );
-
-            // Check that the IDs are fine
-            assert_eq!(elem_trun.0, elem_trun.1.query_id());
         }
     }
 }

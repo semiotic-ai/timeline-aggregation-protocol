@@ -1,9 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
-use futures::Future;
 
 use crate::{
     adapters::escrow_adapter::EscrowAdapter,
@@ -26,25 +24,6 @@ impl<E> ReceiptAuditor<E> {
             executor,
         }
     }
-
-    pub async fn check_rav_signature<F, Fut>(
-        &self,
-        signed_rav: &SignedRAV,
-        verify_signer: F,
-    ) -> Result<(), Error>
-    where
-        F: FnOnce(Address) -> Fut,
-        Fut: Future<Output = Result<bool, Error>>,
-    {
-        let recovered_address = signed_rav.recover_signer(&self.domain_separator)?;
-        if verify_signer(recovered_address).await? {
-            Ok(())
-        } else {
-            Err(Error::InvalidRecoveredSigner {
-                address: recovered_address,
-            })
-        }
-    }
 }
 
 impl<E> ReceiptAuditor<E>
@@ -61,6 +40,7 @@ where
             .map_err(|err| ReceiptError::InvalidSignature {
                 source_error_message: err.to_string(),
             })?;
+
         if self
             .executor
             .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
@@ -71,5 +51,21 @@ where
         }
 
         Ok(())
+    }
+
+    pub async fn check_rav_signature(&self, signed_rav: &SignedRAV) -> Result<(), Error> {
+        let recovered_address = signed_rav.recover_signer(&self.domain_separator)?;
+        if self
+            .executor
+            .verify_signer(recovered_address)
+            .await
+            .map_err(|e| Error::FailedToVerifySigner(e.to_string()))?
+        {
+            Ok(())
+        } else {
+            Err(Error::InvalidRecoveredSigner {
+                address: recovered_address,
+            })
+        }
     }
 }
