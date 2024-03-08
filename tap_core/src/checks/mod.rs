@@ -59,7 +59,7 @@ impl Check for TimestampCheck {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
-        if signed_receipt.message.timestamp_ns < min_timestamp_ns {
+        if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
             return Err(ReceiptError::InvalidTimestamp {
                 received_timestamp: signed_receipt.message.timestamp_ns,
                 timestamp_min: min_timestamp_ns,

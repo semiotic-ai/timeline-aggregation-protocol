@@ -187,13 +187,12 @@ fn executor(
         escrow_storage.clone(),
         timestamp_check.clone(),
     );
-    let mut checks = get_full_list_of_checks(
+    let checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
         Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
         query_appraisals,
     );
-    checks.push(timestamp_check);
 
     let checks = Checks::new(checks);
 
