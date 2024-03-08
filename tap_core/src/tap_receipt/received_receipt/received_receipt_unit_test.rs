@@ -70,6 +70,7 @@ fn executor_mock(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
+    keys: (LocalWallet, Address),
 ) -> ExecutorFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
@@ -82,7 +83,8 @@ fn executor_mock(
         receipt_storage.clone(),
         escrow_storage.clone(),
         timestamp_check.clone(),
-    );
+    )
+    .with_sender_address(keys.1);
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),

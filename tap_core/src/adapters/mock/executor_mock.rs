@@ -37,10 +37,9 @@ pub struct ExecutorMock {
     rav_storage: RAVStorage,
     receipt_storage: ReceiptStorage,
     unique_id: Arc<RwLock<u64>>,
-
     sender_escrow_storage: EscrowStorage,
-
     timestamp_check: Arc<TimestampCheck>,
+    sender_address: Option<Address>,
 }
 
 impl ExecutorMock {
@@ -56,7 +55,13 @@ impl ExecutorMock {
             unique_id: Arc::new(RwLock::new(0)),
             sender_escrow_storage,
             timestamp_check,
+            sender_address: None,
         }
+    }
+
+    pub fn with_sender_address(mut self, sender_address: Address) -> Self {
+        self.sender_address = Some(sender_address);
+        self
     }
 
     pub async fn retrieve_receipt_by_id(
@@ -240,5 +245,12 @@ impl EscrowAdapter for ExecutorMock {
         value: u128,
     ) -> Result<(), Self::AdapterError> {
         self.reduce_escrow(sender_id, value)
+    }
+
+    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
+        Ok(self
+            .sender_address
+            .map(|sender| signer_address == sender)
+            .unwrap_or(false))
     }
 }

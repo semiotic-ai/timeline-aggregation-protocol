@@ -1,9 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
-use futures::Future;
 
 use super::{RAVRequest, SignedRAV, SignedReceipt};
 use crate::{
@@ -59,7 +57,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: RAVStore,
+    E: RAVStore + EscrowAdapter,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -67,19 +65,13 @@ where
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub async fn verify_and_store_rav<F, Fut, Err>(
+    pub async fn verify_and_store_rav(
         &self,
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
-        verify_signer: F,
-    ) -> std::result::Result<(), Error>
-    where
-        F: FnOnce(Address) -> Fut,
-        Fut: Future<Output = Result<bool, Err>>,
-        Err: std::fmt::Display,
-    {
+    ) -> std::result::Result<(), Error> {
         self.receipt_auditor
-            .check_rav_signature(&signed_rav, verify_signer)
+            .check_rav_signature(&signed_rav)
             .await?;
 
         if signed_rav.message != expected_rav {

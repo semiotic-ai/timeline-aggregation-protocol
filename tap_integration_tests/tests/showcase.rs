@@ -871,12 +871,11 @@ async fn start_indexer_server(
     let (server_handle, socket_addr) = indexer_mock::run_server(
         http_port,
         domain_separator,
-        executor,
+        executor.with_sender_address(sender_id),
         required_checks,
         receipt_threshold,
         aggregate_server_address,
         aggregate_server_api_version(),
-        sender_id,
     )
     .await?;
 

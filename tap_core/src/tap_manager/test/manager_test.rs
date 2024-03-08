@@ -73,6 +73,7 @@ fn executor_mock(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
+    keys: (LocalWallet, Address),
 ) -> ExecutorFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
@@ -84,7 +85,8 @@ fn executor_mock(
         receipt_storage.clone(),
         escrow_storage.clone(),
         timestamp_check.clone(),
-    );
+    )
+    .with_sender_address(keys.1);
 
     let mut checks = get_full_list_of_checks(
         domain_separator,
@@ -189,11 +191,7 @@ async fn manager_create_rav_request_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 }
@@ -260,11 +258,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 
@@ -310,11 +304,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            signed_rav,
-            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
 }
@@ -391,11 +381,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request_1.expected_rav,
-            signed_rav_1,
-            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
         .await
         .is_ok());
 
@@ -456,11 +442,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(
-            rav_request_2.expected_rav,
-            signed_rav_2,
-            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
-        )
+        .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
         .await
         .is_ok());
 }

@@ -5,7 +5,6 @@ use std::sync::{
     Arc,
 };
 
-use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use anyhow::{Error, Result};
 use jsonrpsee::{
@@ -51,7 +50,6 @@ pub struct RpcManager<E> {
     receipt_count: Arc<AtomicU64>, // Thread-safe atomic counter for receipts
     threshold: u64,           // The count at which a RAV request will be triggered
     aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
-    sender_id: Address,                      // The sender address
 }
 
 /// Implementation for `RpcManager`, includes the constructor and the `request` method.
@@ -66,7 +64,6 @@ where
         executor: E,
         required_checks: Checks,
         threshold: u64,
-        sender_id: Address,
         aggregate_server_address: String,
         aggregate_server_api_version: String,
     ) -> Result<Self> {
@@ -78,7 +75,6 @@ where
             )),
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
-            sender_id,
             aggregator_client: (
                 HttpClientBuilder::default().build(aggregate_server_address)?,
                 aggregate_server_api_version,
@@ -118,7 +114,6 @@ where
                 time_stamp_buffer,
                 &self.aggregator_client,
                 self.threshold as usize,
-                self.sender_id,
             )
             .await
             {
@@ -146,7 +141,6 @@ pub async fn run_server<E>(
     threshold: u64,          // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server
-    sender_id: Address,      // The sender address
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
 where
     E: ReceiptStore
@@ -172,7 +166,6 @@ where
         executor,
         required_checks,
         threshold,
-        sender_id,
         aggregate_server_address,
         aggregate_server_api_version,
     )?;
@@ -187,7 +180,6 @@ async fn request_rav<E>(
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
-    expected_sender_id: Address,
 ) -> Result<()>
 where
     E: ReceiptRead + RAVRead + RAVStore + EscrowAdapter,
@@ -208,11 +200,7 @@ where
         .request("aggregate_receipts", params)
         .await?;
     manager
-        .verify_and_store_rav(
-            rav_request.expected_rav,
-            remote_rav_result.data,
-            |address| async move { Ok::<bool, String>(address == expected_sender_id) },
-        )
+        .verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)
         .await?;
 
     // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
