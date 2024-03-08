@@ -33,7 +33,6 @@ pub trait Rpc {
     #[method(name = "request")]
     async fn request(
         &self,
-        request_id: u64,        // Unique identifier for the request
         receipt: SignedReceipt, // Signed receipt associated with the request
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned>; // The result of the request, a JSON-RPC error if it fails
 }
@@ -90,7 +89,6 @@ where
 {
     async fn request(
         &self,
-        _request_id: u64,
         receipt: SignedReceipt,
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
         let verify_result = match self.manager.verify_and_store_receipt(receipt).await {
