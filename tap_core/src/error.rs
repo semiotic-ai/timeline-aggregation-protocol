@@ -58,6 +58,9 @@ pub enum Error {
 
     #[error("Receipt error: {0}")]
     ReceiptError(#[from] ReceiptError),
+
+    #[error("Failed to check the signer: {0}")]
+    FailedToVerifySigner(String),
 }
 
 pub type Result<T> = StdResult<T, Error>;

@@ -192,7 +192,7 @@ async fn manager_create_rav_request_all_valid_receipts(
         .verify_and_store_rav(
             rav_request.expected_rav,
             signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
+            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
         )
         .await
         .is_ok());
@@ -263,7 +263,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         .verify_and_store_rav(
             rav_request.expected_rav,
             signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
+            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
         )
         .await
         .is_ok());
@@ -313,7 +313,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         .verify_and_store_rav(
             rav_request.expected_rav,
             signed_rav,
-            |address: Address| async move { Ok(keys.1 == address) }
+            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
         )
         .await
         .is_ok());
@@ -394,7 +394,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         .verify_and_store_rav(
             rav_request_1.expected_rav,
             signed_rav_1,
-            |address: Address| async move { Ok(keys.1 == address) }
+            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
         )
         .await
         .is_ok());
@@ -459,7 +459,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         .verify_and_store_rav(
             rav_request_2.expected_rav,
             signed_rav_2,
-            |address: Address| async move { Ok(keys.1 == address) }
+            |address: Address| async move { Ok::<bool, String>(keys.1 == address) }
         )
         .await
         .is_ok());

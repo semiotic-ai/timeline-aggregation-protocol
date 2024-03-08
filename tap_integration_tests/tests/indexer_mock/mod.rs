@@ -211,7 +211,7 @@ where
         .verify_and_store_rav(
             rav_request.expected_rav,
             remote_rav_result.data,
-            |address| async move { Ok(address == expected_sender_id) },
+            |address| async move { Ok::<bool, String>(address == expected_sender_id) },
         )
         .await?;
 

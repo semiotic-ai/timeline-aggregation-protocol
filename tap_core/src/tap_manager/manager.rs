@@ -67,7 +67,7 @@ where
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub async fn verify_and_store_rav<F, Fut>(
+    pub async fn verify_and_store_rav<F, Fut, Err>(
         &self,
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
@@ -75,7 +75,8 @@ where
     ) -> std::result::Result<(), Error>
     where
         F: FnOnce(Address) -> Fut,
-        Fut: Future<Output = Result<bool, Error>>,
+        Fut: Future<Output = Result<bool, Err>>,
+        Err: std::fmt::Display,
     {
         self.receipt_auditor
             .check_rav_signature(&signed_rav, verify_signer)

@@ -27,17 +27,21 @@ impl<E> ReceiptAuditor<E> {
         }
     }
 
-    pub async fn check_rav_signature<F, Fut>(
+    pub async fn check_rav_signature<F, Fut, Err>(
         &self,
         signed_rav: &SignedRAV,
         verify_signer: F,
     ) -> Result<(), Error>
     where
         F: FnOnce(Address) -> Fut,
-        Fut: Future<Output = Result<bool, Error>>,
+        Fut: Future<Output = Result<bool, Err>>,
+        Err: std::fmt::Display,
     {
         let recovered_address = signed_rav.recover_signer(&self.domain_separator)?;
-        if verify_signer(recovered_address).await? {
+        if verify_signer(recovered_address)
+            .await
+            .map_err(|e| Error::FailedToVerifySigner(e.to_string()))?
+        {
             Ok(())
         } else {
             Err(Error::InvalidRecoveredSigner {
@@ -61,6 +65,7 @@ where
             .map_err(|err| ReceiptError::InvalidSignature {
                 source_error_message: err.to_string(),
             })?;
+
         if self
             .executor
             .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
