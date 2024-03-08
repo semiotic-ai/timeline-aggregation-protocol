@@ -10,11 +10,11 @@ use crate::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptDelete, ReceiptRead, ReceiptStore},
     },
-    checks::Checks,
     receipt_aggregate_voucher::ReceiptAggregateVoucher,
     tap_receipt::{
-        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithId, ReceiptWithState,
-        ReceivedReceipt, Reserved,
+        checks::{BatchTimestampCheck, CheckBatch, Checks, UniqueCheck},
+        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithState, ReceivedReceipt,
+        Reserved,
     },
     Error,
 };
@@ -141,11 +141,21 @@ where
             mut reserved_receipts,
         } = received_receipts.into();
 
-        for received_receipt in checking_receipts.into_iter() {
-            let ReceiptWithId {
-                receipt,
-                receipt_id: _,
-            } = received_receipt;
+        let checking_receipts = checking_receipts
+            .into_iter()
+            .map(|receipt| receipt.receipt)
+            .collect::<Vec<_>>();
+
+        // check for timestamp
+        let (checking_receipts, already_failed) =
+            BatchTimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
+        failed_receipts.extend(already_failed);
+
+        // check for uniqueness
+        let (checking_receipts, already_failed) = UniqueCheck.check_batch(checking_receipts);
+        failed_receipts.extend(already_failed);
+
+        for receipt in checking_receipts.into_iter() {
             let receipt = receipt.finalize_receipt_checks(&self.checks).await;
 
             match receipt {

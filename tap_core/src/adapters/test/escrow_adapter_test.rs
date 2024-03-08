@@ -13,7 +13,7 @@ mod escrow_adapter_unit_test {
 
     use crate::{
         adapters::{escrow_adapter::EscrowAdapter, executor_mock::ExecutorMock},
-        checks::TimestampCheck,
+        tap_receipt::checks::TimestampCheck,
     };
 
     #[fixture]

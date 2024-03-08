@@ -1,6 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod checks;
 mod receipt;
 mod receipt_auditor;
 mod received_receipt;

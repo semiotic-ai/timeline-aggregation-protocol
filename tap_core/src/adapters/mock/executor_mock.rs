@@ -5,7 +5,7 @@ use crate::adapters::escrow_adapter::EscrowAdapter;
 use crate::adapters::receipt_storage_adapter::{
     safe_truncate_receipts, ReceiptDelete, ReceiptRead, ReceiptStore, StoredReceipt,
 };
-use crate::checks::TimestampCheck;
+use crate::tap_receipt::checks::TimestampCheck;
 use crate::eip_712_signed_message::MessageId;
 use crate::tap_receipt::ReceivedReceipt;
 use crate::{

@@ -14,10 +14,12 @@ use rstest::*;
 
 use crate::{
     adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-    checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     tap_eip712_domain,
-    tap_receipt::{Receipt, ReceiptAuditor, ReceivedReceipt},
+    tap_receipt::{
+        checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
+        Receipt, ReceiptAuditor, ReceivedReceipt,
+    },
 };
 
 #[fixture]

@@ -13,7 +13,7 @@ mod rav_storage_adapter_unit_test {
     use ethers::signers::{LocalWallet, MnemonicBuilder};
     use rstest::*;
 
-    use crate::checks::TimestampCheck;
+    use crate::tap_receipt::checks::TimestampCheck;
     use crate::{
         adapters::{
             executor_mock::ExecutorMock,
