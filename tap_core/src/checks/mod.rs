@@ -182,7 +182,6 @@ pub mod mock {
                 .map_err(|e| ReceiptError::InvalidSignature {
                     source_error_message: e.to_string(),
                 })?;
-            println!("{:?}, {:?}", self.valid_signers, recovered_address);
             if !self.valid_signers.contains(&recovered_address) {
                 Err(ReceiptError::InvalidSignature {
                     source_error_message: "Invalid signer".to_string(),

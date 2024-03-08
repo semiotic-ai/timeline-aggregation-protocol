@@ -175,7 +175,6 @@ async fn manager_create_rav_request_all_valid_receipts(
             .is_ok());
     }
     let rav_request_result = manager.create_rav_request(0, None).await;
-    println!("{:?}", rav_request_result);
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();

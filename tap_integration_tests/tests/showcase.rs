@@ -219,17 +219,17 @@ fn requests_1(
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
+) -> Vec<(EIP712SignedMessage<Receipt>, u64)> {
     let (sender_key, _) = keys_sender;
     // Create your Receipt here
-    let requests = generate_requests(
+    generate_requests(
         query_price,
         num_batches,
         &sender_key,
         allocation_ids[0],
         &domain_separator,
-    )?;
-    Ok(requests)
+    )
+    .unwrap()
 }
 
 #[fixture]
@@ -239,17 +239,17 @@ fn requests_2(
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-) -> Result<Vec<(EIP712SignedMessage<Receipt>, u64)>> {
+) -> Vec<(EIP712SignedMessage<Receipt>, u64)> {
     let (sender_key, _) = keys_sender;
     // Create your Receipt here
-    let requests = generate_requests(
+    generate_requests(
         query_price,
         num_batches,
         &sender_key,
         allocation_ids[1],
         &domain_separator,
-    )?;
-    Ok(requests)
+    )
+    .unwrap()
 }
 
 #[fixture]
@@ -511,15 +511,14 @@ async fn test_manager_one_indexer(
         (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
         Error,
     >,
-    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Vec<(EIP712SignedMessage<Receipt>, u64)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
     let indexer_1_address = "http://".to_string() + &socket_addr.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
-    let requests = requests_1?;
 
-    for (receipt_1, id) in requests {
+    for (receipt_1, id) in requests_1 {
         let result = client_1.request("request", (id, receipt_1)).await;
 
         match result {
@@ -545,8 +544,8 @@ async fn test_manager_two_indexers(
         ),
         Error,
     >,
-    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
-    requests_2: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Vec<(EIP712SignedMessage<Receipt>, u64)>,
+    requests_2: Vec<(EIP712SignedMessage<Receipt>, u64)>,
 ) -> Result<()> {
     let (
         _server_handle_1,
@@ -561,8 +560,6 @@ async fn test_manager_two_indexers(
     let indexer_2_address = "http://".to_string() + &socket_addr_2.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
     let client_2 = HttpClientBuilder::default().build(indexer_2_address)?;
-    let requests_1 = requests_1?;
-    let requests_2 = requests_2?;
 
     for ((receipt_1, id_1), (receipt_2, id_2)) in requests_1.iter().zip(requests_2) {
         let future_1 = client_1.request("request", (id_1, receipt_1));
@@ -582,17 +579,16 @@ async fn test_manager_wrong_aggregator_keys(
         (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
         Error,
     >,
-    requests_1: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
+    requests_1: Vec<(EIP712SignedMessage<Receipt>, u64)>,
     receipt_threshold_1: u64,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_wrong_sender_test_server.await?;
     let indexer_1_address = "http://".to_string() + &socket_addr.to_string();
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
-    let requests = requests_1?;
 
     let mut counter = 1;
-    for (receipt_1, id) in requests {
+    for (receipt_1, id) in requests_1 {
         let result: Result<(), jsonrpsee::core::Error> =
             client_1.request("request", (id, receipt_1)).await;
         // The rav request is being made with messages that have been signed with a key that differs from the sender aggregator's.
@@ -626,7 +622,6 @@ async fn test_manager_wrong_requestor_keys(
         Error,
     >,
     wrong_requests: Result<Vec<(EIP712SignedMessage<Receipt>, u64)>>,
-    receipt_threshold_1: u64,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
@@ -634,24 +629,12 @@ async fn test_manager_wrong_requestor_keys(
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
     let requests = wrong_requests?;
 
-    let mut counter = 1;
     for (receipt_1, id) in requests {
         let result: Result<(), jsonrpsee::core::Error> =
             client_1.request("request", (id, receipt_1)).await;
         // The receipts have been signed with a key that the Indexer is not expecting.
-        // So the Indexer should return an error when a rav request is made, because they will not have any valid receipts for the request.
-        // A rav request is made when the number of receipts sent = receipt_threshold_1.
-        // result should be an error when counter = multiple of receipt_threshold_1 and Ok otherwise.
-        if (counter % receipt_threshold_1) == 0 {
-            assert!(result.is_err(), "Should have failed signature verification");
-        } else {
-            assert!(
-                result.is_ok(),
-                "Error making receipt request: {:?}",
-                result.unwrap_err()
-            );
-        }
-        counter += 1;
+        // This is one of the initial tests, so it should fail to receive the receipt
+        assert!(result.is_err(), "Should have failed signature verification");
     }
 
     Ok(())

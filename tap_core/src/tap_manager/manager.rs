@@ -289,8 +289,7 @@ where
 
         // perform checks
         if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            // received_receipt.perform_checks(&self.checks).await?;
-            received_receipt.perform_checks(&[]).await?;
+            received_receipt.perform_checks(&self.checks).await?;
         }
 
         // store the receipt
