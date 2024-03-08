@@ -51,7 +51,8 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
     /// Returns [`Error::InvalidSignature`] if the signature is not valid with provided `verifying_key`
     ///
     pub fn verify(&self, domain_separator: &Eip712Domain, expected_address: Address) -> Result<()> {
-        let recovery_message_hash = self.hash(domain_separator);
+        let recovery_message_hash: [u8; 32] =
+            self.message.eip712_signing_hash(domain_separator).into();
         let expected_address: [u8; 20] = expected_address.into();
 
         self.signature
@@ -61,11 +62,5 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
 
     pub fn unique_hash(&self) -> MessageId {
         MessageId(self.message.eip712_hash_struct().into())
-    }
-
-    fn hash(&self, domain_separator: &Eip712Domain) -> [u8; 32] {
-        let recovery_message_hash: [u8; 32] =
-            self.message.eip712_signing_hash(domain_separator).into();
-        recovery_message_hash
     }
 }
