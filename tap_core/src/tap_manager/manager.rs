@@ -39,18 +39,12 @@ where
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(
-        domain_separator: Eip712Domain,
-        executor: E,
-        initial_checks: impl Into<Checks>,
-        // finalize_checks: impl Into<Arc<[ReceiptCheck]>>,
-    ) -> Self {
+    pub fn new(domain_separator: Eip712Domain, executor: E, checks: impl Into<Checks>) -> Self {
         let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
         Self {
             executor,
             receipt_auditor,
-            checks: initial_checks.into(),
-            // finalize_checks: finalize_checks.into(),
+            checks: checks.into(),
         }
     }
 }
