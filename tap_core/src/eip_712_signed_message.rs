@@ -19,7 +19,7 @@ pub struct EIP712SignedMessage<M: SolStruct> {
     pub signature: Signature,
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct MessageId(pub [u8; 32]);
 
 impl<M: SolStruct> EIP712SignedMessage<M> {
