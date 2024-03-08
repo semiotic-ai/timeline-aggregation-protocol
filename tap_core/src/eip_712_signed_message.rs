@@ -60,6 +60,7 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
         Ok(())
     }
 
+    /// Use this a simple key for testing
     pub fn unique_hash(&self) -> MessageId {
         MessageId(self.message.eip712_hash_struct().into())
     }
