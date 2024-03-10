@@ -198,7 +198,10 @@ fn in_memory_context(
 
     let checks = Checks::new(checks);
 
-    ContextFixture { in_memory_context, checks }
+    ContextFixture {
+        in_memory_context,
+        checks,
+    }
 }
 
 #[fixture]
@@ -369,7 +372,10 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let ContextFixture { in_memory_context, checks } = indexer_1_context;
+    let ContextFixture {
+        in_memory_context,
+        checks,
+    } = indexer_1_context;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
         in_memory_context,
@@ -479,7 +485,9 @@ async fn single_indexer_wrong_sender_test_server(
     )
     .await?;
     let ContextFixture {
-        in_memory_context, checks, ..
+        in_memory_context,
+        checks,
+        ..
     } = indexer_1_context;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(

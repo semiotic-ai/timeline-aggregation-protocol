@@ -51,9 +51,15 @@ async fn escrow_handler_test(mut in_memory_context: InMemoryContext) {
     in_memory_context.increase_escrow(sender_id, initial_value);
 
     // Check that sender exists and has valid value through adapter
-    assert!(in_memory_context.get_available_escrow(sender_id).await.is_ok());
+    assert!(in_memory_context
+        .get_available_escrow(sender_id)
+        .await
+        .is_ok());
     assert_eq!(
-        in_memory_context.get_available_escrow(sender_id).await.unwrap(),
+        in_memory_context
+            .get_available_escrow(sender_id)
+            .await
+            .unwrap(),
         initial_value
     );
 
@@ -62,8 +68,17 @@ async fn escrow_handler_test(mut in_memory_context: InMemoryContext) {
         .subtract_escrow(sender_id, initial_value)
         .await
         .is_ok());
-    assert!(in_memory_context.get_available_escrow(sender_id).await.is_ok());
-    assert_eq!(in_memory_context.get_available_escrow(sender_id).await.unwrap(), 0);
+    assert!(in_memory_context
+        .get_available_escrow(sender_id)
+        .await
+        .is_ok());
+    assert_eq!(
+        in_memory_context
+            .get_available_escrow(sender_id)
+            .await
+            .unwrap(),
+        0
+    );
 
     // Check that subtracting to negative escrow results in err
     assert!(in_memory_context

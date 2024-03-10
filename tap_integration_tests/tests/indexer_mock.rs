@@ -133,7 +133,7 @@ where
 pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
-    in_memory_context: E,                          // in_memory_context instance
+    in_memory_context: E,                 // in_memory_context instance
     required_checks: Checks, // Vector of required checks to be performed on each request
     threshold: u64,          // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server

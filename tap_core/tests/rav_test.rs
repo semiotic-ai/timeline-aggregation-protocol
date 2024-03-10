@@ -42,7 +42,10 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn rav_storage_strategy_test(domain_separator: Eip712Domain, in_memory_context: InMemoryContext) {
+async fn rav_storage_strategy_test(
+    domain_separator: Eip712Domain,
+    in_memory_context: InMemoryContext,
+) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -73,7 +76,10 @@ async fn rav_storage_strategy_test(domain_separator: Eip712Domain, in_memory_con
     )
     .unwrap();
 
-    in_memory_context.update_last_rav(signed_rav.clone()).await.unwrap();
+    in_memory_context
+        .update_last_rav(signed_rav.clone())
+        .await
+        .unwrap();
 
     // Retreive rav
     let retrieved_rav = in_memory_context.last_rav().await;
@@ -102,7 +108,10 @@ async fn rav_storage_strategy_test(domain_separator: Eip712Domain, in_memory_con
     .unwrap();
 
     // Update the last rav
-    in_memory_context.update_last_rav(signed_rav.clone()).await.unwrap();
+    in_memory_context
+        .update_last_rav(signed_rav.clone())
+        .await
+        .unwrap();
 
     // Retreive rav
     let retrieved_rav = in_memory_context.last_rav().await;
