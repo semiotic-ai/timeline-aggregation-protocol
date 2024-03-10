@@ -8,6 +8,8 @@
 //! The payment receiver would verify the received receipt and store it to be
 //! accumulated with other received receipts in the future.
 
+mod request;
+
 use std::cmp;
 
 use alloy_primitives::Address;
@@ -15,7 +17,10 @@ use alloy_sol_types::sol;
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
-use crate::{eip_712_signed_message::EIP712SignedMessage, tap_receipt::Receipt};
+use crate::{receipt::Receipt, signed_message::EIP712SignedMessage};
+
+pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
+pub use request::RAVRequest;
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA

@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
+use crate::receipt::{Checking, ReceiptError, ReceiptWithState};
 use std::{
     collections::HashSet,
     ops::Deref,
@@ -19,6 +19,10 @@ pub struct Checks(Arc<[ReceiptCheck]>);
 impl Checks {
     pub fn new(checks: Vec<ReceiptCheck>) -> Self {
         Self(checks.into())
+    }
+
+    pub fn empty() -> Self {
+        Self(Arc::new([]))
     }
 }
 
@@ -135,7 +139,7 @@ impl CheckBatch for UniqueCheck {
 pub mod mock {
 
     use super::*;
-    use crate::eip_712_signed_message::MessageId;
+    use crate::signed_message::MessageId;
     use alloy_primitives::Address;
     use alloy_sol_types::Eip712Domain;
     use std::collections::{HashMap, HashSet};

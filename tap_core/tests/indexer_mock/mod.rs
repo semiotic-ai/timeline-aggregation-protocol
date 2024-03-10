@@ -17,13 +17,12 @@ use jsonrpsee::{
 
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
-    adapters::{
-        escrow_adapter::EscrowAdapter,
-        rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_storage_adapter::{ReceiptRead, ReceiptStore},
+    manager::{
+        strategy::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
+        Manager,
     },
-    tap_manager::{Manager, SignedRAV, SignedReceipt},
-    tap_receipt::checks::Checks,
+    rav::SignedRAV,
+    receipt::{checks::Checks, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -85,7 +84,7 @@ where
 #[async_trait]
 impl<E> RpcServer for RpcManager<E>
 where
-    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowAdapter + Send + Sync + 'static,
+    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowHandler + Send + Sync + 'static,
 {
     async fn request(
         &self,
@@ -145,7 +144,7 @@ where
         + ReceiptRead
         + RAVStore
         + RAVRead
-        + EscrowAdapter
+        + EscrowHandler
         + Clone
         + Send
         + Sync
@@ -180,7 +179,7 @@ async fn request_rav<E>(
     threshold: usize,
 ) -> Result<()>
 where
-    E: ReceiptRead + RAVRead + RAVStore + EscrowAdapter,
+    E: ReceiptRead + RAVRead + RAVStore + EscrowHandler,
 {
     // Create the aggregate_receipts request params
     let rav_request = manager.create_rav_request(time_stamp_buffer, None).await?;

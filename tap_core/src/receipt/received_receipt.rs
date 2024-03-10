@@ -13,13 +13,14 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
+use alloy_sol_types::Eip712Domain;
 use serde::{Deserialize, Serialize};
 
-use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptError, ReceiptResult};
+use super::{Receipt, ReceiptError, ReceiptResult};
 use crate::{
-    adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
-    eip_712_signed_message::EIP712SignedMessage,
-    tap_receipt::checks::ReceiptCheck,
+    manager::strategy::{EscrowHandler, StoredReceipt},
+    receipt::checks::ReceiptCheck,
+    signed_message::EIP712SignedMessage,
 };
 
 #[derive(Debug, Clone)]
@@ -177,14 +178,18 @@ where
 }
 
 impl ReceiptWithState<AwaitingReserve> {
-    pub async fn check_and_reserve_escrow<A>(
+    pub async fn check_and_reserve_escrow<E>(
         self,
-        auditor: &ReceiptAuditor<A>,
+        auditor: &E,
+        domain_separator: &Eip712Domain,
     ) -> ResultReceipt<Reserved>
     where
-        A: EscrowAdapter,
+        E: EscrowHandler,
     {
-        match auditor.check_and_reserve_escrow(&self).await {
+        match auditor
+            .check_and_reserve_escrow(&self, domain_separator)
+            .await
+        {
             Ok(_) => Ok(self.perform_state_changes(Reserved)),
             Err(e) => Err(self.perform_state_error(e)),
         }
@@ -257,5 +262,3 @@ where
         &self.signed_receipt
     }
 }
-#[cfg(test)]
-pub mod received_receipt_unit_test;

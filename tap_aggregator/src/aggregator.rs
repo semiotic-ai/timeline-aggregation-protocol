@@ -10,8 +10,7 @@ use ethers_core::types::Signature;
 use ethers_signers::LocalWallet;
 
 use tap_core::{
-    eip_712_signed_message::EIP712SignedMessage,
-    receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+    rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
 };
 
 pub fn check_and_aggregate_receipts(
@@ -140,9 +139,7 @@ mod tests {
     use rstest::*;
 
     use crate::aggregator;
-    use tap_core::{
-        eip_712_signed_message::EIP712SignedMessage, tap_eip712_domain, tap_receipt::Receipt,
-    };
+    use tap_core::{receipt::Receipt, signed_message::EIP712SignedMessage, tap_eip712_domain};
 
     #[fixture]
     fn keys() -> (LocalWallet, Address) {
@@ -248,7 +245,7 @@ mod tests {
         // Create rav with max_timestamp below the receipts timestamps
         let rav = EIP712SignedMessage::new(
             &domain_separator,
-            tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
+            tap_core::rav::ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().min().unwrap() - 1,
                 valueAggregate: 42,
@@ -262,7 +259,7 @@ mod tests {
         // Aggregation should fail
         let rav = EIP712SignedMessage::new(
             &domain_separator,
-            tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
+            tap_core::rav::ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().min().unwrap(),
                 valueAggregate: 42,
@@ -276,7 +273,7 @@ mod tests {
         // Aggregation should fail
         let rav = EIP712SignedMessage::new(
             &domain_separator,
-            tap_core::receipt_aggregate_voucher::ReceiptAggregateVoucher {
+            tap_core::rav::ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().max().unwrap() + 1,
                 valueAggregate: 42,

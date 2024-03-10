@@ -22,19 +22,20 @@ use jsonrpsee::{
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rstest::*;
 
+use common::{ExecutorMock, QueryAppraisals};
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
-    adapters::executor_mock::{ExecutorMock, QueryAppraisals},
-    eip_712_signed_message::{EIP712SignedMessage, MessageId},
-    tap_eip712_domain,
-    tap_manager::SignedRAV,
-    tap_receipt::{
+    rav::SignedRAV,
+    receipt::{
         checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
         Receipt,
     },
+    signed_message::{EIP712SignedMessage, MessageId},
+    tap_eip712_domain,
 };
 
-use crate::indexer_mock;
+mod common;
+mod indexer_mock;
 
 // Fixtures for sender aggregator server
 #[fixture]

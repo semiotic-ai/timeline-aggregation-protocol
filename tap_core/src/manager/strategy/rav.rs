@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 
-use crate::tap_manager::SignedRAV;
+use crate::rav::SignedRAV;
 
 /// `RAVStore` defines a trait for write storage adapters to handle `SignedRAV` data.
 ///

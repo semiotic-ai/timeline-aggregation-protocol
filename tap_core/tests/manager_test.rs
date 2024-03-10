@@ -11,18 +11,18 @@ use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
 
-use super::super::Manager;
-use crate::{
-    adapters::{
-        executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-        receipt_storage_adapter::ReceiptRead,
-    },
-    eip_712_signed_message::EIP712SignedMessage,
-    get_current_timestamp_u64_ns, tap_eip712_domain,
-    tap_receipt::{
+mod common;
+
+use common::{get_current_timestamp_u64_ns, EscrowStorage, ExecutorMock, QueryAppraisals};
+
+use tap_core::{
+    manager::{strategy::ReceiptRead, Manager},
+    receipt::{
         checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
         Receipt,
     },
+    signed_message::EIP712SignedMessage,
+    tap_eip712_domain,
 };
 
 #[fixture]
@@ -328,7 +328,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     } = executor_mock;
     let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-    let manager = Manager::new(domain_separator.clone(), executor, checks);
+    let manager = Manager::new(domain_separator.clone(), executor.clone(), checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -407,8 +407,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
         // We expect to have 10 receipts left in receipt storage
         assert_eq!(
-            manager
-                .executor
+            executor
                 .retrieve_receipts_in_timestamp_range(.., None)
                 .await
                 .unwrap()

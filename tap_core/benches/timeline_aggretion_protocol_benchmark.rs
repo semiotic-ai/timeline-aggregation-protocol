@@ -18,8 +18,7 @@ use ethers_core::k256::ecdsa::SigningKey;
 use rand_core::OsRng;
 use tap_core::tap_eip712_domain;
 use tap_core::{
-    eip_712_signed_message::EIP712SignedMessage,
-    receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+    rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
 };
 
 pub fn create_and_sign_receipt(

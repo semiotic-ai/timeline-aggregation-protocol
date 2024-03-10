@@ -1,22 +1,17 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::adapters::escrow_adapter::EscrowAdapter;
-use crate::adapters::receipt_storage_adapter::{
-    safe_truncate_receipts, ReceiptDelete, ReceiptRead, ReceiptStore, StoredReceipt,
-};
-use crate::eip_712_signed_message::MessageId;
-use crate::tap_receipt::checks::TimestampCheck;
-use crate::tap_receipt::ReceivedReceipt;
-use crate::{
-    adapters::rav_storage_adapter::{RAVRead, RAVStore},
-    tap_manager::SignedRAV,
-};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::ops::RangeBounds;
 use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
+use tap_core::{
+    manager::strategy::*,
+    rav::SignedRAV,
+    receipt::{checks::TimestampCheck, ReceivedReceipt},
+    signed_message::MessageId,
+};
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
@@ -234,7 +229,7 @@ impl ExecutorMock {
 }
 
 #[async_trait]
-impl EscrowAdapter for ExecutorMock {
+impl EscrowHandler for ExecutorMock {
     type AdapterError = AdapterErrorMock;
     async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
         self.escrow(sender_id)

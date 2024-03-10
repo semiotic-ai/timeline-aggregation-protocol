@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use alloy_primitives::Address;
+use alloy_sol_types::Eip712Domain;
 use async_trait::async_trait;
+
+use crate::{
+    rav::SignedRAV,
+    receipt::{AwaitingReserve, ReceiptError, ReceiptResult, ReceiptWithState},
+    Error,
+};
 
 /// `EscrowAdapter` defines a trait for adapters to handle escrow related operations.
 ///
@@ -29,7 +36,7 @@ use async_trait::async_trait;
 /// For example code see [crate::adapters::escrow_adapter_mock]
 
 #[async_trait]
-pub trait EscrowAdapter {
+pub trait EscrowHandler: Send + Sync {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from the standard library.
@@ -55,4 +62,47 @@ pub trait EscrowAdapter {
     ) -> Result<(), Self::AdapterError>;
 
     async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError>;
+
+    async fn check_and_reserve_escrow(
+        &self,
+        received_receipt: &ReceiptWithState<AwaitingReserve>,
+        domain_separator: &Eip712Domain,
+    ) -> ReceiptResult<()> {
+        let signed_receipt = &received_receipt.signed_receipt;
+        let receipt_signer_address =
+            signed_receipt
+                .recover_signer(domain_separator)
+                .map_err(|err| ReceiptError::InvalidSignature {
+                    source_error_message: err.to_string(),
+                })?;
+
+        if self
+            .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
+            .await
+            .is_err()
+        {
+            return Err(ReceiptError::SubtractEscrowFailed);
+        }
+
+        Ok(())
+    }
+
+    async fn check_rav_signature(
+        &self,
+        signed_rav: &SignedRAV,
+        domain_separator: &Eip712Domain,
+    ) -> Result<(), Error> {
+        let recovered_address = signed_rav.recover_signer(domain_separator)?;
+        if self
+            .verify_signer(recovered_address)
+            .await
+            .map_err(|e| Error::FailedToVerifySigner(e.to_string()))?
+        {
+            Ok(())
+        } else {
+            Err(Error::InvalidRecoveredSigner {
+                address: recovered_address,
+            })
+        }
+    }
 }

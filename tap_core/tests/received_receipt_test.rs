@@ -1,6 +1,9 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+mod common;
+
+use common::{EscrowStorage, ExecutorMock, QueryAppraisals};
 use std::{
     collections::HashMap,
     str::FromStr,
@@ -11,15 +14,13 @@ use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
-
-use crate::{
-    adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-    eip_712_signed_message::EIP712SignedMessage,
-    tap_eip712_domain,
-    tap_receipt::{
+use tap_core::{
+    receipt::{
         checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
-        Receipt, ReceiptAuditor, ReceivedReceipt,
+        Receipt, ReceivedReceipt,
     },
+    signed_message::EIP712SignedMessage,
+    tap_eip712_domain,
 };
 
 #[fixture]
@@ -187,7 +188,6 @@ async fn partial_then_finalize_valid_receipt(
         query_appraisals,
         ..
     } = executor_mock;
-    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -221,7 +221,7 @@ async fn partial_then_finalize_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&receipt_auditor)
+        .check_and_reserve_escrow(&executor, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }
@@ -241,7 +241,6 @@ async fn standard_lifetime_valid_receipt(
         query_appraisals,
         ..
     } = executor_mock;
-    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -276,7 +275,7 @@ async fn standard_lifetime_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&receipt_auditor)
+        .check_and_reserve_escrow(&executor, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }

@@ -19,8 +19,7 @@ use crate::api_versioning::{
 use crate::error_codes::{JsonRpcErrorCode, JsonRpcWarningCode};
 use crate::jsonrpsee_helpers::{JsonRpcError, JsonRpcResponse, JsonRpcResult, JsonRpcWarning};
 use tap_core::{
-    eip_712_signed_message::EIP712SignedMessage,
-    receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
+    rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
 };
 
 // Register the metrics into the global metrics registry.
@@ -254,9 +253,8 @@ mod tests {
 
     use crate::server;
     use tap_core::{
-        eip_712_signed_message::EIP712SignedMessage,
-        receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_eip712_domain,
-        tap_receipt::Receipt,
+        rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
+        tap_eip712_domain,
     };
 
     #[derive(Clone)]

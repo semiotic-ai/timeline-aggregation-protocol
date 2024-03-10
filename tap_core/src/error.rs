@@ -4,7 +4,7 @@
 //! Module containing Error type and Result typedef
 //!
 
-use crate::{receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::ReceiptError};
+use crate::{rav::ReceiptAggregateVoucher, receipt::ReceiptError};
 use alloy_primitives::Address;
 use ethers::signers::WalletError;
 use ethers_core::types::SignatureError;

@@ -5,7 +5,7 @@ use std::ops::RangeBounds;
 
 use async_trait::async_trait;
 
-use crate::tap_receipt::ReceivedReceipt;
+use crate::receipt::ReceivedReceipt;
 
 /// `ReceiptStore` defines a trait for write storage adapters to manage `ReceivedReceipt` data.
 ///

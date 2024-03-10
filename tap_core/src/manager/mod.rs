@@ -11,15 +11,12 @@
 //! This design offers a high degree of flexibility, letting the user define their own behavior for these critical operations.
 
 mod manager;
-mod rav_request;
+pub mod strategy;
+
+// #[cfg(test)]
+// mod mock;
+//
+// #[cfg(test)]
+// pub use mock::*;
 
 pub use manager::Manager;
-pub use rav_request::RAVRequest;
-
-use crate::{
-    eip_712_signed_message::EIP712SignedMessage,
-    receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_receipt::Receipt,
-};
-
-pub type SignedReceipt = EIP712SignedMessage<Receipt>;
-pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
