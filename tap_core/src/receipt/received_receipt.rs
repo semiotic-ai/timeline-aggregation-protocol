@@ -14,7 +14,6 @@
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
 use alloy_sol_types::Eip712Domain;
-use serde::{Deserialize, Serialize};
 
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::{
@@ -25,7 +24,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Checking;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Failed {
     /// A list of checks to be completed for the receipt, along with their current result
     pub error: ReceiptError,
@@ -45,7 +44,7 @@ impl ReceiptState for Failed {}
 
 pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 /// Wrapper class for metadata and state of a received receipt
 pub struct ReceiptWithState<S>
 where
