@@ -6,16 +6,15 @@ use async_trait::async_trait;
 use std::ops::RangeBounds;
 use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
+use tap_core::receipt::{Checking, ReceiptWithState};
 use tap_core::{
-    manager::strategy::*,
-    rav::SignedRAV,
-    receipt::{checks::TimestampCheck, ReceivedReceipt},
+    manager::strategy::*, rav::SignedRAV, receipt::checks::TimestampCheck,
     signed_message::MessageId,
 };
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
-pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceivedReceipt>>>;
+pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceiptWithState<Checking>>>>;
 pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 
 use thiserror::Error;
@@ -62,7 +61,7 @@ impl ExecutorMock {
     pub async fn retrieve_receipt_by_id(
         &self,
         receipt_id: u64,
-    ) -> Result<ReceivedReceipt, AdapterErrorMock> {
+    ) -> Result<ReceiptWithState<Checking>, AdapterErrorMock> {
         let receipt_storage = self.receipt_storage.read().unwrap();
 
         receipt_storage
@@ -76,7 +75,7 @@ impl ExecutorMock {
     pub async fn retrieve_receipts_by_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceivedReceipt)>, AdapterErrorMock> {
+    ) -> Result<Vec<(u64, ReceiptWithState<Checking>)>, AdapterErrorMock> {
         let receipt_storage = self.receipt_storage.read().unwrap();
         Ok(receipt_storage
             .iter()
@@ -90,7 +89,7 @@ impl ExecutorMock {
     pub async fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<StoredReceipt>, AdapterErrorMock> {
+    ) -> Result<Vec<ReceiptWithState<Checking>>, AdapterErrorMock> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns, None)
             .await
     }
@@ -141,7 +140,10 @@ impl RAVRead for ExecutorMock {
 impl ReceiptStore for ExecutorMock {
     type AdapterError = AdapterErrorMock;
 
-    async fn store_receipt(&self, receipt: ReceivedReceipt) -> Result<u64, Self::AdapterError> {
+    async fn store_receipt(
+        &self,
+        receipt: ReceiptWithState<Checking>,
+    ) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
         let mut receipt_storage = self.receipt_storage.write().unwrap();
@@ -173,20 +175,20 @@ impl ReceiptRead for ExecutorMock {
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<StoredReceipt>, Self::AdapterError> {
+    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::AdapterError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
-        let mut receipts_in_range: Vec<(u64, ReceivedReceipt)> = receipt_storage
+        let mut receipts_in_range: Vec<ReceiptWithState<Checking>> = receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
                 timestamp_range_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
             })
-            .map(|(&id, rx_receipt)| (id, rx_receipt.clone()))
+            .map(|(&_id, rx_receipt)| rx_receipt.clone())
             .collect();
 
         if limit.is_some_and(|limit| receipts_in_range.len() > limit as usize) {
             safe_truncate_receipts(&mut receipts_in_range, limit.unwrap());
         }
-        Ok(receipts_in_range.into_iter().map(|r| r.into()).collect())
+        Ok(receipts_in_range.into_iter().collect())
     }
 }
 

@@ -8,8 +8,7 @@ use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
         checks::{BatchTimestampCheck, CheckBatch, Checks, UniqueCheck},
-        CategorizedReceiptsWithState, Failed, ReceiptWithState, ReceivedReceipt, Reserved,
-        SignedReceipt,
+        Failed, ReceiptWithState, Reserved, SignedReceipt,
     },
     Error,
 };
@@ -117,7 +116,7 @@ where
                 max_timestamp_ns,
             });
         }
-        let received_receipts = self
+        let checking_receipts = self
             .context
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns, limit)
             .await
@@ -125,17 +124,9 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let CategorizedReceiptsWithState {
-            checking_receipts,
-            mut awaiting_reserve_receipts,
-            mut failed_receipts,
-            mut reserved_receipts,
-        } = received_receipts.into();
-
-        let checking_receipts = checking_receipts
-            .into_iter()
-            .map(|receipt| receipt.receipt)
-            .collect::<Vec<_>>();
+        let mut awaiting_reserve_receipts = vec![];
+        let mut failed_receipts = vec![];
+        let mut reserved_receipts = vec![];
 
         // check for timestamp
         let (checking_receipts, already_failed) =
@@ -280,12 +271,10 @@ where
         &self,
         signed_receipt: SignedReceipt,
     ) -> std::result::Result<(), Error> {
-        let mut received_receipt = ReceivedReceipt::new(signed_receipt);
+        let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
         // perform checks
-        if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            received_receipt.perform_checks(&self.checks).await?;
-        }
+        received_receipt.perform_checks(&self.checks).await?;
 
         // store the receipt
         self.context

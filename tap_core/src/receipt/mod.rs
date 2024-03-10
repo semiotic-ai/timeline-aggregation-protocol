@@ -9,8 +9,7 @@ mod received_receipt;
 pub use error::ReceiptError;
 pub use receipt::Receipt;
 pub use received_receipt::{
-    AwaitingReserve, CategorizedReceiptsWithState, Checking, Failed, ReceiptState, ReceiptWithId,
-    ReceiptWithState, ReceivedReceipt, Reserved, ResultReceipt,
+    AwaitingReserve, Checking, Failed, ReceiptState, ReceiptWithState, Reserved, ResultReceipt,
 };
 
 use crate::signed_message::EIP712SignedMessage;

@@ -17,7 +17,7 @@ use rstest::*;
 use tap_core::{
     receipt::{
         checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
-        Receipt, ReceivedReceipt,
+        Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -106,28 +106,6 @@ fn executor_mock(
 
 #[rstest]
 #[tokio::test]
-async fn initialization_valid_receipt(
-    keys: (LocalWallet, Address),
-    allocation_ids: Vec<Address>,
-    domain_separator: Eip712Domain,
-) {
-    let signed_receipt = EIP712SignedMessage::new(
-        &domain_separator,
-        Receipt::new(allocation_ids[0], 10).unwrap(),
-        &keys.0,
-    )
-    .unwrap();
-
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
-}
-
-#[rstest]
-#[tokio::test]
 async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
@@ -162,12 +140,7 @@ async fn partial_then_full_check_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let mut received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
     let result = received_receipt.perform_checks(&checks).await;
     assert!(result.is_ok());
@@ -209,12 +182,7 @@ async fn partial_then_finalize_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let received_receipt = ReceiptWithState::new(signed_receipt);
 
     let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());
@@ -263,12 +231,7 @@ async fn standard_lifetime_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let received_receipt = ReceiptWithState::new(signed_receipt);
 
     let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());

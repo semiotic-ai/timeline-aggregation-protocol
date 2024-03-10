@@ -5,6 +5,7 @@ use rand::thread_rng;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use tap_core::receipt::{Checking, ReceiptWithState};
 
 mod common;
 
@@ -16,9 +17,7 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
 use rstest::*;
 use tap_core::receipt::checks::TimestampCheck;
 use tap_core::{
-    manager::strategy::ReceiptStore,
-    receipt::{Receipt, ReceivedReceipt},
-    signed_message::EIP712SignedMessage,
+    manager::strategy::ReceiptStore, receipt::Receipt, signed_message::EIP712SignedMessage,
     tap_eip712_domain,
 };
 
@@ -54,7 +53,7 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut executor: Exec
 
     // Create receipts
     let value = 100u128;
-    let received_receipt = ReceivedReceipt::new(
+    let received_receipt = ReceiptWithState::new(
         EIP712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_id, value).unwrap(),
@@ -97,7 +96,7 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut executor
     // Create receipts
     let mut received_receipts = Vec::new();
     for value in 50..60 {
-        received_receipts.push(ReceivedReceipt::new(
+        received_receipts.push(ReceiptWithState::new(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_id, value).unwrap(),
@@ -173,25 +172,22 @@ fn safe_truncate_receipts_test(
          .unwrap();
 
     // Vec of (id, receipt)
-    let mut receipts_orig: Vec<(u64, ReceivedReceipt)> = Vec::new();
+    let mut receipts_orig: Vec<ReceiptWithState<Checking>> = Vec::new();
 
-    for (i, timestamp) in input.iter().enumerate() {
+    for timestamp in input.iter() {
         // The contents of the receipt only need to be unique for this test (so we can check)
-        receipts_orig.push((
-            i as u64,
-            ReceivedReceipt::new(
-                EIP712SignedMessage::new(
-                    &domain_separator,
-                    Receipt {
-                        allocation_id: Address::ZERO,
-                        timestamp_ns: *timestamp,
-                        nonce: 0,
-                        value: 0,
-                    },
-                    &wallet,
-                )
-                .unwrap(),
-            ),
+        receipts_orig.push(ReceiptWithState::new(
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt {
+                    allocation_id: Address::ZERO,
+                    timestamp_ns: *timestamp,
+                    nonce: 0,
+                    value: 0,
+                },
+                &wallet,
+            )
+            .unwrap(),
         ));
     }
 
@@ -207,7 +203,7 @@ fn safe_truncate_receipts_test(
     for (elem_trun, expected_timestamp) in receipts_truncated.iter().zip(expected.iter()) {
         // Check timestamps
         assert_eq!(
-            elem_trun.1.signed_receipt().message.timestamp_ns,
+            elem_trun.signed_receipt().message.timestamp_ns,
             *expected_timestamp
         );
     }
