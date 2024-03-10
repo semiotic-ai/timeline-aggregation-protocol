@@ -3,11 +3,11 @@
 
 pub mod checks;
 mod error;
-mod receipt;
+mod receipt_sol;
 mod received_receipt;
 
 pub use error::ReceiptError;
-pub use receipt::Receipt;
+pub use receipt_sol::Receipt;
 pub use received_receipt::{
     AwaitingReserve, Checking, Failed, ReceiptState, ReceiptWithState, Reserved, ResultReceipt,
 };

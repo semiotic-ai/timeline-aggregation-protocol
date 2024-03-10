@@ -11,10 +11,7 @@ use ethers::signers::coins_bip39::English;
 use ethers::signers::{LocalWallet, MnemonicBuilder};
 use rstest::*;
 
-mod common;
-
-use common::ExecutorMock;
-
+use tap_core::manager::context::memory::ExecutorMock;
 use tap_core::{
     manager::strategy::{RAVRead, RAVStore},
     rav::ReceiptAggregateVoucher,

@@ -1,16 +1,17 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{
+    manager::strategy::*,
+    rav::SignedRAV,
+    receipt::{checks::TimestampCheck, Checking, ReceiptWithState},
+    signed_message::MessageId,
+};
 use alloy_primitives::Address;
 use async_trait::async_trait;
 use std::ops::RangeBounds;
 use std::sync::RwLock;
 use std::{collections::HashMap, sync::Arc};
-use tap_core::receipt::{Checking, ReceiptWithState};
-use tap_core::{
-    manager::strategy::*, rav::SignedRAV, receipt::checks::TimestampCheck,
-    signed_message::MessageId,
-};
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
@@ -251,3 +252,116 @@ impl EscrowHandler for ExecutorMock {
             .unwrap_or(false))
     }
 }
+
+pub mod checks {
+    use crate::{
+        receipt::{
+            checks::{Check, CheckResult, ReceiptCheck},
+            Checking, ReceiptError, ReceiptWithState,
+        },
+        signed_message::MessageId,
+    };
+    use alloy_primitives::Address;
+    use alloy_sol_types::Eip712Domain;
+    use std::{
+        collections::{HashMap, HashSet},
+        sync::{Arc, RwLock},
+    };
+
+    pub fn get_full_list_of_checks(
+        domain_separator: Eip712Domain,
+        valid_signers: HashSet<Address>,
+        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+        _query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
+    ) -> Vec<ReceiptCheck> {
+        vec![
+            // Arc::new(UniqueCheck ),
+            // Arc::new(ValueCheck { query_appraisals }),
+            Arc::new(AllocationIdCheck { allocation_ids }),
+            Arc::new(SignatureCheck {
+                domain_separator,
+                valid_signers,
+            }),
+        ]
+    }
+
+    struct ValueCheck {
+        query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Check for ValueCheck {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+            let value = receipt.signed_receipt().message.value;
+            let query_appraisals = self.query_appraisals.read().unwrap();
+            let hash = receipt.signed_receipt().unique_hash();
+            let appraised_value =
+                query_appraisals
+                    .get(&hash)
+                    .ok_or(ReceiptError::CheckFailedToComplete(
+                        "Could not find query_appraisals".into(),
+                    ))?;
+
+            if value != *appraised_value {
+                Err(ReceiptError::InvalidValue {
+                    received_value: value,
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    struct AllocationIdCheck {
+        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Check for AllocationIdCheck {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+            let received_allocation_id = receipt.signed_receipt().message.allocation_id;
+            if self
+                .allocation_ids
+                .read()
+                .unwrap()
+                .contains(&received_allocation_id)
+            {
+                Ok(())
+            } else {
+                Err(ReceiptError::InvalidAllocationID {
+                    received_allocation_id,
+                }
+                .into())
+            }
+        }
+    }
+
+    struct SignatureCheck {
+        domain_separator: Eip712Domain,
+        valid_signers: HashSet<Address>,
+    }
+
+    #[async_trait::async_trait]
+    impl Check for SignatureCheck {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+            let recovered_address = receipt
+                .signed_receipt()
+                .recover_signer(&self.domain_separator)
+                .map_err(|e| ReceiptError::InvalidSignature {
+                    source_error_message: e.to_string(),
+                })?;
+            if !self.valid_signers.contains(&recovered_address) {
+                Err(ReceiptError::InvalidSignature {
+                    source_error_message: "Invalid signer".to_string(),
+                }
+                .into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {}

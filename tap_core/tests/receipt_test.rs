@@ -5,11 +5,8 @@ use rand::thread_rng;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use tap_core::manager::context::memory::ExecutorMock;
 use tap_core::receipt::{Checking, ReceiptWithState};
-
-mod common;
-
-use common::ExecutorMock;
 
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;

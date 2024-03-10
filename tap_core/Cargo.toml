@@ -32,8 +32,8 @@ jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
 
 
 [features]
-default = ["mock"]
-mock = []
+default = ["in_memory"]
+in_memory = []
 
 [[bench]]
 name = 'timeline_aggretion_protocol_benchmark'

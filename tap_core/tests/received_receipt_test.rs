@@ -1,9 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-mod common;
-
-use common::{EscrowStorage, ExecutorMock, QueryAppraisals};
 use std::{
     collections::HashMap,
     str::FromStr,
@@ -15,8 +12,11 @@ use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
 use tap_core::{
+    manager::context::memory::{
+        checks::get_full_list_of_checks, EscrowStorage, ExecutorMock, QueryAppraisals,
+    },
     receipt::{
-        checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
+        checks::{ReceiptCheck, TimestampCheck},
         Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,

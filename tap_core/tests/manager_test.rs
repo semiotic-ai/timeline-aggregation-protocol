@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     str::FromStr,
     sync::{Arc, RwLock},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use alloy_primitives::Address;
@@ -11,14 +12,20 @@ use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
 
-mod common;
-
-use common::{get_current_timestamp_u64_ns, EscrowStorage, ExecutorMock, QueryAppraisals};
+fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64)
+}
 
 use tap_core::{
-    manager::{strategy::ReceiptRead, Manager},
+    manager::{
+        context::memory::{
+            checks::get_full_list_of_checks, EscrowStorage, ExecutorMock, QueryAppraisals,
+        },
+        strategy::ReceiptRead,
+        Manager,
+    },
     receipt::{
-        checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
+        checks::{Checks, TimestampCheck},
         Receipt,
     },
     signed_message::EIP712SignedMessage,

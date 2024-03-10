@@ -9,11 +9,10 @@ use std::{
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
 
-mod common;
-
-use common::ExecutorMock;
-
-use tap_core::{manager::strategy::EscrowHandler, receipt::checks::TimestampCheck};
+use tap_core::{
+    manager::{context::memory::ExecutorMock, strategy::EscrowHandler},
+    receipt::checks::TimestampCheck,
+};
 
 #[fixture]
 fn executor() -> ExecutorMock {
