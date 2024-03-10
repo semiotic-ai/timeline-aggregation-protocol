@@ -5,7 +5,7 @@ use rand::thread_rng;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use tap_core::manager::context::memory::ExecutorMock;
+use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::receipt::{Checking, ReceiptWithState};
 
 use alloy_primitives::Address;
@@ -24,13 +24,13 @@ fn domain_separator() -> Eip712Domain {
 }
 
 #[fixture]
-fn executor() -> ExecutorMock {
+fn in_memory_context() -> InMemoryContext {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    ExecutorMock::new(
+    InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -40,7 +40,7 @@ fn executor() -> ExecutorMock {
 
 #[rstest]
 #[tokio::test]
-async fn receipt_adapter_test(domain_separator: Eip712Domain, mut executor: ExecutorMock) {
+async fn receipt_strategy_test(domain_separator: Eip712Domain, mut in_memory_context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -59,30 +59,30 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut executor: Exec
         .unwrap(),
     );
 
-    let receipt_store_result = executor.store_receipt(received_receipt).await;
+    let receipt_store_result = in_memory_context.store_receipt(received_receipt).await;
     assert!(receipt_store_result.is_ok());
     let receipt_id = receipt_store_result.unwrap();
 
     // Retreive receipt with id expected to be valid
-    assert!(executor.retrieve_receipt_by_id(receipt_id).await.is_ok());
+    assert!(in_memory_context.retrieve_receipt_by_id(receipt_id).await.is_ok());
     // Retreive receipt with arbitrary id expected to be invalid
-    assert!(executor.retrieve_receipt_by_id(999).await.is_err());
+    assert!(in_memory_context.retrieve_receipt_by_id(999).await.is_err());
 
     // Remove receipt with id expected to be valid
-    assert!(executor.remove_receipt_by_id(receipt_id).await.is_ok());
+    assert!(in_memory_context.remove_receipt_by_id(receipt_id).await.is_ok());
     // Remove receipt with arbitrary id expected to be invalid
-    assert!(executor.remove_receipt_by_id(999).await.is_err());
+    assert!(in_memory_context.remove_receipt_by_id(999).await.is_err());
 
     // Retreive receipt that was removed previously
-    assert!(executor.retrieve_receipt_by_id(receipt_id).await.is_err());
+    assert!(in_memory_context.retrieve_receipt_by_id(receipt_id).await.is_err());
 
     // Remove receipt that was removed previously
-    assert!(executor.remove_receipt_by_id(receipt_id).await.is_err());
+    assert!(in_memory_context.remove_receipt_by_id(receipt_id).await.is_err());
 }
 
 #[rstest]
 #[tokio::test]
-async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut executor: ExecutorMock) {
+async fn multi_receipt_strategy_test(domain_separator: Eip712Domain, mut in_memory_context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -106,27 +106,27 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut executor
     let mut receipt_timestamps = Vec::new();
     for received_receipt in received_receipts {
         receipt_timestamps.push(received_receipt.signed_receipt().message.timestamp_ns);
-        receipt_ids.push(executor.store_receipt(received_receipt).await.unwrap());
+        receipt_ids.push(in_memory_context.store_receipt(received_receipt).await.unwrap());
     }
 
     // Retreive receipts with timestamp
-    assert!(executor
+    assert!(in_memory_context
         .retrieve_receipts_by_timestamp(receipt_timestamps[0])
         .await
         .is_ok());
-    assert!(!executor
+    assert!(!in_memory_context
         .retrieve_receipts_by_timestamp(receipt_timestamps[0])
         .await
         .unwrap()
         .is_empty());
 
     // Retreive receipts before timestamp
-    assert!(executor
+    assert!(in_memory_context
         .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
         .await
         .is_ok());
     assert!(
-        executor
+        in_memory_context
             .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
             .await
             .unwrap()
@@ -135,18 +135,18 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut executor
     );
 
     // Remove all receipts with one call
-    assert!(executor
+    assert!(in_memory_context
         .remove_receipts_by_ids(receipt_ids.as_slice())
         .await
         .is_ok());
     // Removal should no longer be valid
-    assert!(executor
+    assert!(in_memory_context
         .remove_receipts_by_ids(receipt_ids.as_slice())
         .await
         .is_err());
     // Retrieval should be invalid
     for receipt_id in receipt_ids {
-        assert!(executor.retrieve_receipt_by_id(receipt_id).await.is_err());
+        assert!(in_memory_context.retrieve_receipt_by_id(receipt_id).await.is_err());
     }
 }
 

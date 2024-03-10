@@ -11,7 +11,7 @@ use ethers::signers::coins_bip39::English;
 use ethers::signers::{LocalWallet, MnemonicBuilder};
 use rstest::*;
 
-use tap_core::manager::context::memory::ExecutorMock;
+use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::{
     manager::strategy::{RAVRead, RAVStore},
     rav::ReceiptAggregateVoucher,
@@ -26,13 +26,13 @@ fn domain_separator() -> Eip712Domain {
 }
 
 #[fixture]
-fn executor() -> ExecutorMock {
+fn in_memory_context() -> InMemoryContext {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    ExecutorMock::new(
+    InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -42,7 +42,7 @@ fn executor() -> ExecutorMock {
 
 #[rstest]
 #[tokio::test]
-async fn rav_storage_adapter_test(domain_separator: Eip712Domain, executor: ExecutorMock) {
+async fn rav_storage_strategy_test(domain_separator: Eip712Domain, in_memory_context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -73,10 +73,10 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, executor: Exec
     )
     .unwrap();
 
-    executor.update_last_rav(signed_rav.clone()).await.unwrap();
+    in_memory_context.update_last_rav(signed_rav.clone()).await.unwrap();
 
     // Retreive rav
-    let retrieved_rav = executor.last_rav().await;
+    let retrieved_rav = in_memory_context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 
     // Testing the last rav update...
@@ -102,9 +102,9 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, executor: Exec
     .unwrap();
 
     // Update the last rav
-    executor.update_last_rav(signed_rav.clone()).await.unwrap();
+    in_memory_context.update_last_rav(signed_rav.clone()).await.unwrap();
 
     // Retreive rav
-    let retrieved_rav = executor.last_rav().await;
+    let retrieved_rav = in_memory_context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 }

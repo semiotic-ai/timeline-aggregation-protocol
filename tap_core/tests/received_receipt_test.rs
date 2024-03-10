@@ -13,7 +13,7 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer
 use rstest::*;
 use tap_core::{
     manager::context::memory::{
-        checks::get_full_list_of_checks, EscrowStorage, ExecutorMock, QueryAppraisals,
+        checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
     },
     receipt::{
         checks::{ReceiptCheck, TimestampCheck},
@@ -61,27 +61,27 @@ fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
 
-struct ExecutorFixture {
-    executor: ExecutorMock,
+struct ContextFixture {
+    in_memory_context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Vec<ReceiptCheck>,
 }
 
 #[fixture]
-fn executor_mock(
+fn in_memory_context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
     keys: (LocalWallet, Address),
-) -> ExecutorFixture {
+) -> ContextFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let executor = ExecutorMock::new(
+    let in_memory_context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -96,8 +96,8 @@ fn executor_mock(
     );
     checks.push(timestamp_check);
 
-    ExecutorFixture {
-        executor,
+    ContextFixture {
+        in_memory_context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -110,14 +110,14 @@ async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    executor_mock: ExecutorFixture,
+    in_memory_context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
+    } = in_memory_context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -152,15 +152,15 @@ async fn partial_then_finalize_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    in_memory_context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
-        executor,
+        in_memory_context,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
+    } = in_memory_context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -189,7 +189,7 @@ async fn partial_then_finalize_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&executor, &domain_separator)
+        .check_and_reserve_escrow(&in_memory_context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }
@@ -200,15 +200,15 @@ async fn standard_lifetime_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    in_memory_context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
-        executor,
+        in_memory_context,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
+    } = in_memory_context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -238,7 +238,7 @@ async fn standard_lifetime_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&executor, &domain_separator)
+        .check_and_reserve_escrow(&in_memory_context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }

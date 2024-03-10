@@ -21,13 +21,13 @@ pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum AdapterErrorMock {
+pub enum InMemoryError {
     #[error("something went wrong: {error}")]
-    AdapterError { error: String },
+    StrategyError { error: String },
 }
 
 #[derive(Clone)]
-pub struct ExecutorMock {
+pub struct InMemoryContext {
     /// local RAV store with rwlocks to allow sharing with other compenents as needed
     rav_storage: RAVStorage,
     receipt_storage: ReceiptStorage,
@@ -37,14 +37,14 @@ pub struct ExecutorMock {
     sender_address: Option<Address>,
 }
 
-impl ExecutorMock {
+impl InMemoryContext {
     pub fn new(
         rav_storage: RAVStorage,
         receipt_storage: ReceiptStorage,
         sender_escrow_storage: EscrowStorage,
         timestamp_check: Arc<TimestampCheck>,
     ) -> Self {
-        ExecutorMock {
+        InMemoryContext {
             rav_storage,
             receipt_storage,
             unique_id: Arc::new(RwLock::new(0)),
@@ -62,13 +62,13 @@ impl ExecutorMock {
     pub async fn retrieve_receipt_by_id(
         &self,
         receipt_id: u64,
-    ) -> Result<ReceiptWithState<Checking>, AdapterErrorMock> {
+    ) -> Result<ReceiptWithState<Checking>, InMemoryError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
 
         receipt_storage
             .get(&receipt_id)
             .cloned()
-            .ok_or(AdapterErrorMock::AdapterError {
+            .ok_or(InMemoryError::StrategyError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
@@ -76,7 +76,7 @@ impl ExecutorMock {
     pub async fn retrieve_receipts_by_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceiptWithState<Checking>)>, AdapterErrorMock> {
+    ) -> Result<Vec<(u64, ReceiptWithState<Checking>)>, InMemoryError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
         Ok(receipt_storage
             .iter()
@@ -90,24 +90,24 @@ impl ExecutorMock {
     pub async fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<ReceiptWithState<Checking>>, AdapterErrorMock> {
+    ) -> Result<Vec<ReceiptWithState<Checking>>, InMemoryError> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns, None)
             .await
     }
 
-    pub async fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), AdapterErrorMock> {
+    pub async fn remove_receipt_by_id(&mut self, receipt_id: u64) -> Result<(), InMemoryError> {
         let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage
             .remove(&receipt_id)
             .map(|_| ())
-            .ok_or(AdapterErrorMock::AdapterError {
+            .ok_or(InMemoryError::StrategyError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
     pub async fn remove_receipts_by_ids(
         &mut self,
         receipt_ids: &[u64],
-    ) -> Result<(), AdapterErrorMock> {
+    ) -> Result<(), InMemoryError> {
         for receipt_id in receipt_ids {
             self.remove_receipt_by_id(*receipt_id).await?;
         }
@@ -116,10 +116,10 @@ impl ExecutorMock {
 }
 
 #[async_trait]
-impl RAVStore for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
+impl RAVStore for InMemoryContext {
+    type StrategyError = InMemoryError;
 
-    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
+    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::StrategyError> {
         let mut rav_storage = self.rav_storage.write().unwrap();
         let timestamp = rav.message.timestampNs;
         *rav_storage = Some(rav);
@@ -129,22 +129,22 @@ impl RAVStore for ExecutorMock {
 }
 
 #[async_trait]
-impl RAVRead for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
+impl RAVRead for InMemoryContext {
+    type StrategyError = InMemoryError;
 
-    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
+    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::StrategyError> {
         Ok(self.rav_storage.read().unwrap().clone())
     }
 }
 
 #[async_trait]
-impl ReceiptStore for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
+impl ReceiptStore for InMemoryContext {
+    type StrategyError = InMemoryError;
 
     async fn store_receipt(
         &self,
         receipt: ReceiptWithState<Checking>,
-    ) -> Result<u64, Self::AdapterError> {
+    ) -> Result<u64, Self::StrategyError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
         let mut receipt_storage = self.receipt_storage.write().unwrap();
@@ -155,13 +155,13 @@ impl ReceiptStore for ExecutorMock {
 }
 
 #[async_trait]
-impl ReceiptDelete for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
+impl ReceiptDelete for InMemoryContext {
+    type StrategyError = InMemoryError;
 
     async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_ns: R,
-    ) -> Result<(), Self::AdapterError> {
+    ) -> Result<(), Self::StrategyError> {
         let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage.retain(|_, rx_receipt| {
             !timestamp_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
@@ -170,13 +170,13 @@ impl ReceiptDelete for ExecutorMock {
     }
 }
 #[async_trait]
-impl ReceiptRead for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
+impl ReceiptRead for InMemoryContext {
+    type StrategyError = InMemoryError;
     async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::AdapterError> {
+    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::StrategyError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
         let mut receipts_in_range: Vec<ReceiptWithState<Checking>> = receipt_storage
             .iter()
@@ -193,13 +193,13 @@ impl ReceiptRead for ExecutorMock {
     }
 }
 
-impl ExecutorMock {
-    pub fn escrow(&self, sender_id: Address) -> Result<u128, AdapterErrorMock> {
+impl InMemoryContext {
+    pub fn escrow(&self, sender_id: Address) -> Result<u128, InMemoryError> {
         let sender_escrow_storage = self.sender_escrow_storage.read().unwrap();
         if let Some(escrow) = sender_escrow_storage.get(&sender_id) {
             return Ok(*escrow);
         }
-        Err(AdapterErrorMock::AdapterError {
+        Err(InMemoryError::StrategyError {
             error: "No escrow exists for provided sender ID.".to_owned(),
         })
     }
@@ -215,7 +215,7 @@ impl ExecutorMock {
         }
     }
 
-    pub fn reduce_escrow(&self, sender_id: Address, value: u128) -> Result<(), AdapterErrorMock> {
+    pub fn reduce_escrow(&self, sender_id: Address, value: u128) -> Result<(), InMemoryError> {
         let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
@@ -225,27 +225,27 @@ impl ExecutorMock {
                 return Ok(());
             }
         }
-        Err(AdapterErrorMock::AdapterError {
+        Err(InMemoryError::StrategyError {
             error: "Provided value is greater than existing escrow.".to_owned(),
         })
     }
 }
 
 #[async_trait]
-impl EscrowHandler for ExecutorMock {
-    type AdapterError = AdapterErrorMock;
-    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
+impl EscrowHandler for InMemoryContext {
+    type StrategyError = InMemoryError;
+    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::StrategyError> {
         self.escrow(sender_id)
     }
     async fn subtract_escrow(
         &self,
         sender_id: Address,
         value: u128,
-    ) -> Result<(), Self::AdapterError> {
+    ) -> Result<(), Self::StrategyError> {
         self.reduce_escrow(sender_id, value)
     }
 
-    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
+    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::StrategyError> {
         Ok(self
             .sender_address
             .map(|sender| signer_address == sender)
