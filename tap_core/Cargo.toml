@@ -27,8 +27,6 @@ tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }
-tap_aggregator = { version = "0.2.0", path = "../tap_aggregator" }
-jsonrpsee = { version = "0.18.0", features = ["http-client", "server"] }
 
 
 [features]
