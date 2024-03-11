@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.8.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.7.0...tap_core-v0.8.0) (2024-03-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* update project structure
+* implement unique and timestamp check hard coded
+* remove stateful checks
+* remove timestamp check from manager
+* update rav attributes to camel case
+* use single executor for manager and auditor
+* convert receipt and rav storage into executor
+* use typestate for receivedreceipt
+* split read and write storage adapters
+
+### Features
+
+* add serde to ReceivedReceipt ([b13bedf](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/b13bedf4f145fe0209c48d4d51630233ad71b4b8))
+* **aggregator:** Add support for multiple signers in input ([#211](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/211)) ([b16f23d](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/b16f23d5481de65658b08544c083e2849821370e)), closes [#205](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/205)
+* **core:** Supply EIP712 domain sep with prefilled version and name ([#210](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/210)) ([2ed564b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2ed564b9581c4eff2364fdc490f0f8d0022a6982))
+* implement unique and timestamp check hard coded ([7c3f5a9](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/7c3f5a97679b7fcb3cd1150517e6bd77585255e0))
+
+
+### Bug Fixes
+
+* add debug to messageid ([fbdd328](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/fbdd328f4170d58800b62deed833493b728afb68))
+* checks need to be send and sync ([78ae2a8](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/78ae2a89e395a49a186eef62a26c5f51ca279735))
+* compile tests ([06cf24c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/06cf24cac1b4e50bcd8234557e09556b7de75007))
+* implement receipt delete to mock ([50058f7](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/50058f7043303bbb914de7808b641b39800e0ede))
+* missing merge conflicts ([8c95954](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/8c9595456bad9c334b539d0363de884239f14157))
+* rebase main ([0c7bc1c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0c7bc1c9cebbb8dfad1c83067a1457380009925f))
+* remove EscrowAdapter dependency ([3045f61](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3045f61c2ce556ab13bf9268102c9af0387b6226))
+* update rav attributes to camel case ([1b232e4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1b232e4de230dc4922937fea2b489c7409ca2408))
+* update timestamp check only after rav update ([bfb1eb0](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/bfb1eb07aa2d26f611ce14d4d0b57fddb9da2ea6))
+* use the correct timestamp check ([1b1d19c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1b1d19ca00244f01fb45c8d62398dfe16ddac7bb))
+
+
+### Reverts
+
+* rename back to adapters ([42bd2df](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/42bd2dfce16d12753ade4577cb0ee47b3d82dbce))
+
+
+### Code Refactoring
+
+* convert receipt and rav storage into executor ([467c917](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/467c917af61733e3c2cbf3823c4377091179980b))
+* remove stateful checks ([1044f53](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1044f534be5e35a387d32e6b8bd86e86af188b66))
+* remove timestamp check from manager ([0a3b983](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0a3b983b5f20b27c0afdc02d9db682481e7493a9))
+* split read and write storage adapters ([2e681a5](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2e681a529d0c03e2fe455f64692e23024ad98073))
+* update project structure ([70ee2c6](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/70ee2c67125653c25f479ee5f11e7c7e555078b7))
+* use single executor for manager and auditor ([6794fbb](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/6794fbb6a7d02774008d57d62ccc10564cf952c1))
+* use typestate for receivedreceipt ([89b5d94](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/89b5d941a37c475cb47c768f2618b902cf8908c5))
+
 ## [0.7.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.6.0...tap_core-v0.7.0) (2023-11-28)
 
 

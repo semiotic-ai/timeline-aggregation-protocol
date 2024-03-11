@@ -12,6 +12,41 @@
   * dependencies
     * tap_core bumped from 0.5.1 to 0.6.0
 
+## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.2.0...tap_aggregator-v0.3.0) (2024-03-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* update project structure
+* update rav attributes to camel case
+* replace aggregator mnemonic with private key ([#201](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/201))
+
+### Features
+
+* **aggregator:** Add support for multiple signers in input ([#211](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/211)) ([b16f23d](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/b16f23d5481de65658b08544c083e2849821370e)), closes [#205](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/205)
+* **core:** Supply EIP712 domain sep with prefilled version and name ([#210](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/210)) ([2ed564b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2ed564b9581c4eff2364fdc490f0f8d0022a6982))
+* replace aggregator mnemonic with private key ([#201](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/201)) ([24583b4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/24583b468a08527f7add79c71da0c5d56ab760c9))
+
+
+### Bug Fixes
+
+* listen on 0.0.0.0 instead of localhost ([#203](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/203)) ([5099ad1](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/5099ad166dda203cb9938c1fa417cf86d2215667))
+* listen on 0.0.0.0 instead of localhost ([#204](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/204)) ([95d8ea6](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/95d8ea6bcd0e22e15dc8a2fee29c9b64abda978b))
+* rebase main ([0c7bc1c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0c7bc1c9cebbb8dfad1c83067a1457380009925f))
+* update rav attributes to camel case ([1b232e4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1b232e4de230dc4922937fea2b489c7409ca2408))
+
+
+### Code Refactoring
+
+* update project structure ([70ee2c6](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/70ee2c67125653c25f479ee5f11e7c7e555078b7))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 0.7.0 to 0.8.0
+
 ## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.1.6...tap_aggregator-v0.2.0) (2023-11-28)
 
 
