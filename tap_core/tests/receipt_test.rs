@@ -24,7 +24,7 @@ fn domain_separator() -> Eip712Domain {
 }
 
 #[fixture]
-fn in_memory_context() -> InMemoryContext {
+fn context() -> InMemoryContext {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
@@ -40,10 +40,7 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn receipt_adapter_test(
-    domain_separator: Eip712Domain,
-    mut in_memory_context: InMemoryContext,
-) {
+async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -62,45 +59,30 @@ async fn receipt_adapter_test(
         .unwrap(),
     );
 
-    let receipt_store_result = in_memory_context.store_receipt(received_receipt).await;
+    let receipt_store_result = context.store_receipt(received_receipt).await;
     assert!(receipt_store_result.is_ok());
     let receipt_id = receipt_store_result.unwrap();
 
     // Retreive receipt with id expected to be valid
-    assert!(in_memory_context
-        .retrieve_receipt_by_id(receipt_id)
-        .await
-        .is_ok());
+    assert!(context.retrieve_receipt_by_id(receipt_id).await.is_ok());
     // Retreive receipt with arbitrary id expected to be invalid
-    assert!(in_memory_context.retrieve_receipt_by_id(999).await.is_err());
+    assert!(context.retrieve_receipt_by_id(999).await.is_err());
 
     // Remove receipt with id expected to be valid
-    assert!(in_memory_context
-        .remove_receipt_by_id(receipt_id)
-        .await
-        .is_ok());
+    assert!(context.remove_receipt_by_id(receipt_id).await.is_ok());
     // Remove receipt with arbitrary id expected to be invalid
-    assert!(in_memory_context.remove_receipt_by_id(999).await.is_err());
+    assert!(context.remove_receipt_by_id(999).await.is_err());
 
     // Retreive receipt that was removed previously
-    assert!(in_memory_context
-        .retrieve_receipt_by_id(receipt_id)
-        .await
-        .is_err());
+    assert!(context.retrieve_receipt_by_id(receipt_id).await.is_err());
 
     // Remove receipt that was removed previously
-    assert!(in_memory_context
-        .remove_receipt_by_id(receipt_id)
-        .await
-        .is_err());
+    assert!(context.remove_receipt_by_id(receipt_id).await.is_err());
 }
 
 #[rstest]
 #[tokio::test]
-async fn multi_receipt_adapter_test(
-    domain_separator: Eip712Domain,
-    mut in_memory_context: InMemoryContext,
-) {
+async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -124,32 +106,27 @@ async fn multi_receipt_adapter_test(
     let mut receipt_timestamps = Vec::new();
     for received_receipt in received_receipts {
         receipt_timestamps.push(received_receipt.signed_receipt().message.timestamp_ns);
-        receipt_ids.push(
-            in_memory_context
-                .store_receipt(received_receipt)
-                .await
-                .unwrap(),
-        );
+        receipt_ids.push(context.store_receipt(received_receipt).await.unwrap());
     }
 
     // Retreive receipts with timestamp
-    assert!(in_memory_context
+    assert!(context
         .retrieve_receipts_by_timestamp(receipt_timestamps[0])
         .await
         .is_ok());
-    assert!(!in_memory_context
+    assert!(!context
         .retrieve_receipts_by_timestamp(receipt_timestamps[0])
         .await
         .unwrap()
         .is_empty());
 
     // Retreive receipts before timestamp
-    assert!(in_memory_context
+    assert!(context
         .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
         .await
         .is_ok());
     assert!(
-        in_memory_context
+        context
             .retrieve_receipts_upto_timestamp(receipt_timestamps[3])
             .await
             .unwrap()
@@ -158,21 +135,18 @@ async fn multi_receipt_adapter_test(
     );
 
     // Remove all receipts with one call
-    assert!(in_memory_context
+    assert!(context
         .remove_receipts_by_ids(receipt_ids.as_slice())
         .await
         .is_ok());
     // Removal should no longer be valid
-    assert!(in_memory_context
+    assert!(context
         .remove_receipts_by_ids(receipt_ids.as_slice())
         .await
         .is_err());
     // Retrieval should be invalid
     for receipt_id in receipt_ids {
-        assert!(in_memory_context
-            .retrieve_receipt_by_id(receipt_id)
-            .await
-            .is_err());
+        assert!(context.retrieve_receipt_by_id(receipt_id).await.is_err());
     }
 }
 

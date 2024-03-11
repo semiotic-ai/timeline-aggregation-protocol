@@ -10,9 +10,9 @@
 //! The `Manager` uses user-defined adapters (see [crate::adapters]) for check and storage handling.
 //! This design offers a high degree of flexibility, letting the user define their own behavior for these critical operations.
 
+pub mod adapters;
 #[cfg(feature = "in_memory")]
 pub mod context;
-pub mod adapters;
 mod tap_manager;
 
 pub use tap_manager::Manager;

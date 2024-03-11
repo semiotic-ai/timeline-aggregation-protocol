@@ -26,7 +26,7 @@ fn domain_separator() -> Eip712Domain {
 }
 
 #[fixture]
-fn in_memory_context() -> InMemoryContext {
+fn context() -> InMemoryContext {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
@@ -42,10 +42,7 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn rav_storage_adapter_test(
-    domain_separator: Eip712Domain,
-    in_memory_context: InMemoryContext,
-) {
+async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -76,13 +73,10 @@ async fn rav_storage_adapter_test(
     )
     .unwrap();
 
-    in_memory_context
-        .update_last_rav(signed_rav.clone())
-        .await
-        .unwrap();
+    context.update_last_rav(signed_rav.clone()).await.unwrap();
 
     // Retreive rav
-    let retrieved_rav = in_memory_context.last_rav().await;
+    let retrieved_rav = context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 
     // Testing the last rav update...
@@ -108,12 +102,9 @@ async fn rav_storage_adapter_test(
     .unwrap();
 
     // Update the last rav
-    in_memory_context
-        .update_last_rav(signed_rav.clone())
-        .await
-        .unwrap();
+    context.update_last_rav(signed_rav.clone()).await.unwrap();
 
     // Retreive rav
-    let retrieved_rav = in_memory_context.last_rav().await;
+    let retrieved_rav = context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 }

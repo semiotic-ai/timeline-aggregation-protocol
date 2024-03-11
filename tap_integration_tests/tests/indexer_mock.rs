@@ -59,7 +59,7 @@ where
 {
     pub fn new(
         domain_separator: Eip712Domain,
-        in_memory_context: E,
+        context: E,
         required_checks: Checks,
         threshold: u64,
         aggregate_server_address: String,
@@ -68,7 +68,7 @@ where
         Ok(Self {
             manager: Arc::new(Manager::<E>::new(
                 domain_separator,
-                in_memory_context,
+                context,
                 required_checks,
             )),
             receipt_count: Arc::new(AtomicU64::new(0)),
@@ -133,7 +133,7 @@ where
 pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
-    in_memory_context: E,                 // in_memory_context instance
+    context: E,                           // context instance
     required_checks: Checks, // Vector of required checks to be performed on each request
     threshold: u64,          // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server
@@ -160,7 +160,7 @@ where
     println!("Listening on: {}", addr);
     let rpc_manager = RpcManager::new(
         domain_separator,
-        in_memory_context,
+        context,
         required_checks,
         threshold,
         aggregate_server_address,

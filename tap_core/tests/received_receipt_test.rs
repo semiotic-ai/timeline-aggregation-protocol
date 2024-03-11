@@ -62,14 +62,14 @@ fn domain_separator() -> Eip712Domain {
 }
 
 struct ContextFixture {
-    in_memory_context: InMemoryContext,
+    context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Vec<ReceiptCheck>,
 }
 
 #[fixture]
-fn in_memory_context(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
@@ -81,7 +81,7 @@ fn in_memory_context(
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let in_memory_context = InMemoryContext::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -97,7 +97,7 @@ fn in_memory_context(
     checks.push(timestamp_check);
 
     ContextFixture {
-        in_memory_context,
+        context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -110,14 +110,14 @@ async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
         checks,
         escrow_storage,
         query_appraisals,
         ..
-    } = in_memory_context;
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -152,15 +152,15 @@ async fn partial_then_finalize_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
         checks,
-        in_memory_context,
+        context,
         escrow_storage,
         query_appraisals,
         ..
-    } = in_memory_context;
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -189,7 +189,7 @@ async fn partial_then_finalize_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&in_memory_context, &domain_separator)
+        .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }
@@ -200,15 +200,15 @@ async fn standard_lifetime_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
         checks,
-        in_memory_context,
+        context,
         escrow_storage,
         query_appraisals,
         ..
-    } = in_memory_context;
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -238,7 +238,7 @@ async fn standard_lifetime_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&in_memory_context, &domain_separator)
+        .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }

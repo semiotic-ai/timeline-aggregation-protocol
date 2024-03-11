@@ -168,12 +168,12 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
 }
 
 struct ContextFixture {
-    in_memory_context: InMemoryContext,
+    context: InMemoryContext,
     checks: Checks,
 }
 
 #[fixture]
-fn in_memory_context(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
@@ -183,7 +183,7 @@ fn in_memory_context(
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let in_memory_context = InMemoryContext::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -198,20 +198,17 @@ fn in_memory_context(
 
     let checks = Checks::new(checks);
 
-    ContextFixture {
-        in_memory_context,
-        checks,
-    }
+    ContextFixture { context, checks }
 }
 
 #[fixture]
-fn indexer_1_context(in_memory_context: ContextFixture) -> ContextFixture {
-    in_memory_context
+fn indexer_1_context(context: ContextFixture) -> ContextFixture {
+    context
 }
 
 #[fixture]
-fn indexer_2_context(in_memory_context: ContextFixture) -> ContextFixture {
-    in_memory_context
+fn indexer_2_context(context: ContextFixture) -> ContextFixture {
+    context
 }
 
 // Helper fixture to generate a batch of receipts to be sent to the Indexer.
@@ -372,13 +369,10 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let ContextFixture {
-        in_memory_context,
-        checks,
-    } = indexer_1_context;
+    let ContextFixture { context, checks } = indexer_1_context;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
-        in_memory_context,
+        context,
         sender_id,
         available_escrow,
         checks,
@@ -423,12 +417,12 @@ async fn two_indexers_test_servers(
     )
     .await?;
     let ContextFixture {
-        in_memory_context: in_memory_1,
+        context: in_memory_1,
         checks: checks_1,
     } = indexer_1_context;
 
     let ContextFixture {
-        in_memory_context: in_memory_2,
+        context: in_memory_2,
         checks: checks_2,
     } = indexer_2_context;
 
@@ -485,14 +479,12 @@ async fn single_indexer_wrong_sender_test_server(
     )
     .await?;
     let ContextFixture {
-        in_memory_context,
-        checks,
-        ..
+        context, checks, ..
     } = indexer_1_context;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
-        in_memory_context,
+        context,
         sender_id,
         available_escrow,
         checks,
@@ -819,7 +811,7 @@ fn generate_requests(
 // Start-up a mock Indexer. Requires a Sender Aggregator to be running.
 async fn start_indexer_server(
     domain_separator: Eip712Domain,
-    mut in_memory_context: InMemoryContext,
+    mut context: InMemoryContext,
     sender_id: Address,
     available_escrow: u128,
     required_checks: Checks,
@@ -831,13 +823,13 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    in_memory_context.increase_escrow(sender_id, available_escrow);
+    context.increase_escrow(sender_id, available_escrow);
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(
         http_port,
         domain_separator,
-        in_memory_context.with_sender_address(sender_id),
+        context.with_sender_address(sender_id),
         required_checks,
         receipt_threshold,
         aggregate_server_address,

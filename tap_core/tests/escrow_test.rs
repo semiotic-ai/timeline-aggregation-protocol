@@ -10,12 +10,12 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer
 use rstest::*;
 
 use tap_core::{
-    manager::{context::memory::InMemoryContext, adapters::EscrowHandler},
+    manager::{adapters::EscrowHandler, context::memory::InMemoryContext},
     receipt::checks::TimestampCheck,
 };
 
 #[fixture]
-fn in_memory_context() -> InMemoryContext {
+fn context() -> InMemoryContext {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
@@ -31,7 +31,7 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn escrow_handler_test(mut in_memory_context: InMemoryContext) {
+async fn escrow_handler_test(mut context: InMemoryContext) {
     let wallet: LocalWallet = MnemonicBuilder::<English>::default()
          .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
          .build()
@@ -48,46 +48,31 @@ async fn escrow_handler_test(mut in_memory_context: InMemoryContext) {
 
     let initial_value = 500u128;
 
-    in_memory_context.increase_escrow(sender_id, initial_value);
+    context.increase_escrow(sender_id, initial_value);
 
     // Check that sender exists and has valid value through adapter
-    assert!(in_memory_context
-        .get_available_escrow(sender_id)
-        .await
-        .is_ok());
+    assert!(context.get_available_escrow(sender_id).await.is_ok());
     assert_eq!(
-        in_memory_context
-            .get_available_escrow(sender_id)
-            .await
-            .unwrap(),
+        context.get_available_escrow(sender_id).await.unwrap(),
         initial_value
     );
 
     // Check that subtracting is valid for valid sender, and results in expected value
-    assert!(in_memory_context
+    assert!(context
         .subtract_escrow(sender_id, initial_value)
         .await
         .is_ok());
-    assert!(in_memory_context
-        .get_available_escrow(sender_id)
-        .await
-        .is_ok());
-    assert_eq!(
-        in_memory_context
-            .get_available_escrow(sender_id)
-            .await
-            .unwrap(),
-        0
-    );
+    assert!(context.get_available_escrow(sender_id).await.is_ok());
+    assert_eq!(context.get_available_escrow(sender_id).await.unwrap(), 0);
 
     // Check that subtracting to negative escrow results in err
-    assert!(in_memory_context
+    assert!(context
         .subtract_escrow(sender_id, initial_value)
         .await
         .is_err());
 
     // Check that accessing non initialized sender results in err
-    assert!(in_memory_context
+    assert!(context
         .get_available_escrow(invalid_sender_id)
         .await
         .is_err());

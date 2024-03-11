@@ -18,10 +18,10 @@ fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
 
 use tap_core::{
     manager::{
+        adapters::ReceiptRead,
         context::memory::{
             checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
         },
-        adapters::ReceiptRead,
         Manager,
     },
     receipt::{
@@ -71,14 +71,14 @@ fn domain_separator() -> Eip712Domain {
 }
 
 struct ContextFixture {
-    in_memory_context: InMemoryContext,
+    context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Checks,
 }
 
 #[fixture]
-fn in_memory_context(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
@@ -89,7 +89,7 @@ fn in_memory_context(
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let in_memory_context = InMemoryContext::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -107,7 +107,7 @@ fn in_memory_context(
     let checks = Checks::new(checks);
 
     ContextFixture {
-        in_memory_context,
+        context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -120,16 +120,16 @@ async fn manager_verify_and_store_varying_initial_checks(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
-        in_memory_context,
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = in_memory_context;
-    let manager = Manager::new(domain_separator.clone(), in_memory_context, checks);
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
 
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -154,16 +154,16 @@ async fn manager_create_rav_request_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
-        in_memory_context,
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = in_memory_context;
-    let manager = Manager::new(domain_separator.clone(), in_memory_context, checks);
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
     let mut stored_signed_receipts = Vec::new();
@@ -210,17 +210,17 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
-        in_memory_context,
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = in_memory_context;
+    } = context;
 
-    let manager = Manager::new(domain_separator.clone(), in_memory_context, checks);
+    let manager = Manager::new(domain_separator.clone(), context, checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -324,18 +324,18 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     #[values(true, false)] remove_old_receipts: bool,
-    in_memory_context: ContextFixture,
+    context: ContextFixture,
 ) {
     let ContextFixture {
-        in_memory_context,
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = in_memory_context;
+    } = context;
     let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-    let manager = Manager::new(domain_separator.clone(), in_memory_context.clone(), checks);
+    let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -414,7 +414,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
         // We expect to have 10 receipts left in receipt storage
         assert_eq!(
-            in_memory_context
+            context
                 .retrieve_receipts_in_timestamp_range(.., None)
                 .await
                 .unwrap()
