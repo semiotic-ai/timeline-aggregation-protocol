@@ -15,15 +15,10 @@
 //!
 //! In addition, this module also includes mock implementations of each adapter for testing and example purposes.
 
-pub mod escrow_adapter;
-pub mod rav_storage_adapter;
-pub mod receipt_storage_adapter;
+mod escrow;
+mod rav;
+mod receipt;
 
-#[cfg(feature = "mock")]
-mod mock;
-
-#[cfg(feature = "mock")]
-pub use mock::*;
-
-#[cfg(test)]
-mod test;
+pub use escrow::EscrowHandler;
+pub use rav::*;
+pub use receipt::*;

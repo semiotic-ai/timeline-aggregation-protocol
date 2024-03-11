@@ -3,47 +3,37 @@
 
 use alloy_sol_types::Eip712Domain;
 
-use super::{RAVRequest, SignedRAV, SignedReceipt};
+use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
 use crate::{
-    adapters::{
-        escrow_adapter::EscrowAdapter,
-        rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_storage_adapter::{ReceiptDelete, ReceiptRead, ReceiptStore},
-    },
-    receipt_aggregate_voucher::ReceiptAggregateVoucher,
-    tap_receipt::{
+    rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
+    receipt::{
         checks::{BatchTimestampCheck, CheckBatch, Checks, UniqueCheck},
-        CategorizedReceiptsWithState, Failed, ReceiptAuditor, ReceiptWithState, ReceivedReceipt,
-        Reserved,
+        Failed, ReceiptWithState, Reserved, SignedReceipt,
     },
     Error,
 };
 
 pub struct Manager<E> {
-    /// Executor that implements adapters
-    executor: E,
+    /// Context that implements adapters
+    context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
     checks: Checks,
 
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
-    receipt_auditor: ReceiptAuditor<E>,
+    domain_separator: Eip712Domain,
 }
 
-impl<E> Manager<E>
-where
-    E: Clone,
-{
+impl<E> Manager<E> {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(domain_separator: Eip712Domain, executor: E, checks: impl Into<Checks>) -> Self {
-        let receipt_auditor = ReceiptAuditor::new(domain_separator, executor.clone());
+    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<Checks>) -> Self {
         Self {
-            executor,
-            receipt_auditor,
+            context,
+            domain_separator,
             checks: checks.into(),
         }
     }
@@ -51,7 +41,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: RAVStore + EscrowAdapter,
+    E: RAVStore + EscrowHandler,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -64,8 +54,8 @@ where
         expected_rav: ReceiptAggregateVoucher,
         signed_rav: SignedRAV,
     ) -> std::result::Result<(), Error> {
-        self.receipt_auditor
-            .check_rav_signature(&signed_rav)
+        self.context
+            .check_rav_signature(&signed_rav, &self.domain_separator)
             .await?;
 
         if signed_rav.message != expected_rav {
@@ -75,7 +65,7 @@ where
             });
         }
 
-        self.executor
+        self.context
             .update_last_rav(signed_rav)
             .await
             .map_err(|err| Error::AdapterError {
@@ -92,7 +82,7 @@ where
 {
     async fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
         let previous_rav = self
-            .executor
+            .context
             .last_rav()
             .await
             .map_err(|err| Error::AdapterError {
@@ -104,7 +94,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + EscrowAdapter,
+    E: ReceiptRead + EscrowHandler,
 {
     async fn collect_receipts(
         &self,
@@ -126,25 +116,17 @@ where
                 max_timestamp_ns,
             });
         }
-        let received_receipts = self
-            .executor
+        let checking_receipts = self
+            .context
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns, limit)
             .await
             .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let CategorizedReceiptsWithState {
-            checking_receipts,
-            mut awaiting_reserve_receipts,
-            mut failed_receipts,
-            mut reserved_receipts,
-        } = received_receipts.into();
-
-        let checking_receipts = checking_receipts
-            .into_iter()
-            .map(|receipt| receipt.receipt)
-            .collect::<Vec<_>>();
+        let mut awaiting_reserve_receipts = vec![];
+        let mut failed_receipts = vec![];
+        let mut reserved_receipts = vec![];
 
         // check for timestamp
         let (checking_receipts, already_failed) =
@@ -165,7 +147,7 @@ where
         }
         for checked in awaiting_reserve_receipts {
             match checked
-                .check_and_reserve_escrow(&self.receipt_auditor)
+                .check_and_reserve_escrow(&self.context, &self.domain_separator)
                 .await
             {
                 Ok(reserved) => reserved_receipts.push(reserved),
@@ -179,7 +161,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + RAVRead + EscrowAdapter,
+    E: ReceiptRead + RAVRead + EscrowHandler,
 {
     /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
     /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
@@ -257,7 +239,7 @@ where
     pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
             Some(last_rav) => {
-                self.executor
+                self.context
                     .remove_receipts_in_timestamp_range(..=last_rav.message.timestampNs)
                     .await
                     .map_err(|err| Error::AdapterError {
@@ -289,15 +271,13 @@ where
         &self,
         signed_receipt: SignedReceipt,
     ) -> std::result::Result<(), Error> {
-        let mut received_receipt = ReceivedReceipt::new(signed_receipt);
+        let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
         // perform checks
-        if let ReceivedReceipt::Checking(received_receipt) = &mut received_receipt {
-            received_receipt.perform_checks(&self.checks).await?;
-        }
+        received_receipt.perform_checks(&self.checks).await?;
 
         // store the receipt
-        self.executor
+        self.context
             .store_receipt(received_receipt)
             .await
             .map_err(|err| Error::AdapterError {
@@ -306,7 +286,3 @@ where
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "test/manager_test.rs"]
-mod manager_test;

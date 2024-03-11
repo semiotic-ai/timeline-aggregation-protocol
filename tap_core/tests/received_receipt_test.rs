@@ -11,15 +11,16 @@ use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
-
-use crate::{
-    adapters::executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-    eip_712_signed_message::EIP712SignedMessage,
-    tap_eip712_domain,
-    tap_receipt::{
-        checks::{mock::get_full_list_of_checks, ReceiptCheck, TimestampCheck},
-        Receipt, ReceiptAuditor, ReceivedReceipt,
+use tap_core::{
+    manager::context::memory::{
+        checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
     },
+    receipt::{
+        checks::{ReceiptCheck, TimestampCheck},
+        Receipt, ReceiptWithState,
+    },
+    signed_message::EIP712SignedMessage,
+    tap_eip712_domain,
 };
 
 #[fixture]
@@ -60,27 +61,27 @@ fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
 
-struct ExecutorFixture {
-    executor: ExecutorMock,
+struct ContextFixture {
+    context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Vec<ReceiptCheck>,
 }
 
 #[fixture]
-fn executor_mock(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
     keys: (LocalWallet, Address),
-) -> ExecutorFixture {
+) -> ContextFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let executor = ExecutorMock::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -95,8 +96,8 @@ fn executor_mock(
     );
     checks.push(timestamp_check);
 
-    ExecutorFixture {
-        executor,
+    ContextFixture {
+        context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -105,40 +106,18 @@ fn executor_mock(
 
 #[rstest]
 #[tokio::test]
-async fn initialization_valid_receipt(
-    keys: (LocalWallet, Address),
-    allocation_ids: Vec<Address>,
-    domain_separator: Eip712Domain,
-) {
-    let signed_receipt = EIP712SignedMessage::new(
-        &domain_separator,
-        Receipt::new(allocation_ids[0], 10).unwrap(),
-        &keys.0,
-    )
-    .unwrap();
-
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
-}
-
-#[rstest]
-#[tokio::test]
 async fn partial_then_full_check_valid_receipt(
     keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -161,12 +140,7 @@ async fn partial_then_full_check_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let mut received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
     let result = received_receipt.perform_checks(&checks).await;
     assert!(result.is_ok());
@@ -178,16 +152,15 @@ async fn partial_then_finalize_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
-        executor,
+        context,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
-    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -209,19 +182,14 @@ async fn partial_then_finalize_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let received_receipt = ReceiptWithState::new(signed_receipt);
 
     let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&receipt_auditor)
+        .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }
@@ -232,16 +200,15 @@ async fn standard_lifetime_valid_receipt(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
+    let ContextFixture {
         checks,
-        executor,
+        context,
         escrow_storage,
         query_appraisals,
         ..
-    } = executor_mock;
-    let receipt_auditor = ReceiptAuditor::new(domain_separator.clone(), executor);
+    } = context;
 
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -264,19 +231,14 @@ async fn standard_lifetime_valid_receipt(
         .unwrap()
         .insert(query_id, query_value);
 
-    let received_receipt = ReceivedReceipt::new(signed_receipt);
-
-    let received_receipt = match received_receipt {
-        ReceivedReceipt::Checking(checking) => checking,
-        _ => panic!("ReceivedReceipt should be in Checking state"),
-    };
+    let received_receipt = ReceiptWithState::new(signed_receipt);
 
     let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
-        .check_and_reserve_escrow(&receipt_auditor)
+        .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
 }

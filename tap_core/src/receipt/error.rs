@@ -1,23 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod checks;
-mod receipt;
-mod receipt_auditor;
-mod received_receipt;
-
 use alloy_primitives::Address;
-pub use receipt::Receipt;
-pub use receipt_auditor::ReceiptAuditor;
-pub use received_receipt::{
-    AwaitingReserve, CategorizedReceiptsWithState, Checking, Failed, ReceiptState, ReceiptWithId,
-    ReceiptWithState, ReceivedReceipt, Reserved, ResultReceipt,
-};
-
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
     #[error("invalid allocation ID: {received_allocation_id}")]
     InvalidAllocationID { received_allocation_id: Address },
@@ -37,5 +24,3 @@ pub enum ReceiptError {
     #[error("Issue encountered while performing check: {0}")]
     CheckFailedToComplete(String),
 }
-
-pub type ReceiptResult<T> = Result<T, ReceiptError>;

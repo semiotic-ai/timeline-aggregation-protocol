@@ -1,15 +1,12 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize};
-
-use super::{SignedRAV, SignedReceipt};
 use crate::{
-    receipt_aggregate_voucher::ReceiptAggregateVoucher,
-    tap_receipt::{Failed, ReceiptWithState},
+    rav::{ReceiptAggregateVoucher, SignedRAV},
+    receipt::{Failed, ReceiptWithState, SignedReceipt},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct RAVRequest {
     pub valid_receipts: Vec<SignedReceipt>,
     pub previous_rav: Option<SignedRAV>,

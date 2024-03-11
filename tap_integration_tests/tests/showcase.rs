@@ -24,14 +24,14 @@ use rstest::*;
 
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
-    adapters::executor_mock::{ExecutorMock, QueryAppraisals},
-    eip_712_signed_message::{EIP712SignedMessage, MessageId},
-    tap_eip712_domain,
-    tap_manager::SignedRAV,
-    tap_receipt::{
-        checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
+    manager::context::memory::{checks::get_full_list_of_checks, *},
+    rav::SignedRAV,
+    receipt::{
+        checks::{Checks, TimestampCheck},
         Receipt,
     },
+    signed_message::{EIP712SignedMessage, MessageId},
+    tap_eip712_domain,
 };
 
 use crate::indexer_mock;
@@ -167,23 +167,23 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
     ))
 }
 
-struct ExecutorFixture {
-    executor: ExecutorMock,
+struct ContextFixture {
+    context: InMemoryContext,
     checks: Checks,
 }
 
 #[fixture]
-fn executor(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
     query_appraisals: QueryAppraisals,
-) -> ExecutorFixture {
+) -> ContextFixture {
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let executor = ExecutorMock::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -198,17 +198,17 @@ fn executor(
 
     let checks = Checks::new(checks);
 
-    ExecutorFixture { executor, checks }
+    ContextFixture { context, checks }
 }
 
 #[fixture]
-fn indexer_1_adapters(executor: ExecutorFixture) -> ExecutorFixture {
-    executor
+fn indexer_1_context(context: ContextFixture) -> ContextFixture {
+    context
 }
 
 #[fixture]
-fn indexer_2_adapters(executor: ExecutorFixture) -> ExecutorFixture {
-    executor
+fn indexer_2_context(context: ContextFixture) -> ContextFixture {
+    context
 }
 
 // Helper fixture to generate a batch of receipts to be sent to the Indexer.
@@ -356,7 +356,7 @@ async fn single_indexer_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorFixture,
+    indexer_1_context: ContextFixture,
     available_escrow: u128,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
@@ -369,10 +369,10 @@ async fn single_indexer_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let ExecutorFixture { executor, checks } = indexer_1_adapters;
+    let ContextFixture { context, checks } = indexer_1_context;
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
-        executor,
+        context,
         sender_id,
         available_escrow,
         checks,
@@ -395,8 +395,8 @@ async fn two_indexers_test_servers(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorFixture,
-    indexer_2_adapters: ExecutorFixture,
+    indexer_1_context: ContextFixture,
+    indexer_2_context: ContextFixture,
     available_escrow: u128,
     receipt_threshold_1: u64,
 ) -> Result<(
@@ -416,19 +416,19 @@ async fn two_indexers_test_servers(
         http_max_concurrent_connections,
     )
     .await?;
-    let ExecutorFixture {
-        executor: executor_1,
+    let ContextFixture {
+        context: in_memory_1,
         checks: checks_1,
-    } = indexer_1_adapters;
+    } = indexer_1_context;
 
-    let ExecutorFixture {
-        executor: executor_2,
+    let ContextFixture {
+        context: in_memory_2,
         checks: checks_2,
-    } = indexer_2_adapters;
+    } = indexer_2_context;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
-        executor_1,
+        in_memory_1,
         sender_id,
         available_escrow,
         checks_1,
@@ -439,7 +439,7 @@ async fn two_indexers_test_servers(
 
     let (indexer_handle_2, indexer_addr_2) = start_indexer_server(
         domain_separator.clone(),
-        executor_2,
+        in_memory_2,
         sender_id,
         available_escrow,
         checks_2,
@@ -465,7 +465,7 @@ async fn single_indexer_wrong_sender_test_server(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    indexer_1_adapters: ExecutorFixture,
+    indexer_1_context: ContextFixture,
     available_escrow: u128,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
@@ -478,13 +478,13 @@ async fn single_indexer_wrong_sender_test_server(
         http_max_concurrent_connections,
     )
     .await?;
-    let ExecutorFixture {
-        executor, checks, ..
-    } = indexer_1_adapters;
+    let ContextFixture {
+        context, checks, ..
+    } = indexer_1_context;
 
     let (indexer_handle, indexer_addr) = start_indexer_server(
         domain_separator.clone(),
-        executor,
+        context,
         sender_id,
         available_escrow,
         checks,
@@ -811,7 +811,7 @@ fn generate_requests(
 // Start-up a mock Indexer. Requires a Sender Aggregator to be running.
 async fn start_indexer_server(
     domain_separator: Eip712Domain,
-    mut executor: ExecutorMock,
+    mut context: InMemoryContext,
     sender_id: Address,
     available_escrow: u128,
     required_checks: Checks,
@@ -823,13 +823,13 @@ async fn start_indexer_server(
         listener.local_addr()?.port()
     };
 
-    executor.increase_escrow(sender_id, available_escrow);
+    context.increase_escrow(sender_id, available_escrow);
     let aggregate_server_address = "http://".to_string() + &agg_server_addr.to_string();
 
     let (server_handle, socket_addr) = indexer_mock::run_server(
         http_port,
         domain_separator,
-        executor.with_sender_address(sender_id),
+        context.with_sender_address(sender_id),
         required_checks,
         receipt_threshold,
         aggregate_server_address,

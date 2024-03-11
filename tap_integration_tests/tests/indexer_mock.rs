@@ -17,13 +17,12 @@ use jsonrpsee::{
 
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
-    adapters::{
-        escrow_adapter::EscrowAdapter,
-        rav_storage_adapter::{RAVRead, RAVStore},
-        receipt_storage_adapter::{ReceiptRead, ReceiptStore},
+    manager::{
+        adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
+        Manager,
     },
-    tap_manager::{Manager, SignedRAV, SignedReceipt},
-    tap_receipt::checks::Checks,
+    rav::SignedRAV,
+    receipt::{checks::Checks, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -60,7 +59,7 @@ where
 {
     pub fn new(
         domain_separator: Eip712Domain,
-        executor: E,
+        context: E,
         required_checks: Checks,
         threshold: u64,
         aggregate_server_address: String,
@@ -69,7 +68,7 @@ where
         Ok(Self {
             manager: Arc::new(Manager::<E>::new(
                 domain_separator,
-                executor,
+                context,
                 required_checks,
             )),
             receipt_count: Arc::new(AtomicU64::new(0)),
@@ -85,7 +84,7 @@ where
 #[async_trait]
 impl<E> RpcServer for RpcManager<E>
 where
-    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowAdapter + Send + Sync + 'static,
+    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowHandler + Send + Sync + 'static,
 {
     async fn request(
         &self,
@@ -134,7 +133,7 @@ where
 pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
-    executor: E,                          // Executor instance
+    context: E,                           // context instance
     required_checks: Checks, // Vector of required checks to be performed on each request
     threshold: u64,          // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server
@@ -145,7 +144,7 @@ where
         + ReceiptRead
         + RAVStore
         + RAVRead
-        + EscrowAdapter
+        + EscrowHandler
         + Clone
         + Send
         + Sync
@@ -161,7 +160,7 @@ where
     println!("Listening on: {}", addr);
     let rpc_manager = RpcManager::new(
         domain_separator,
-        executor,
+        context,
         required_checks,
         threshold,
         aggregate_server_address,
@@ -180,7 +179,7 @@ async fn request_rav<E>(
     threshold: usize,
 ) -> Result<()>
 where
-    E: ReceiptRead + RAVRead + RAVStore + EscrowAdapter,
+    E: ReceiptRead + RAVRead + RAVStore + EscrowHandler,
 {
     // Create the aggregate_receipts request params
     let rav_request = manager.create_rav_request(time_stamp_buffer, None).await?;

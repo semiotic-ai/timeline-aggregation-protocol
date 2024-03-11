@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     str::FromStr,
     sync::{Arc, RwLock},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use alloy_primitives::Address;
@@ -11,18 +12,24 @@ use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use rstest::*;
 
-use super::super::Manager;
-use crate::{
-    adapters::{
-        executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
-        receipt_storage_adapter::ReceiptRead,
+fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64)
+}
+
+use tap_core::{
+    manager::{
+        adapters::ReceiptRead,
+        context::memory::{
+            checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
+        },
+        Manager,
     },
-    eip_712_signed_message::EIP712SignedMessage,
-    get_current_timestamp_u64_ns, tap_eip712_domain,
-    tap_receipt::{
-        checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
+    receipt::{
+        checks::{Checks, TimestampCheck},
         Receipt,
     },
+    signed_message::EIP712SignedMessage,
+    tap_eip712_domain,
 };
 
 #[fixture]
@@ -63,26 +70,26 @@ fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]))
 }
 
-struct ExecutorFixture {
-    executor: ExecutorMock,
+struct ContextFixture {
+    context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Checks,
 }
 
 #[fixture]
-fn executor_mock(
+fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     sender_ids: Vec<Address>,
     keys: (LocalWallet, Address),
-) -> ExecutorFixture {
+) -> ContextFixture {
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let timestamp_check = Arc::new(TimestampCheck::new(0));
-    let executor = ExecutorMock::new(
+    let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
         escrow_storage.clone(),
@@ -99,8 +106,8 @@ fn executor_mock(
     checks.push(timestamp_check);
     let checks = Checks::new(checks);
 
-    ExecutorFixture {
-        executor,
+    ContextFixture {
+        context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -113,16 +120,16 @@ async fn manager_verify_and_store_varying_initial_checks(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
-        executor,
+    let ContextFixture {
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = executor_mock;
-    let manager = Manager::new(domain_separator.clone(), executor, checks);
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
 
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -147,16 +154,16 @@ async fn manager_create_rav_request_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
-        executor,
+    let ContextFixture {
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = executor_mock;
-    let manager = Manager::new(domain_separator.clone(), executor, checks);
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
     let mut stored_signed_receipts = Vec::new();
@@ -203,17 +210,17 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
-        executor,
+    let ContextFixture {
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = executor_mock;
+    } = context;
 
-    let manager = Manager::new(domain_separator.clone(), executor, checks);
+    let manager = Manager::new(domain_separator.clone(), context, checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -317,18 +324,18 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     #[values(true, false)] remove_old_receipts: bool,
-    executor_mock: ExecutorFixture,
+    context: ContextFixture,
 ) {
-    let ExecutorFixture {
-        executor,
+    let ContextFixture {
+        context,
         checks,
         query_appraisals,
         escrow_storage,
         ..
-    } = executor_mock;
+    } = context;
     let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
-    let manager = Manager::new(domain_separator.clone(), executor, checks);
+    let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
 
     escrow_storage.write().unwrap().insert(keys.1, 999999);
 
@@ -407,8 +414,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
         // We expect to have 10 receipts left in receipt storage
         assert_eq!(
-            manager
-                .executor
+            context
                 .retrieve_receipts_in_timestamp_range(.., None)
                 .await
                 .unwrap()

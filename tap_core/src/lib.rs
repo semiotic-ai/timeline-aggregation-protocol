@@ -11,16 +11,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use alloy_sol_types::eip712_domain;
 use thiserror::Error;
 
-pub mod adapters;
-pub mod eip_712_signed_message;
 mod error;
-pub mod receipt_aggregate_voucher;
-pub mod tap_manager;
-pub mod tap_receipt;
+pub mod manager;
+pub mod rav;
+pub mod receipt;
+pub mod signed_message;
 
 pub use error::{Error, Result};
 
-pub(crate) fn get_current_timestamp_u64_ns() -> Result<u64> {
+fn get_current_timestamp_u64_ns() -> Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|err| Error::InvalidSystemTime {
@@ -51,9 +50,8 @@ mod tap_tests {
     use rstest::*;
 
     use crate::{
-        eip_712_signed_message::EIP712SignedMessage,
-        receipt_aggregate_voucher::ReceiptAggregateVoucher, tap_eip712_domain,
-        tap_receipt::Receipt,
+        rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
+        tap_eip712_domain,
     };
 
     #[fixture]
