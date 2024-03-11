@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    manager::strategy::*,
+    manager::adapters::*,
     rav::SignedRAV,
     receipt::{checks::TimestampCheck, Checking, ReceiptWithState},
     signed_message::MessageId,
@@ -23,7 +23,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum InMemoryError {
     #[error("something went wrong: {error}")]
-    StrategyError { error: String },
+    AdapterError { error: String },
 }
 
 #[derive(Clone)]
@@ -68,7 +68,7 @@ impl InMemoryContext {
         receipt_storage
             .get(&receipt_id)
             .cloned()
-            .ok_or(InMemoryError::StrategyError {
+            .ok_or(InMemoryError::AdapterError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
@@ -100,7 +100,7 @@ impl InMemoryContext {
         receipt_storage
             .remove(&receipt_id)
             .map(|_| ())
-            .ok_or(InMemoryError::StrategyError {
+            .ok_or(InMemoryError::AdapterError {
                 error: "No receipt found with ID".to_owned(),
             })
     }
@@ -117,9 +117,9 @@ impl InMemoryContext {
 
 #[async_trait]
 impl RAVStore for InMemoryContext {
-    type StrategyError = InMemoryError;
+    type AdapterError = InMemoryError;
 
-    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::StrategyError> {
+    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
         let mut rav_storage = self.rav_storage.write().unwrap();
         let timestamp = rav.message.timestampNs;
         *rav_storage = Some(rav);
@@ -130,21 +130,21 @@ impl RAVStore for InMemoryContext {
 
 #[async_trait]
 impl RAVRead for InMemoryContext {
-    type StrategyError = InMemoryError;
+    type AdapterError = InMemoryError;
 
-    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::StrategyError> {
+    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
         Ok(self.rav_storage.read().unwrap().clone())
     }
 }
 
 #[async_trait]
 impl ReceiptStore for InMemoryContext {
-    type StrategyError = InMemoryError;
+    type AdapterError = InMemoryError;
 
     async fn store_receipt(
         &self,
         receipt: ReceiptWithState<Checking>,
-    ) -> Result<u64, Self::StrategyError> {
+    ) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
         let mut receipt_storage = self.receipt_storage.write().unwrap();
@@ -156,12 +156,12 @@ impl ReceiptStore for InMemoryContext {
 
 #[async_trait]
 impl ReceiptDelete for InMemoryContext {
-    type StrategyError = InMemoryError;
+    type AdapterError = InMemoryError;
 
     async fn remove_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_ns: R,
-    ) -> Result<(), Self::StrategyError> {
+    ) -> Result<(), Self::AdapterError> {
         let mut receipt_storage = self.receipt_storage.write().unwrap();
         receipt_storage.retain(|_, rx_receipt| {
             !timestamp_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
@@ -171,12 +171,12 @@ impl ReceiptDelete for InMemoryContext {
 }
 #[async_trait]
 impl ReceiptRead for InMemoryContext {
-    type StrategyError = InMemoryError;
+    type AdapterError = InMemoryError;
     async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::StrategyError> {
+    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::AdapterError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
         let mut receipts_in_range: Vec<ReceiptWithState<Checking>> = receipt_storage
             .iter()
@@ -199,7 +199,7 @@ impl InMemoryContext {
         if let Some(escrow) = sender_escrow_storage.get(&sender_id) {
             return Ok(*escrow);
         }
-        Err(InMemoryError::StrategyError {
+        Err(InMemoryError::AdapterError {
             error: "No escrow exists for provided sender ID.".to_owned(),
         })
     }
@@ -225,7 +225,7 @@ impl InMemoryContext {
                 return Ok(());
             }
         }
-        Err(InMemoryError::StrategyError {
+        Err(InMemoryError::AdapterError {
             error: "Provided value is greater than existing escrow.".to_owned(),
         })
     }
@@ -233,19 +233,19 @@ impl InMemoryContext {
 
 #[async_trait]
 impl EscrowHandler for InMemoryContext {
-    type StrategyError = InMemoryError;
-    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::StrategyError> {
+    type AdapterError = InMemoryError;
+    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
         self.escrow(sender_id)
     }
     async fn subtract_escrow(
         &self,
         sender_id: Address,
         value: u128,
-    ) -> Result<(), Self::StrategyError> {
+    ) -> Result<(), Self::AdapterError> {
         self.reduce_escrow(sender_id, value)
     }
 
-    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::StrategyError> {
+    async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
         Ok(self
             .sender_address
             .map(|sender| signer_address == sender)

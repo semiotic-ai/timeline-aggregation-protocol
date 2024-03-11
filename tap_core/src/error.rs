@@ -36,8 +36,8 @@ pub enum Error {
         received_rav: ReceiptAggregateVoucher,
         expected_rav: ReceiptAggregateVoucher,
     },
-    #[error("Error from strategy.\n Caused by: {source_error}")]
-    StrategyError { source_error: anyhow::Error },
+    #[error("Error from adapter.\n Caused by: {source_error}")]
+    AdapterError { source_error: anyhow::Error },
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRAVRequest,
     #[error("Previous RAV allocation id ({prev_id}) doesn't match the allocation id from the new receipt ({new_id}).")]

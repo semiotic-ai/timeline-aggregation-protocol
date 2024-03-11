@@ -10,7 +10,7 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer
 use rstest::*;
 
 use tap_core::{
-    manager::{context::memory::InMemoryContext, strategy::EscrowHandler},
+    manager::{context::memory::InMemoryContext, adapters::EscrowHandler},
     receipt::checks::TimestampCheck,
 };
 

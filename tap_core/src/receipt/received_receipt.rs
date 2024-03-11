@@ -17,7 +17,7 @@ use alloy_sol_types::Eip712Domain;
 
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::{
-    manager::strategy::EscrowHandler, receipt::checks::ReceiptCheck,
+    manager::adapters::EscrowHandler, receipt::checks::ReceiptCheck,
     signed_message::EIP712SignedMessage,
 };
 

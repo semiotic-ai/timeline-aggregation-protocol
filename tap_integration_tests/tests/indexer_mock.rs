@@ -18,7 +18,7 @@ use jsonrpsee::{
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     manager::{
-        strategy::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
+        adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
         Manager,
     },
     rav::SignedRAV,

@@ -14,7 +14,7 @@ use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
 use rstest::*;
 use tap_core::receipt::checks::TimestampCheck;
 use tap_core::{
-    manager::strategy::ReceiptStore, receipt::Receipt, signed_message::EIP712SignedMessage,
+    manager::adapters::ReceiptStore, receipt::Receipt, signed_message::EIP712SignedMessage,
     tap_eip712_domain,
 };
 
@@ -40,7 +40,7 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn receipt_strategy_test(
+async fn receipt_adapter_test(
     domain_separator: Eip712Domain,
     mut in_memory_context: InMemoryContext,
 ) {
@@ -97,7 +97,7 @@ async fn receipt_strategy_test(
 
 #[rstest]
 #[tokio::test]
-async fn multi_receipt_strategy_test(
+async fn multi_receipt_adapter_test(
     domain_separator: Eip712Domain,
     mut in_memory_context: InMemoryContext,
 ) {
@@ -219,7 +219,7 @@ fn safe_truncate_receipts_test(
     // shuffle the input receipts
     receipts_truncated.shuffle(&mut thread_rng());
 
-    tap_core::manager::strategy::safe_truncate_receipts(&mut receipts_truncated, limit);
+    tap_core::manager::adapters::safe_truncate_receipts(&mut receipts_truncated, limit);
 
     assert_eq!(receipts_truncated.len(), expected.len());
 

@@ -13,7 +13,7 @@ use rstest::*;
 
 use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::{
-    manager::strategy::{RAVRead, RAVStore},
+    manager::adapters::{RAVRead, RAVStore},
     rav::ReceiptAggregateVoucher,
     receipt::{checks::TimestampCheck, Receipt},
     signed_message::EIP712SignedMessage,
@@ -42,7 +42,7 @@ fn in_memory_context() -> InMemoryContext {
 
 #[rstest]
 #[tokio::test]
-async fn rav_storage_strategy_test(
+async fn rav_storage_adapter_test(
     domain_separator: Eip712Domain,
     in_memory_context: InMemoryContext,
 ) {

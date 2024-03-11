@@ -3,7 +3,7 @@
 
 use alloy_sol_types::Eip712Domain;
 
-use super::strategy::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
+use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
@@ -47,7 +47,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`Error::StrategyError`] if there are any errors while storing RAV
+    /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
     pub async fn verify_and_store_rav(
         &self,
@@ -68,7 +68,7 @@ where
         self.context
             .update_last_rav(signed_rav)
             .await
-            .map_err(|err| Error::StrategyError {
+            .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
 
@@ -85,7 +85,7 @@ where
             .context
             .last_rav()
             .await
-            .map_err(|err| Error::StrategyError {
+            .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
         Ok(previous_rav)
@@ -120,7 +120,7 @@ where
             .context
             .retrieve_receipts_in_timestamp_range(min_timestamp_ns..max_timestamp_ns, limit)
             .await
-            .map_err(|err| Error::StrategyError {
+            .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
 
@@ -169,7 +169,7 @@ where
     ///
     /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow while generating expected RAV
     ///
-    /// Returns [`Error::StrategyError`] if unable to fetch previous RAV or if unable to fetch previous receipts
+    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
     ///
     /// Returns [`Error::TimestampRangeError`] if the max timestamp of the previous RAV is greater than the min timestamp. Caused by timestamp buffer being too large, or requests coming too soon.
     ///
@@ -234,7 +234,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`Error::StrategyError`] if there are any errors while retrieving last RAV or removing receipts
+    /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
     ///
     pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
@@ -242,7 +242,7 @@ where
                 self.context
                     .remove_receipts_in_timestamp_range(..=last_rav.message.timestampNs)
                     .await
-                    .map_err(|err| Error::StrategyError {
+                    .map_err(|err| Error::AdapterError {
                         source_error: anyhow::Error::new(err),
                     })?;
                 Ok(())
@@ -261,7 +261,7 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`Error::StrategyError`] if there are any errors while storing receipts
+    /// Returns [`Error::AdapterError`] if there are any errors while storing receipts
     ///
     /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveEscrow`
     ///
@@ -280,7 +280,7 @@ where
         self.context
             .store_receipt(received_receipt)
             .await
-            .map_err(|err| Error::StrategyError {
+            .map_err(|err| Error::AdapterError {
                 source_error: anyhow::Error::new(err),
             })?;
         Ok(())

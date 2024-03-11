@@ -12,7 +12,7 @@
 
 #[cfg(feature = "in_memory")]
 pub mod context;
-pub mod strategy;
+pub mod adapters;
 mod tap_manager;
 
 pub use tap_manager::Manager;

@@ -21,7 +21,7 @@ use tap_core::{
         context::memory::{
             checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
         },
-        strategy::ReceiptRead,
+        adapters::ReceiptRead,
         Manager,
     },
     receipt::{
