@@ -25,11 +25,13 @@ use rstest::*;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     adapters::executor_mock::{ExecutorMock, QueryAppraisals},
-    checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
     eip_712_signed_message::{EIP712SignedMessage, MessageId},
     tap_eip712_domain,
     tap_manager::SignedRAV,
-    tap_receipt::Receipt,
+    tap_receipt::{
+        checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
+        Receipt,
+    },
 };
 
 use crate::indexer_mock;

@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use super::{receipt_auditor::ReceiptAuditor, Receipt, ReceiptError, ReceiptResult};
 use crate::{
     adapters::{escrow_adapter::EscrowAdapter, receipt_storage_adapter::StoredReceipt},
-    checks::ReceiptCheck,
     eip_712_signed_message::EIP712SignedMessage,
+    tap_receipt::checks::ReceiptCheck,
 };
 
 #[derive(Debug, Clone)]
@@ -236,7 +236,7 @@ impl<S> ReceiptWithState<S>
 where
     S: ReceiptState,
 {
-    fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed> {
+    pub(super) fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed> {
         ReceiptWithState {
             signed_receipt: self.signed_receipt,
             _state: Failed { error },

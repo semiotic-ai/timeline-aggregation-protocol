@@ -3,9 +3,12 @@
 
 use crate::tap_receipt::{Checking, ReceiptError, ReceiptWithState};
 use std::{
+    collections::HashSet,
     ops::Deref,
     sync::{Arc, RwLock},
 };
+
+use super::Failed;
 
 pub type ReceiptCheck = Arc<dyn Check + Sync + Send>;
 
@@ -32,9 +35,14 @@ pub trait Check {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult;
 }
 
-#[async_trait::async_trait]
 pub trait CheckBatch {
-    async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult>;
+    fn check_batch(
+        &self,
+        receipts: Vec<ReceiptWithState<Checking>>,
+    ) -> (
+        Vec<ReceiptWithState<Checking>>,
+        Vec<ReceiptWithState<Failed>>,
+    );
 }
 
 #[derive(Debug)]
@@ -70,6 +78,59 @@ impl Check for TimestampCheck {
     }
 }
 
+/// Timestamp Check verifies if the receipt is **greater or equal** than the minimum timestamp provided.
+pub struct BatchTimestampCheck(pub u64);
+
+impl CheckBatch for BatchTimestampCheck {
+    fn check_batch(
+        &self,
+        receipts: Vec<ReceiptWithState<Checking>>,
+    ) -> (
+        Vec<ReceiptWithState<Checking>>,
+        Vec<ReceiptWithState<Failed>>,
+    ) {
+        let (mut checking, mut failed) = (vec![], vec![]);
+        for receipt in receipts.into_iter() {
+            let receipt_timestamp_ns = receipt.signed_receipt().message.timestamp_ns;
+            let min_timestamp_ns = self.0;
+            if receipt_timestamp_ns >= min_timestamp_ns {
+                checking.push(receipt);
+            } else {
+                failed.push(receipt.perform_state_error(ReceiptError::InvalidTimestamp {
+                    received_timestamp: receipt_timestamp_ns,
+                    timestamp_min: min_timestamp_ns,
+                }));
+            }
+        }
+        (checking, failed)
+    }
+}
+
+pub struct UniqueCheck;
+
+impl CheckBatch for UniqueCheck {
+    fn check_batch(
+        &self,
+        receipts: Vec<ReceiptWithState<Checking>>,
+    ) -> (
+        Vec<ReceiptWithState<Checking>>,
+        Vec<ReceiptWithState<Failed>>,
+    ) {
+        let mut signatures: HashSet<ethers::types::Signature> = HashSet::new();
+        let (mut checking, mut failed) = (vec![], vec![]);
+
+        for received_receipt in receipts.into_iter() {
+            let signature = received_receipt.signed_receipt.signature;
+            if signatures.insert(signature) {
+                checking.push(received_receipt);
+            } else {
+                failed.push(received_receipt.perform_state_error(ReceiptError::NonUniqueReceipt));
+            }
+        }
+        (checking, failed)
+    }
+}
+
 #[cfg(feature = "mock")]
 pub mod mock {
 
@@ -94,26 +155,6 @@ pub mod mock {
                 valid_signers,
             }),
         ]
-    }
-
-    struct UniqueCheck;
-
-    #[async_trait::async_trait]
-    impl CheckBatch for UniqueCheck {
-        async fn check_batch(&self, receipts: &[ReceiptWithState<Checking>]) -> Vec<CheckResult> {
-            let mut signatures: HashSet<ethers::types::Signature> = HashSet::new();
-            let mut results = Vec::new();
-
-            for received_receipt in receipts {
-                let signature = received_receipt.signed_receipt.signature;
-                if signatures.insert(signature) {
-                    results.push(Ok(()));
-                } else {
-                    results.push(Err(ReceiptError::NonUniqueReceipt.into()));
-                }
-            }
-            results
-        }
     }
 
     struct ValueCheck {

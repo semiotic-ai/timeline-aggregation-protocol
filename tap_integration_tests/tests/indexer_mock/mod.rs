@@ -22,8 +22,8 @@ use tap_core::{
         rav_storage_adapter::{RAVRead, RAVStore},
         receipt_storage_adapter::{ReceiptRead, ReceiptStore},
     },
-    checks::Checks,
     tap_manager::{Manager, SignedRAV, SignedReceipt},
+    tap_receipt::checks::Checks,
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.

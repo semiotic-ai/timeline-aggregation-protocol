@@ -17,10 +17,12 @@ use crate::{
         executor_mock::{EscrowStorage, ExecutorMock, QueryAppraisals},
         receipt_storage_adapter::ReceiptRead,
     },
-    checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
     eip_712_signed_message::EIP712SignedMessage,
     get_current_timestamp_u64_ns, tap_eip712_domain,
-    tap_receipt::Receipt,
+    tap_receipt::{
+        checks::{mock::get_full_list_of_checks, Checks, TimestampCheck},
+        Receipt,
+    },
 };
 
 #[fixture]

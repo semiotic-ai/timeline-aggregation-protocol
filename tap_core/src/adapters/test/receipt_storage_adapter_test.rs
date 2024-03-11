@@ -9,7 +9,7 @@ mod receipt_storage_adapter_unit_test {
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
 
-    use crate::checks::TimestampCheck;
+    use crate::tap_receipt::checks::TimestampCheck;
     use crate::{
         adapters::{executor_mock::ExecutorMock, receipt_storage_adapter::ReceiptStore},
         eip_712_signed_message::EIP712SignedMessage,
