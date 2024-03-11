@@ -78,6 +78,7 @@ impl Check for TimestampCheck {
     }
 }
 
+/// Timestamp Check verifies if the receipt is **greater or equal** than the minimum timestamp provided.
 pub struct BatchTimestampCheck(pub u64);
 
 impl CheckBatch for BatchTimestampCheck {
