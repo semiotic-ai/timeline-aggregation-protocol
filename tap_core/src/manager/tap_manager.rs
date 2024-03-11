@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct Manager<E> {
-    /// Context that implements strategies
+    /// Context that implements adapters
     context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
