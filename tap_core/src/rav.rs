@@ -1,12 +1,39 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Module containing Receipt type used for providing and verifying a payment
+//! # Receipt Aggregate Voucher
 //!
-//! Receipts are used as single transaction promise of payment. A payment sender
-//! creates a receipt and ECDSA signs it, then sends it to a payment receiver.
-//! The payment receiver would verify the received receipt and store it to be
-//! accumulated with other received receipts in the future.
+//! Receipts Aggregate Voucher or RAV is the struct that is sent to the
+//! blockchain to redeem the aggregated receipts. Receipts are aggregated
+//! into a single RAV via a [`RAVRequest`] and then sent to `tap_aggregator`.
+//! The request is verified and signed by the aggregator and the response
+//! is stored on the indexer side.
+//!
+//! Every time you have enough receipts to aggregate, you can send another
+//! RAV request to the aggregator. The aggregator will verify the request and
+//! increment the total amount of GRT that has been aggregated.
+//!
+//! Once the allocation is closed or anytime the user doesn't want to serve
+//! anymore(sender considered malicious, not enough GRT to cover the RAV, etc),
+//! the user can redeem the RAV on the blockchain and get the aggregated GRT.
+//!
+//! The system is considered to have minimal trust because you only need to trust
+//! the sender until you receive the RAV. The value of non-aggregated receipts must
+//! be less than the value you are willing to lose if the sender is malicious.
+//!
+//! # How to send a request to the aggregator
+//!
+//! 1. Create a [`RAVRequest`] with the valid receipts and the previous RAV.
+//! 2. Send the request to the aggregator.
+//! 3. The aggregator will verify the request and increment the total amount of GRT that has been aggregated.
+//! 4. The aggregator will return a [`SignedRAV`].
+//! 5. Store the [`SignedRAV`].
+//! 6. Repeat the process until the allocation is closed.
+//! 7. Redeem the RAV on the blockchain and get the aggregated GRT.
+//!
+//! # How to create RAV Requests
+//!
+//! Rav requests should be created using the [`crate::manager::Manager::create_rav_request`] function.
 
 mod request;
 
@@ -19,11 +46,14 @@ use serde::{Deserialize, Serialize};
 use crate::Error;
 use crate::{receipt::Receipt, signed_message::EIP712SignedMessage};
 
+/// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
 pub use request::RAVRequest;
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
+    ///
+    /// We use camelCase for field names to match the Ethereum ABI encoding
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct ReceiptAggregateVoucher {
         /// Unique allocation id this RAV belongs to
@@ -49,7 +79,7 @@ impl ReceiptAggregateVoucher {
         previous_rav: Option<EIP712SignedMessage<Self>>,
     ) -> crate::Result<Self> {
         //TODO(#29): When receipts in flight struct in created check that the state of every receipt is OK with all checks complete (relies on #28)
-        // If there is a previous RAV get initalize values from it, otherwise get default values
+        // If there is a previous RAV get initialize values from it, otherwise get default values
         let mut timestamp_max = 0u64;
         let mut value_aggregate = 0u128;
 

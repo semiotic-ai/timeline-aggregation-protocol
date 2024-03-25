@@ -11,7 +11,7 @@ use rstest::*;
 
 use tap_core::{
     manager::{adapters::EscrowHandler, context::memory::InMemoryContext},
-    receipt::checks::TimestampCheck,
+    receipt::checks::StatefulTimestampCheck,
 };
 
 #[fixture]
@@ -20,7 +20,7 @@ fn context() -> InMemoryContext {
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),

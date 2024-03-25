@@ -1,10 +1,14 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! In-memory context implementation for the TAP manager.
+//!
+//! This module provides an in-memory implementation of the TAP manager context. It is useful for testing and development purposes.
+
 use crate::{
     manager::adapters::*,
     rav::SignedRAV,
-    receipt::{checks::TimestampCheck, Checking, ReceiptWithState},
+    receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState},
     signed_message::MessageId,
 };
 use alloy_primitives::Address;
@@ -33,7 +37,7 @@ pub struct InMemoryContext {
     receipt_storage: ReceiptStorage,
     unique_id: Arc<RwLock<u64>>,
     sender_escrow_storage: EscrowStorage,
-    timestamp_check: Arc<TimestampCheck>,
+    timestamp_check: Arc<StatefulTimestampCheck>,
     sender_address: Option<Address>,
 }
 
@@ -42,7 +46,7 @@ impl InMemoryContext {
         rav_storage: RAVStorage,
         receipt_storage: ReceiptStorage,
         sender_escrow_storage: EscrowStorage,
-        timestamp_check: Arc<TimestampCheck>,
+        timestamp_check: Arc<StatefulTimestampCheck>,
     ) -> Self {
         InMemoryContext {
             rav_storage,
@@ -257,7 +261,8 @@ pub mod checks {
     use crate::{
         receipt::{
             checks::{Check, CheckResult, ReceiptCheck},
-            Checking, ReceiptError, ReceiptWithState,
+            state::Checking,
+            ReceiptError, ReceiptWithState,
         },
         signed_message::MessageId,
     };

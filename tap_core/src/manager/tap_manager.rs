@@ -7,8 +7,9 @@ use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRe
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
-        checks::{BatchTimestampCheck, CheckBatch, Checks, UniqueCheck},
-        Failed, ReceiptWithState, Reserved, SignedReceipt,
+        checks::{TimestampCheck, CheckBatch, CheckList, UniqueCheck},
+        state::{Failed, Reserved},
+        ReceiptWithState, SignedReceipt,
     },
     Error,
 };
@@ -18,7 +19,7 @@ pub struct Manager<E> {
     context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    checks: Checks,
+    checks: CheckList,
 
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
@@ -30,7 +31,7 @@ impl<E> Manager<E> {
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<Checks>) -> Self {
+    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<CheckList>) -> Self {
         Self {
             context,
             domain_separator,
@@ -130,7 +131,7 @@ where
 
         // check for timestamp
         let (checking_receipts, already_failed) =
-            BatchTimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
+            TimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
         failed_receipts.extend(already_failed);
 
         // check for uniqueness
@@ -189,11 +190,6 @@ where
             .await?;
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
-
-        let valid_receipts = valid_receipts
-            .into_iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt)
-            .collect::<Vec<_>>();
 
         Ok(RAVRequest {
             valid_receipts,
@@ -262,10 +258,6 @@ where
     /// # Errors
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing receipts
-    ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveEscrow`
-    ///
-    /// Returns [`Error::InvalidCheckError`] if check in `initial_checks` is not in `required_checks` provided when manager was created
     ///
     pub async fn verify_and_store_receipt(
         &self,

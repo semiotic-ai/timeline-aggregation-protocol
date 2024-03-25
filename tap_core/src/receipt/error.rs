@@ -4,6 +4,7 @@
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 
+/// Error type for receipts
 #[derive(thiserror::Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
     #[error("invalid allocation ID: {received_allocation_id}")]

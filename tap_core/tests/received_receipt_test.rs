@@ -16,7 +16,7 @@ use tap_core::{
         checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
     },
     receipt::{
-        checks::{ReceiptCheck, TimestampCheck},
+        checks::{ReceiptCheck, StatefulTimestampCheck},
         Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
@@ -80,7 +80,7 @@ fn context(
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),

@@ -22,7 +22,7 @@ use tap_core::{
         Manager,
     },
     rav::SignedRAV,
-    receipt::{checks::Checks, SignedReceipt},
+    receipt::{checks::CheckList, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -60,7 +60,7 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         context: E,
-        required_checks: Checks,
+        required_checks: CheckList,
         threshold: u64,
         aggregate_server_address: String,
         aggregate_server_api_version: String,
@@ -134,7 +134,7 @@ pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
     context: E,                           // context instance
-    required_checks: Checks, // Vector of required checks to be performed on each request
+    required_checks: CheckList, // Vector of required checks to be performed on each request
     threshold: u64,          // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server

@@ -11,54 +11,75 @@ use ethers_core::types::SignatureError;
 use std::result::Result as StdResult;
 use thiserror::Error as ThisError;
 
+/// Error type for the TAP protocol
 #[derive(ThisError, Debug)]
 pub enum Error {
+    /// Error when trying to aggregate receipts and the result overflows
     #[error("Aggregating receipt results in overflow")]
     AggregateOverflow,
-    #[error("Failed to encode to EIP712 hash:\n{source_error_message}")]
-    EIP712EncodeError { source_error_message: String },
-    #[error(
-        "Unexpected check: \"{check_string}\". Only checks provided in initial checklist are valid"
-    )]
-    InvalidCheckError { check_string: String },
-    #[error("The requested action is invalid for current receipt state: {state}")]
-    InvalidStateForRequestedAction { state: String },
+    /// Error when Rust fails to get the current system time
     #[error("Failed to get current system time: {source_error_message} ")]
     InvalidSystemTime { source_error_message: String },
+    /// `ethers` wallet error
     #[error(transparent)]
     WalletError(#[from] WalletError),
+    /// Error when signature verification fails
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
-    #[error("Recovered sender address invalid {address}")]
-    InvalidRecoveredSigner { address: Address },
+
+    /// Error when the received RAV does not match the expected RAV
     #[error("Received RAV does not match expexted RAV")]
     InvalidReceivedRAV {
         received_rav: ReceiptAggregateVoucher,
         expected_rav: ReceiptAggregateVoucher,
     },
+    /// Generic error from the adapter
     #[error("Error from adapter.\n Caused by: {source_error}")]
     AdapterError { source_error: anyhow::Error },
+    /// Error when no valid receipts are found for a RAV request
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRAVRequest,
+
+    /// Error when the previous RAV allocation id does not match the allocation id from the new receipt
     #[error("Previous RAV allocation id ({prev_id}) doesn't match the allocation id from the new receipt ({new_id}).")]
     RavAllocationIdMismatch { prev_id: String, new_id: String },
+
+    /// Error when all receipts do not have the same allocation id
+    ///
+    /// Used in tap_aggregator
     #[error("All receipts should have the same allocation id, but they don't")]
     RavAllocationIdNotUniform,
+    /// Error when the receipt signature is duplicated.
+    ///
+    /// Used in tap_aggregator
     #[error("Duplicate receipt signature: {0}")]
     DuplicateReceiptSignature(String),
     #[error(
         "Receipt timestamp ({receipt_ts}) is less or equal than previous rav timestamp ({rav_ts})"
     )]
     ReceiptTimestampLowerThanRav { rav_ts: u64, receipt_ts: u64 },
+
+
+    /// Error when the min timestamp is greater than the max timestamp
+    /// Used by [`crate::manager::Manager::create_rav_request()`]
     #[error("Timestamp range error: min_timestamp_ns: {min_timestamp_ns}, max_timestamp_ns: {max_timestamp_ns}. Adjust timestamp buffer.")]
     TimestampRangeError {
         min_timestamp_ns: u64,
         max_timestamp_ns: u64,
     },
 
+    /// Error on the receipt side
     #[error("Receipt error: {0}")]
     ReceiptError(#[from] ReceiptError),
 
+
+    /// Error when the recovered signer address is invalid
+    /// Used by [`crate::manager::adapters::EscrowHandler`]
+    #[error("Recovered sender address invalid {address}")]
+    InvalidRecoveredSigner { address: Address },
+
+    /// Indicates a failure while verifying the signer
+    /// Used by [`crate::manager::adapters::EscrowHandler`]
     #[error("Failed to check the signer: {0}")]
     FailedToVerifySigner(String),
 }
