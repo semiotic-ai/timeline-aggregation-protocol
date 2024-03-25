@@ -3,7 +3,8 @@
 
 //! In-memory context implementation for the TAP manager.
 //!
-//! This module provides an in-memory implementation of the TAP manager context. It is useful for testing and development purposes.
+//! This module provides an in-memory implementation of the TAP manager context.
+//! It is useful for testing and development purposes.
 
 use crate::{
     manager::adapters::*,

@@ -3,22 +3,31 @@
 
 //! Point of entry for managing TAP receipts and RAVs.
 //!
-//! The [`crate::manager`] module provides facilities for managing TAP receipt and RAV validation, as well as storage flow.
+//! The [`crate::manager`] module provides facilities for managing TAP receipt
+//! and RAV validation, as well as storage flow.
 //!
-//! This module should be the primary interface for the receiver of funds to verify, store, and manage TAP receipts and RAVs.
-//! The [`Manager`] struct within this module allows the user to specify what checks should be performed on receipts, as well as
-//! when these checks should occur (either when a receipt is first received, or when it is being added to a RAV request).
+//! This module should be the primary interface for the receiver of funds to
+//! verify, store, and manage TAP receipts and RAVs.
+//! The [`Manager`] struct within this module allows the user to specify what
+//! checks should be performed on receipts, as well as
+//! when these checks should occur (either when a receipt is first received,
+//! or when it is being added to a RAV request).
 //!
-//! The [`Manager`] uses a context that implements user-defined [`adapters`] for storage handling.
-//! This design offers a high degree of flexibility, letting the user define their own behavior for these critical operations.
+//! The [`Manager`] uses a context that implements user-defined [`adapters`]
+//! for storage handling.
+//! This design offers a high degree of flexibility, letting the user define
+//! their own behavior for these critical operations.
 //!
-//! This solution is flexible enough to enable certain methods depending on the context provided. This is important
-//! because the context can be customized to include only the necessary adapters for the user's specific use case. For example,
-//! if the user wants to use two different applications, one to handle receipt storage and another to handle RAV storage, they
+//! This solution is flexible enough to enable certain methods depending on the
+//! context provided. This is important because the context can be customized
+//! to include only the necessary adapters for the user's specific use case.
+//! For example, if the user wants to use two different applications, one to
+//! handle receipt storage and another to handle RAV storage, they
 //! can create two different contexts with the appropriate adapters.
 //!
 //! # Adapters
-//! There are 6 main adapters that can be implemented to customize the behavior of the [`Manager`].
+//! There are 6 main adapters that can be implemented to customize the behavior
+//! of the [`Manager`].
 //! You can find more information about these adapters in the [`adapters`] module.
 //!
 //! # Example

@@ -73,7 +73,8 @@ pub trait Check {
     async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult;
 }
 
-/// CheckBatch is mostly used by the lib to implement checks that transition from one state to another.
+/// CheckBatch is mostly used by the lib to implement checks
+/// that transition from one state to another.
 pub trait CheckBatch {
     fn check_batch(
         &self,
@@ -84,9 +85,11 @@ pub trait CheckBatch {
     );
 }
 
-/// Provides a built-in check to verify that the timestamp of a receipt is greater than a given value.
+/// Provides a built-in check to verify that the timestamp of a receipt
+/// is greater than a given value.
 ///
-/// This check is stateful, meaning that it can be updated with a new minimum timestamp.
+/// This check is stateful, meaning that it can be updated with a new minimum
+/// timestamp.
 #[derive(Debug)]
 pub struct StatefulTimestampCheck {
     min_timestamp_ns: RwLock<u64>,
@@ -120,7 +123,8 @@ impl Check for StatefulTimestampCheck {
     }
 }
 
-/// Timestamp Check verifies if the receipt is **greater or equal** than the minimum timestamp provided.
+/// Timestamp Check verifies if the receipt is **greater or equal** than the
+/// minimum timestamp provided.
 ///
 /// Used by the [`crate::manager::Manager`].
 pub struct TimestampCheck(pub u64);
@@ -150,7 +154,8 @@ impl CheckBatch for TimestampCheck {
     }
 }
 
-/// UniqueCheck is a batch check that verifies if any given list of receipts has unique signatures.
+/// UniqueCheck is a batch check that verifies if any given list of receipts
+/// has unique signatures.
 ///
 /// Used by the [`crate::manager::Manager`].
 pub struct UniqueCheck;

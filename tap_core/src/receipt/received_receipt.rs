@@ -26,10 +26,14 @@ pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWith
 
 /// Typestate pattern for tracking the state of a receipt
 ///
-/// - The [ `ReceiptState` ] trait represents the different states a receipt can be in.
-/// - The [ `Checking` ] state is used to represent a receipt that is currently being checked.
-/// - The [ `Failed` ] state is used to represent a receipt that has failed a check or validation.
-/// - The [ `AwaitingReserve` ] state is used to represent a receipt that has passed all checks and is
+/// - The [ `ReceiptState` ] trait represents the different states a receipt
+/// can be in.
+/// - The [ `Checking` ] state is used to represent a receipt that is currently
+/// being checked.
+/// - The [ `Failed` ] state is used to represent a receipt that has failed a
+/// check or validation.
+/// - The [ `AwaitingReserve` ] state is used to represent a receipt that has
+/// passed all checks and is
 /// awaiting escrow reservation.
 /// - The [ `Reserved` ] state is used to represent a receipt that has
 /// successfully reserved escrow.
@@ -45,8 +49,11 @@ where
 }
 
 impl ReceiptWithState<AwaitingReserve> {
-    /// Perform the checks implemented by the context and reserve escrow if all checks pass
-    /// Returns a [`ReceiptWithState<Reserved>`] if successful, otherwise returns a [`ReceiptWithState<Failed>`]
+    /// Perform the checks implemented by the context and reserve escrow if
+    /// all checks pass
+    ///
+    /// Returns a [`ReceiptWithState<Reserved>`] if successful, otherwise
+    /// returns a [`ReceiptWithState<Failed>`]
     pub async fn check_and_reserve_escrow<E>(
         self,
         context: &E,
@@ -78,7 +85,9 @@ impl ReceiptWithState<Checking> {
     ///
     /// # Errors
     ///
-    /// Returns [`ReceiptError::CheckFailedToComplete`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveEscrow`.
+    /// Returns [`ReceiptError::CheckFailedToComplete`] if the requested check
+    /// cannot be comleted in the receipts current internal state.
+    /// All other checks must be complete before `CheckAndReserveEscrow`.
     ///
     pub async fn perform_checks(&mut self, checks: &[ReceiptCheck]) -> ReceiptResult<()> {
         for check in checks {

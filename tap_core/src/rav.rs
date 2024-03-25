@@ -11,11 +11,11 @@
 //!
 //! Every time you have enough receipts to aggregate, you can send another
 //! RAV request to the aggregator. The aggregator will verify the request and
-//! increment the total amount of GRT that has been aggregated.
+//! increment the total amount that has been aggregated.
 //!
 //! Once the allocation is closed or anytime the user doesn't want to serve
-//! anymore(sender considered malicious, not enough GRT to cover the RAV, etc),
-//! the user can redeem the RAV on the blockchain and get the aggregated GRT.
+//! anymore(sender considered malicious, not enough in escrow to cover the RAV, etc),
+//! the user can redeem the RAV on the blockchain and get the aggregated amount.
 //!
 //! The system is considered to have minimal trust because you only need to trust
 //! the sender until you receive the RAV. The value of non-aggregated receipts must
@@ -25,15 +25,17 @@
 //!
 //! 1. Create a [`RAVRequest`] with the valid receipts and the previous RAV.
 //! 2. Send the request to the aggregator.
-//! 3. The aggregator will verify the request and increment the total amount of GRT that has been aggregated.
+//! 3. The aggregator will verify the request and increment the total amount that
+//! has been aggregated.
 //! 4. The aggregator will return a [`SignedRAV`].
 //! 5. Store the [`SignedRAV`].
 //! 6. Repeat the process until the allocation is closed.
-//! 7. Redeem the RAV on the blockchain and get the aggregated GRT.
+//! 7. Redeem the RAV on the blockchain and get the aggregated amount.
 //!
 //! # How to create RAV Requests
 //!
-//! Rav requests should be created using the [`crate::manager::Manager::create_rav_request`] function.
+//! Rav requests should be created using the
+//! [`crate::manager::Manager::create_rav_request`] function.
 
 mod request;
 
@@ -61,24 +63,27 @@ sol! {
         /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
         /// corresponding to max timestamp from receipt batch aggregated
         uint64 timestampNs;
-        /// Aggregated GRT value from receipt batch and any previous RAV provided (truncate to lower bits)
+        /// Aggregated value from receipt batch and any previous RAV provided
+        /// (truncate to lower bits)
         uint128 valueAggregate;
     }
 }
 
 impl ReceiptAggregateVoucher {
-    /// Aggregates a batch of validated receipts with optional validated previous RAV, returning a new RAV if all provided items are valid or an error if not.
+    /// Aggregates a batch of validated receipts with optional validated previous RAV,
+    /// returning a new RAV if all provided items are valid or an error if not.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow
-    ///
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate
+    /// value to overflow
     pub fn aggregate_receipts(
         allocation_id: Address,
         receipts: &[EIP712SignedMessage<Receipt>],
         previous_rav: Option<EIP712SignedMessage<Self>>,
     ) -> crate::Result<Self> {
-        //TODO(#29): When receipts in flight struct in created check that the state of every receipt is OK with all checks complete (relies on #28)
+        //TODO(#29): When receipts in flight struct in created check that the state
+        // of every receipt is OK with all checks complete (relies on #28)
         // If there is a previous RAV get initialize values from it, otherwise get default values
         let mut timestamp_max = 0u64;
         let mut value_aggregate = 0u128;

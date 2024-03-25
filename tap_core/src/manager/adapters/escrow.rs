@@ -21,7 +21,8 @@ use crate::{
 pub trait EscrowHandler: Send + Sync {
     /// Defines the user-specified error type.
     ///
-    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// This error type should implement the `Error` and `Debug` traits from
+    /// the standard library.
     /// Errors of this type are returned to the user when an operation fails.
     type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 

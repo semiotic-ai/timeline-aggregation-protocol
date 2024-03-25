@@ -15,14 +15,16 @@ use crate::rav::SignedRAV;
 pub trait RAVStore {
     /// Defines the user-specified error type.
     ///
-    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// This error type should implement the `Error` and `Debug` traits from
+    /// the standard library.
     /// Errors of this type are returned to the user when an operation fails.
     type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 
     /// Updates the storage with the latest validated `SignedRAV`.
     ///
-    /// This method should be implemented to store the most recent validated `SignedRAV` into your chosen storage system.
-    /// Any errors that occur during this process should be captured and returned as an `AdapterError`.
+    /// This method should be implemented to store the most recent validated
+    /// `SignedRAV` into your chosen storage system. Any errors that occur
+    /// during this process should be captured and returned as an `AdapterError`.
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError>;
 }
 
@@ -36,7 +38,8 @@ pub trait RAVStore {
 pub trait RAVRead {
     /// Defines the user-specified error type.
     ///
-    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// This error type should implement the `Error` and `Debug` traits from
+    /// the standard library.
     /// Errors of this type are returned to the user when an operation fails.
     type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 

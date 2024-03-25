@@ -164,15 +164,20 @@ impl<E> Manager<E>
 where
     E: ReceiptRead + RAVRead + EscrowHandler,
 {
-    /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
-    /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
-    /// for aggregating list of valid receipts.
+    /// Completes remaining checks on all receipts up to
+    /// (current time - `timestamp_buffer_ns`). Returns them in two lists
+    /// (valid receipts and invalid receipts) along with the expected RAV that
+    /// should be received for aggregating list of valid receipts.
     ///
-    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow while generating expected RAV
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes
+    /// aggregate value to overflow while generating expected RAV
     ///
-    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
+    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or
+    /// if unable to fetch previous receipts
     ///
-    /// Returns [`Error::TimestampRangeError`] if the max timestamp of the previous RAV is greater than the min timestamp. Caused by timestamp buffer being too large, or requests coming too soon.
+    /// Returns [`Error::TimestampRangeError`] if the max timestamp of the
+    /// previous RAV is greater than the min timestamp. Caused by timestamp
+    /// buffer being too large, or requests coming too soon.
     ///
     pub async fn create_rav_request(
         &self,
@@ -223,14 +228,15 @@ impl<E> Manager<E>
 where
     E: ReceiptDelete + RAVRead,
 {
-    /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
-    /// therefore already aggregated into the RAV.
-    /// This function should be called after a new RAV is received to limit the number of receipts stored.
-    /// No-op if there is no last RAV.
+    /// Removes obsolete receipts from storage. Obsolete receipts are receipts
+    /// that are older than the last RAV, and therefore already aggregated into the RAV.
+    /// This function should be called after a new RAV is received to limit the
+    /// number of receipts stored. No-op if there is no last RAV.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
+    /// Returns [`Error::AdapterError`] if there are any errors while retrieving
+    /// last RAV or removing receipts
     ///
     pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
@@ -252,7 +258,8 @@ impl<E> Manager<E>
 where
     E: ReceiptStore,
 {
-    /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
+    /// Runs `initial_checks` on `signed_receipt` for initial verification,
+    /// then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
     ///
     /// # Errors

@@ -3,7 +3,8 @@
 
 //! # Receipt State
 //!
-//! These are the implementation of the typestate pattern for tracking the state of a receipt.
+//! These are the implementation of the typestate pattern for tracking the
+//! state of a receipt.
 //! The `ReceiptState` trait represents the different states a receipt can be in.
 
 use crate::receipt::ReceiptError;
@@ -15,11 +16,13 @@ pub struct Checking;
 /// Failed state represents a receipt that has failed a check or validation.
 #[derive(Debug, Clone)]
 pub struct Failed {
-    /// A list of checks to be completed for the receipt, along with their current result
+    /// A list of checks to be completed for the receipt, along with their
+    /// current result
     pub error: ReceiptError,
 }
 
-/// AwaitingReserve state represents a receipt that has passed all checks and is awaiting escrow reservation.
+/// AwaitingReserve state represents a receipt that has passed all checks
+/// and is awaiting escrow reservation.
 #[derive(Debug, Clone)]
 pub struct AwaitingReserve;
 

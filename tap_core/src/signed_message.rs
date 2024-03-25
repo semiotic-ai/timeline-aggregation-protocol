@@ -48,8 +48,12 @@ pub struct EIP712SignedMessage<M: SolStruct> {
 
 /// Unique identifier for a message
 ///
-/// The same message may be signed multiple times, but each signature will *NOT*
-/// have a unique hash
+/// This is equal to the hash of the hash of the contents of a message. This means
+/// that two receipts signed by two different signers will have the same id.
+///
+///
+/// This cannot be used as a unique identifier for a message, but can be used as a key
+/// for a hashmap where the value is the message.
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct MessageId(pub [u8; 32]);
 
@@ -80,7 +84,7 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
     /// # Errors
     ///
     /// Returns [`crate::Error::SignatureError`] if the recovered address from the
-    /// signature is not valid equal to `expected_address`
+    /// signature is not equal to `expected_address`
     ///
     pub fn verify(&self, domain_separator: &Eip712Domain, expected_address: Address) -> Result<()> {
         let recovery_message_hash: [u8; 32] =

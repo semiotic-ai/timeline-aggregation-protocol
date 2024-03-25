@@ -65,14 +65,16 @@ pub trait ReceiptDelete {
 pub trait ReceiptRead {
     /// Defines the user-specified error type.
     ///
-    /// This error type should implement the `Error` and `Debug` traits from the standard library.
+    /// This error type should implement the `Error` and `Debug` traits from
+    /// the standard library.
     /// Errors of this type are returned to the user when an operation fails.
     type AdapterError: std::error::Error + std::fmt::Debug + Send + Sync + 'static;
 
     /// Retrieves all [`ReceiptWithState<Checking>`] within a specific timestamp range.
     ///
-    /// If a limit is specified, the adapter should return at most that many receipts, while making
-    /// sure that no receipts are left behind for any timestamp that is returned. Examples:
+    /// If a limit is specified, the adapter should return at most that many receipts,
+    /// while making sure that no receipts are left behind for any timestamp that
+    /// is returned. Examples:
     ///
     /// - If the adapter has 10 receipts for timestamp 100, and 5 receipts for timestamp 200, and
     ///  the limit is 10, the adapter should return all 10 receipts for timestamp 100, and none for
