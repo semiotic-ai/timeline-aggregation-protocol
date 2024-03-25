@@ -7,7 +7,7 @@ use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRe
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
-        checks::{TimestampCheck, CheckBatch, CheckList, UniqueCheck},
+        checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Failed, Reserved},
         ReceiptWithState, SignedReceipt,
     },

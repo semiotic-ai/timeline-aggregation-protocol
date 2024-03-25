@@ -59,7 +59,6 @@ pub enum Error {
     )]
     ReceiptTimestampLowerThanRav { rav_ts: u64, receipt_ts: u64 },
 
-
     /// Error when the min timestamp is greater than the max timestamp
     /// Used by [`crate::manager::Manager::create_rav_request()`]
     #[error("Timestamp range error: min_timestamp_ns: {min_timestamp_ns}, max_timestamp_ns: {max_timestamp_ns}. Adjust timestamp buffer.")]
@@ -71,7 +70,6 @@ pub enum Error {
     /// Error on the receipt side
     #[error("Receipt error: {0}")]
     ReceiptError(#[from] ReceiptError),
-
 
     /// Error when the recovered signer address is invalid
     /// Used by [`crate::manager::adapters::EscrowHandler`]
