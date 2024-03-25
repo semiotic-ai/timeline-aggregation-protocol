@@ -135,7 +135,7 @@ pub async fn run_server<E>(
     domain_separator: Eip712Domain,       // EIP712 domain separator
     context: E,                           // context instance
     required_checks: CheckList, // Vector of required checks to be performed on each request
-    threshold: u64,          // The count at which a RAV request will be triggered
+    threshold: u64,             // The count at which a RAV request will be triggered
     aggregate_server_address: String, // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
@@ -187,7 +187,11 @@ where
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
     let params = rpc_params!(
         &aggregator_client.1,
-        &rav_request.valid_receipts,
+        &rav_request
+            .valid_receipts
+            .iter()
+            .map(|receipt| receipt.signed_receipt())
+            .collect::<Vec<_>>(),
         rav_request.previous_rav
     );
 
