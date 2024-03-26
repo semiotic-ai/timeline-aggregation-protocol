@@ -48,8 +48,8 @@ pub struct EIP712SignedMessage<M: SolStruct> {
 
 /// Unique identifier for a message
 ///
-/// This is equal to the hash of the hash of the contents of a message. This means
-/// that two receipts signed by two different signers will have the same id.
+/// This is equal to the hash of the contents of a message, excluding the signature.
+/// This means that two receipts signed by two different signers will have the same id.
 ///
 ///
 /// This cannot be used as a unique identifier for a message, but can be used as a key

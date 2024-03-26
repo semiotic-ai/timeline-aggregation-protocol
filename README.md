@@ -54,9 +54,10 @@ and network limitations for sending requests to the tap_aggregator.
 
 ## Use Cases
 
-- The TAP protocol is suitable for systems with sequential operations that are 
-too expensive to redeem individually on-chain. By aggregating operations 
-off-chain and redeeming them in one transaction, costs are drastically reduced.
+- The TAP protocol is suitable for systems that need unidirectional, parallel 
+micro-payments that are too expensive to redeem individually on-chain. By 
+aggregating operations off-chain and redeeming them in one transaction, costs 
+are drastically reduced.
 
 ## Compatibility
 
