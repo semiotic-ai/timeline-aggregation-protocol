@@ -16,36 +16,28 @@
 use alloy_sol_types::Eip712Domain;
 
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
+use crate::receipt::state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved};
 use crate::{
     manager::adapters::EscrowHandler, receipt::checks::ReceiptCheck,
     signed_message::EIP712SignedMessage,
 };
 
-#[derive(Debug, Clone)]
-pub struct Checking;
-
-#[derive(Debug, Clone)]
-pub struct Failed {
-    /// A list of checks to be completed for the receipt, along with their current result
-    pub error: ReceiptError,
-}
-
-#[derive(Debug, Clone)]
-pub struct AwaitingReserve;
-
-#[derive(Debug, Clone)]
-pub struct Reserved;
-
-pub trait ReceiptState {}
-impl ReceiptState for Checking {}
-impl ReceiptState for AwaitingReserve {}
-impl ReceiptState for Reserved {}
-impl ReceiptState for Failed {}
-
 pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
 
+/// Typestate pattern for tracking the state of a receipt
+///
+/// - The [ `ReceiptState` ] trait represents the different states a receipt
+/// can be in.
+/// - The [ `Checking` ] state is used to represent a receipt that is currently
+/// being checked.
+/// - The [ `Failed` ] state is used to represent a receipt that has failed a
+/// check or validation.
+/// - The [ `AwaitingReserve` ] state is used to represent a receipt that has
+/// passed all checks and is
+/// awaiting escrow reservation.
+/// - The [ `Reserved` ] state is used to represent a receipt that has
+/// successfully reserved escrow.
 #[derive(Debug, Clone)]
-/// Wrapper class for metadata and state of a received receipt
 pub struct ReceiptWithState<S>
 where
     S: ReceiptState,
@@ -57,15 +49,20 @@ where
 }
 
 impl ReceiptWithState<AwaitingReserve> {
+    /// Perform the checks implemented by the context and reserve escrow if
+    /// all checks pass
+    ///
+    /// Returns a [`ReceiptWithState<Reserved>`] if successful, otherwise
+    /// returns a [`ReceiptWithState<Failed>`]
     pub async fn check_and_reserve_escrow<E>(
         self,
-        auditor: &E,
+        context: &E,
         domain_separator: &Eip712Domain,
     ) -> ResultReceipt<Reserved>
     where
         E: EscrowHandler,
     {
-        match auditor
+        match context
             .check_and_reserve_escrow(&self, domain_separator)
             .await
         {
@@ -76,6 +73,7 @@ impl ReceiptWithState<AwaitingReserve> {
 }
 
 impl ReceiptWithState<Checking> {
+    /// Creates a new `ReceiptWithState` in the `Checking` state
     pub fn new(signed_receipt: SignedReceipt) -> ReceiptWithState<Checking> {
         ReceiptWithState {
             signed_receipt,
@@ -83,15 +81,13 @@ impl ReceiptWithState<Checking> {
         }
     }
 
-    /// Completes a list of *incomplete* check and stores the result, if the check already has a result it is skipped
-    ///
-    /// Returns `Err` only if unable to complete a check, returns `Ok` if the checks were completed (*Important:* this is not the result of the check, just the result of _completing_ the check)
+    /// Performs a list of checks on the receipt
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the requested check cannot be comleted in the receipts current internal state. All other checks must be complete before `CheckAndReserveEscrow`.
-    ///
-    /// Returns [`Error::InvalidCheckError] if requested error in not a required check (list of required checks provided by user on construction)
+    /// Returns [`ReceiptError::CheckFailedToComplete`] if the requested check
+    /// cannot be comleted in the receipts current internal state.
+    /// All other checks must be complete before `CheckAndReserveEscrow`.
     ///
     pub async fn perform_checks(&mut self, checks: &[ReceiptCheck]) -> ReceiptResult<()> {
         for check in checks {
@@ -104,9 +100,10 @@ impl ReceiptWithState<Checking> {
         Ok(())
     }
 
-    /// Completes all remaining checks and stores the results
+    /// Completes all checks and transitions the receipt to the next state
     ///
-    /// Returns `Err` only if unable to complete a check, returns `Ok` if no check failed to complete (*Important:* this is not the result of the check, just the result of _completing_ the check)
+    /// Returns `Err` with a [`ReceiptWithState<Failed>`] in case of error,
+    /// returns `Ok` with a [`ReceiptWithState<AwaitingReserve>`] in case of success.
     ///
     pub async fn finalize_receipt_checks(
         mut self,
@@ -144,6 +141,7 @@ where
         }
     }
 
+    /// Returns the signed receipt
     pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
         &self.signed_receipt
     }

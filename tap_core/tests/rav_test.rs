@@ -15,7 +15,7 @@ use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::{
     manager::adapters::{RAVRead, RAVStore},
     rav::ReceiptAggregateVoucher,
-    receipt::{checks::TimestampCheck, Receipt},
+    receipt::{checks::StatefulTimestampCheck, Receipt},
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
 };
@@ -31,7 +31,7 @@ fn context() -> InMemoryContext {
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),

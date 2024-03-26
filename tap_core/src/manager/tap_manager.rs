@@ -7,8 +7,9 @@ use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRe
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
-        checks::{BatchTimestampCheck, CheckBatch, Checks, UniqueCheck},
-        Failed, ReceiptWithState, Reserved, SignedReceipt,
+        checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
+        state::{Failed, Reserved},
+        ReceiptWithState, SignedReceipt,
     },
     Error,
 };
@@ -18,7 +19,7 @@ pub struct Manager<E> {
     context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    checks: Checks,
+    checks: CheckList,
 
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
@@ -30,7 +31,7 @@ impl<E> Manager<E> {
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<Checks>) -> Self {
+    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<CheckList>) -> Self {
         Self {
             context,
             domain_separator,
@@ -130,7 +131,7 @@ where
 
         // check for timestamp
         let (checking_receipts, already_failed) =
-            BatchTimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
+            TimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
         failed_receipts.extend(already_failed);
 
         // check for uniqueness
@@ -163,15 +164,20 @@ impl<E> Manager<E>
 where
     E: ReceiptRead + RAVRead + EscrowHandler,
 {
-    /// Completes remaining checks on all receipts up to (current time - `timestamp_buffer_ns`). Returns them in
-    /// two lists (valid receipts and invalid receipts) along with the expected RAV that should be received
-    /// for aggregating list of valid receipts.
+    /// Completes remaining checks on all receipts up to
+    /// (current time - `timestamp_buffer_ns`). Returns them in two lists
+    /// (valid receipts and invalid receipts) along with the expected RAV that
+    /// should be received for aggregating list of valid receipts.
     ///
-    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate value to overflow while generating expected RAV
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes
+    /// aggregate value to overflow while generating expected RAV
     ///
-    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or if unable to fetch previous receipts
+    /// Returns [`Error::AdapterError`] if unable to fetch previous RAV or
+    /// if unable to fetch previous receipts
     ///
-    /// Returns [`Error::TimestampRangeError`] if the max timestamp of the previous RAV is greater than the min timestamp. Caused by timestamp buffer being too large, or requests coming too soon.
+    /// Returns [`Error::TimestampRangeError`] if the max timestamp of the
+    /// previous RAV is greater than the min timestamp. Caused by timestamp
+    /// buffer being too large, or requests coming too soon.
     ///
     pub async fn create_rav_request(
         &self,
@@ -189,11 +195,6 @@ where
             .await?;
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
-
-        let valid_receipts = valid_receipts
-            .into_iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt)
-            .collect::<Vec<_>>();
 
         Ok(RAVRequest {
             valid_receipts,
@@ -227,14 +228,15 @@ impl<E> Manager<E>
 where
     E: ReceiptDelete + RAVRead,
 {
-    /// Removes obsolete receipts from storage. Obsolete receipts are receipts that are older than the last RAV, and
-    /// therefore already aggregated into the RAV.
-    /// This function should be called after a new RAV is received to limit the number of receipts stored.
-    /// No-op if there is no last RAV.
+    /// Removes obsolete receipts from storage. Obsolete receipts are receipts
+    /// that are older than the last RAV, and therefore already aggregated into the RAV.
+    /// This function should be called after a new RAV is received to limit the
+    /// number of receipts stored. No-op if there is no last RAV.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::AdapterError`] if there are any errors while retrieving last RAV or removing receipts
+    /// Returns [`Error::AdapterError`] if there are any errors while retrieving
+    /// last RAV or removing receipts
     ///
     pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
         match self.get_previous_rav().await? {
@@ -256,16 +258,13 @@ impl<E> Manager<E>
 where
     E: ReceiptStore,
 {
-    /// Runs `initial_checks` on `signed_receipt` for initial verification, then stores received receipt.
+    /// Runs `initial_checks` on `signed_receipt` for initial verification,
+    /// then stores received receipt.
     /// The provided `query_id` will be used as a key when chaecking query appraisal.
     ///
     /// # Errors
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing receipts
-    ///
-    /// Returns [`Error::InvalidStateForRequestedAction`] if the checks requested in `initial_checks` cannot be comleted due to: All other checks must be complete before `CheckAndReserveEscrow`
-    ///
-    /// Returns [`Error::InvalidCheckError`] if check in `initial_checks` is not in `required_checks` provided when manager was created
     ///
     pub async fn verify_and_store_receipt(
         &self,

@@ -27,7 +27,7 @@ use tap_core::{
     manager::context::memory::{checks::get_full_list_of_checks, *},
     rav::SignedRAV,
     receipt::{
-        checks::{Checks, TimestampCheck},
+        checks::{CheckList, StatefulTimestampCheck},
         Receipt,
     },
     signed_message::{EIP712SignedMessage, MessageId},
@@ -169,7 +169,7 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
 
 struct ContextFixture {
     context: InMemoryContext,
-    checks: Checks,
+    checks: CheckList,
 }
 
 #[fixture]
@@ -182,7 +182,7 @@ fn context(
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
@@ -196,7 +196,7 @@ fn context(
         query_appraisals,
     );
 
-    let checks = Checks::new(checks);
+    let checks = CheckList::new(checks);
 
     ContextFixture { context, checks }
 }
@@ -814,7 +814,7 @@ async fn start_indexer_server(
     mut context: InMemoryContext,
     sender_id: Address,
     available_escrow: u128,
-    required_checks: Checks,
+    required_checks: CheckList,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,
 ) -> Result<(ServerHandle, SocketAddr)> {

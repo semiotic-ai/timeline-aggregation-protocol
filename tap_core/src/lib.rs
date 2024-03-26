@@ -1,10 +1,10 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-
-//! The Timeline Aggregation Protocol (TAP) is a micro-trust
-//! state channel payment solution allowing one-way payments
-//! from a payment sender to be aggregated then cheaply
-//! verified on-chain by a payment receiver.
+#![doc = include_str!("../../README.md")]
+//! ## Getting started
+//!
+//! To get started with the TAP protocol, take a look on the [`manager`] module
+//! to see how to manage the state channel and implement the needed adapters.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -17,7 +17,8 @@ pub mod rav;
 pub mod receipt;
 pub mod signed_message;
 
-pub use error::{Error, Result};
+pub use error::Error;
+use error::Result;
 
 fn get_current_timestamp_u64_ns() -> Result<u64> {
     Ok(SystemTime::now()
@@ -28,6 +29,21 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
         .as_nanos() as u64)
 }
 
+/// The EIP712 domain separator builder for the TAP protocol.
+///
+/// This is the current domain separator that is used for the [EIP712](https://eips.ethereum.org/EIPS/eip-712) signature scheme.
+///
+///
+/// It's used to validate the signature of the `ReceiptAggregateVoucher` and `Receipt` structs.
+///
+/// You can take a look on deployed [TAPVerfiers](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/4dc87fc616680c924b99dbaf285bdd449c777261/src/TAPVerifier.sol)
+/// contracts [here](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/4dc87fc616680c924b99dbaf285bdd449c777261/addresses.json)
+///
+/// The domain separator is defined as:
+/// - `name`: "TAP"
+/// - `version`: "1"
+/// - `chain_id`: The chain ID of the chain where the domain separator is deployed.
+/// - `verifying_contract`: The address of the contract that is verifying the signature.
 pub fn tap_eip712_domain(
     chain_id: u64,
     verifying_contract_address: alloy_primitives::Address,

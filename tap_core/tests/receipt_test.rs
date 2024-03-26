@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use tap_core::manager::context::memory::InMemoryContext;
-use tap_core::receipt::{Checking, ReceiptWithState};
+use tap_core::receipt::{state::Checking, ReceiptWithState};
 
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
 use rstest::*;
-use tap_core::receipt::checks::TimestampCheck;
+use tap_core::receipt::checks::StatefulTimestampCheck;
 use tap_core::{
     manager::adapters::ReceiptStore, receipt::Receipt, signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -29,7 +29,7 @@ fn context() -> InMemoryContext {
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),

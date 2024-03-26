@@ -1,14 +1,81 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! The `tap_manager` module provides facilities for managing TAP receipt and RAV validation, as well as storage flow.
+//! Point of entry for managing TAP receipts and RAVs.
 //!
-//! This module should be the primary interface for the receiver of funds to verify, store, and manage TAP receipts and RAVs.
-//! The `Manager` struct within this module allows the user to specify what checks should be performed on receipts, as well as
-//! when these checks should occur (either when a receipt is first received, or when it is being added to a RAV request).
+//! The [`crate::manager`] module provides facilities for managing TAP receipt
+//! and RAV validation, as well as storage flow.
 //!
-//! The `Manager` uses user-defined adapters (see [crate::adapters]) for check and storage handling.
-//! This design offers a high degree of flexibility, letting the user define their own behavior for these critical operations.
+//! This module should be the primary interface for the receiver of funds to
+//! verify, store, and manage TAP receipts and RAVs.
+//! The [`Manager`] struct within this module allows the user to specify what
+//! checks should be performed on receipts, as well as
+//! when these checks should occur (either when a receipt is first received,
+//! or when it is being added to a RAV request).
+//!
+//! The [`Manager`] uses a context that implements user-defined [`adapters`]
+//! for storage handling.
+//! This design offers a high degree of flexibility, letting the user define
+//! their own behavior for these critical operations.
+//!
+//! This solution is flexible enough to enable certain methods depending on the
+//! context provided. This is important because the context can be customized
+//! to include only the necessary adapters for the user's specific use case.
+//! For example, if the user wants to use two different applications, one to
+//! handle receipt storage and another to handle RAV storage, they
+//! can create two different contexts with the appropriate adapters.
+//!
+//! # Adapters
+//! There are 6 main adapters that can be implemented to customize the behavior
+//! of the [`Manager`].
+//! You can find more information about these adapters in the [`adapters`] module.
+//!
+//! # Example
+//!
+//! ```rust
+//! use async_trait::async_trait;
+//! use tap_core::{
+//!     receipt::{
+//!         ReceiptWithState,
+//!         state::Checking,
+//!         checks::CheckList,
+//!         ReceiptError
+//!     },
+//!     manager::{
+//!         Manager,
+//!         adapters::ReceiptStore
+//!     },
+//! };
+//!
+//! struct MyContext;
+//!
+//! #[async_trait]
+//! impl ReceiptStore for MyContext {
+//!     type AdapterError = ReceiptError;
+//!
+//!     async fn store_receipt(&self, receipt: ReceiptWithState<Checking>) -> Result<u64, Self::AdapterError> {
+//!         // ...
+//!         # Ok(0)
+//!     }
+//! }
+//! # #[tokio::main]
+//! # async fn main() {
+//! # use alloy_primitives::Address;
+//! # use alloy_sol_types::Eip712Domain;
+//! # use ethers::signers::LocalWallet;
+//! # use tap_core::receipt::{Receipt, SignedReceipt};
+//! # use tap_core::signed_message::EIP712SignedMessage;
+//! # let domain_separator = Eip712Domain::default();
+//! # let wallet = LocalWallet::new(&mut rand::thread_rng());
+//! # let message = Receipt::new(Address::from([0x11u8; 20]), 100).unwrap();
+//!
+//! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
+//!
+//! let manager = Manager::new(domain_separator, MyContext, CheckList::empty());
+//! manager.verify_and_store_receipt(receipt).await.unwrap()
+//! # }
+//! ```
+//!
 
 pub mod adapters;
 #[cfg(feature = "in_memory")]

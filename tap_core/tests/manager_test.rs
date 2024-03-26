@@ -25,7 +25,7 @@ use tap_core::{
         Manager,
     },
     receipt::{
-        checks::{Checks, TimestampCheck},
+        checks::{CheckList, StatefulTimestampCheck},
         Receipt,
     },
     signed_message::EIP712SignedMessage,
@@ -74,7 +74,7 @@ struct ContextFixture {
     context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Checks,
+    checks: CheckList,
 }
 
 #[fixture]
@@ -88,7 +88,7 @@ fn context(
     let rav_storage = Arc::new(RwLock::new(None));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
-    let timestamp_check = Arc::new(TimestampCheck::new(0));
+    let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
     let context = InMemoryContext::new(
         rav_storage,
         receipt_storage.clone(),
@@ -104,7 +104,7 @@ fn context(
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
-    let checks = Checks::new(checks);
+    let checks = CheckList::new(checks);
 
     ContextFixture {
         context,
