@@ -3,9 +3,7 @@
   "release-type": "rust",
   "draft": false,
   "packages": {
-    "tap_core": {
-      "release-as": "1.0.0"
-    },
+    "tap_core": {},
     "tap_aggregator": {
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
