@@ -1,13 +1,16 @@
 {
   "changelog-path": "CHANGELOG.md",
   "release-type": "rust",
-  "bump-minor-pre-major": true,
-  "bump-patch-for-minor-pre-major": true,
-  "prerelease": true,
   "draft": false,
   "packages": {
-    "tap_core": {},
-    "tap_aggregator": {}
+    "tap_core": {
+      "release-as": "1.0.0"
+    },
+    "tap_aggregator": {
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "prerelease": true
+    }
   },
   "plugins": [
     {
