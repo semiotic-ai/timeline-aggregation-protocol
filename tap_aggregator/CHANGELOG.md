@@ -12,6 +12,10 @@
   * dependencies
     * tap_core bumped from 0.5.1 to 0.6.0
 
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 0.8.0 to 1.0.0
+
 ## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.2.0...tap_aggregator-v0.3.0) (2024-03-11)
 
 

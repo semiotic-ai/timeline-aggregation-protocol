@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.8.0...tap_core-v1.0.0) (2024-03-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* create docs and readme.
+
+### Documentation
+
+* create docs and readme. ([4ebf258](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/4ebf2584441514166fd9e91999b1710af1d54524))
+
 ## [0.8.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.7.0...tap_core-v0.8.0) (2024-03-11)
 
 
