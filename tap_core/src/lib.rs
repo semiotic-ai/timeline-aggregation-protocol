@@ -1,6 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
-#![doc = include_str!("../../README.md")]
+#![doc = include_str!("../README.md")]
 //! ## Getting started
 //!
 //! To get started with the TAP protocol, take a look on the [`manager`] module
