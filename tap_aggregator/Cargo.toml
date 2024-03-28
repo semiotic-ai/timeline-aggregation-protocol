@@ -3,6 +3,7 @@ name = "tap_aggregator"
 version = "0.3.1"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 readme = "README.md"
 description = "A JSON-RPC service for the Timeline Aggregation Protocol that lets clients request an aggregate receipt from a list of individual receipts."
 
