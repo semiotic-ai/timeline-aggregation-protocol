@@ -3,6 +3,7 @@ name = "tap_integration_tests"
 version = "0.1.10"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 autotests = false
 description = "Integration tests for the Timeline Aggregation Protocol."
 publish = false
