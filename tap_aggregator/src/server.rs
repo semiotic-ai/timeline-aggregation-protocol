@@ -224,7 +224,7 @@ pub async fn run_server(
         .max_response_body_size(max_response_body_size)
         .max_connections(max_concurrent_connections)
         .http_only()
-        .build(format!("0.0.0.0:{}", port))
+        .build(format!("127.0.0.1:{}", port))
         .await?;
     let addr = server.local_addr()?;
     println!("Listening on: {}", addr);
