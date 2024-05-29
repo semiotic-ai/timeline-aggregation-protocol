@@ -6,10 +6,13 @@ use std::{collections::HashSet, str::FromStr};
 use alloy_primitives::Address;
 use alloy_sol_types::Eip712Domain;
 use anyhow::Result;
+use axum::http::Request;
 use ethers_signers::LocalWallet;
 use jsonrpsee::{proc_macros::rpc, server::ServerBuilder, server::ServerHandle};
 use lazy_static::lazy_static;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
+use tower_http::trace::TraceLayer;
+use tracing::info_span;
 
 use crate::aggregator::check_and_aggregate_receipts;
 use crate::api_versioning::{
@@ -219,7 +222,24 @@ pub async fn run_server(
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     println!("Starting server...");
+    let middleware = tower::builder::ServiceBuilder::new().layer(
+        TraceLayer::new_for_http().make_span_with(|req: &Request<_>| {
+            let method = req.method();
+            let uri = req.uri();
+            let mut headers = String::new();
+            for header in req.headers().values() {
+                headers = headers + " \n " + &header.to_str().unwrap();
+            }
+            info_span!(
+                "http_request",
+                %headers,
+                %method,
+                %uri,
+            )
+        }),
+    );
     let server = ServerBuilder::new()
+        .set_middleware(middleware)
         .max_request_body_size(max_request_body_size)
         .max_response_body_size(max_response_body_size)
         .max_connections(max_concurrent_connections)
