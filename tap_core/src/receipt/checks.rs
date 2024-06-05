@@ -182,3 +182,84 @@ impl CheckBatch for UniqueCheck {
         (checking, failed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+    use std::time::Duration;
+    use std::time::SystemTime;
+
+    use alloy_primitives::Address;
+    use alloy_sol_types::eip712_domain;
+    use alloy_sol_types::Eip712Domain;
+
+    use ethers::signers::coins_bip39::English;
+    use ethers::signers::{LocalWallet, MnemonicBuilder};
+
+    use crate::receipt::Receipt;
+    use crate::signed_message::EIP712SignedMessage;
+
+    use super::*;
+
+    fn create_signed_receipt_with_custom_value(value: u128) -> ReceiptWithState<Checking> {
+        let index: u32 = 0;
+        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+            .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+            .index(index)
+            .unwrap()
+            .build()
+            .unwrap();
+        let eip712_domain_separator: Eip712Domain = eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address:: from([0x11u8; 20]),
+        };
+
+        let timestamp = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_nanos()
+            + Duration::from_secs(33).as_nanos();
+        let timestamp_ns = timestamp as u64;
+
+        let value: u128 = value;
+        let nonce: u64 = 10;
+        let receipt = EIP712SignedMessage::new(
+            &eip712_domain_separator,
+            Receipt {
+                allocation_id: Address::from_str("0xabababababababababababababababababababab")
+                    .unwrap(),
+                nonce,
+                timestamp_ns,
+                value,
+            },
+            &wallet,
+        )
+        .unwrap();
+        ReceiptWithState::<Checking>::new(receipt)
+    }
+
+    #[tokio::test]
+    async fn test_receipt_uniqueness_check() {
+        let signed_receipt = create_signed_receipt_with_custom_value(10);
+        let signed_receipt_2 = create_signed_receipt_with_custom_value(15);
+        let signed_receipt_copy = signed_receipt.clone();
+        let receipts_batch = vec![signed_receipt, signed_receipt_2, signed_receipt_copy];
+        let (valid_receipts, invalid_receipts) = UniqueCheck.check_batch(receipts_batch);
+        assert_eq!(valid_receipts.len(), 2);
+        assert_eq!(invalid_receipts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_receipt_timestamp_check() {
+        let signed_receipt = create_signed_receipt_with_custom_value(10);
+        let signed_receipt_2 = create_signed_receipt_with_custom_value(15);
+        let receipts_batch = vec![signed_receipt.clone(), signed_receipt_2];
+        let min_time_stamp = signed_receipt.signed_receipt.message.timestamp_ns + 1;
+        let (valid_receipts, invalid_receipts) =
+            TimestampCheck(min_time_stamp).check_batch(receipts_batch);
+        assert_eq!(valid_receipts.len(), 1);
+        assert_eq!(invalid_receipts.len(), 1);
+    }
+}

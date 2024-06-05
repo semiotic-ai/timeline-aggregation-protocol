@@ -24,6 +24,7 @@ use tap_core::{
         },
         Manager,
     },
+    rav::ReceiptAggregateVoucher,
     receipt::{
         checks::{CheckList, StatefulTimestampCheck},
         Receipt,
@@ -202,6 +203,68 @@ async fn manager_create_rav_request_all_valid_receipts(
         .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
+}
+
+#[rstest]
+#[tokio::test]
+async fn deny_rav_due_to_wrong_value(
+    keys: (LocalWallet, Address),
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
+    context: ContextFixture,
+) {
+    let ContextFixture {
+        context,
+        checks,
+        query_appraisals,
+        escrow_storage,
+        ..
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
+    escrow_storage.write().unwrap().insert(keys.1, 999999);
+
+    let mut stored_signed_receipts = Vec::new();
+    for _ in 0..10 {
+        let value = 20u128;
+        let signed_receipt = EIP712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], value).unwrap(),
+            &keys.0,
+        )
+        .unwrap();
+        let query_id = signed_receipt.unique_hash();
+        stored_signed_receipts.push(signed_receipt.clone());
+        query_appraisals.write().unwrap().insert(query_id, value);
+        let _ = manager.verify_and_store_receipt(signed_receipt).await;
+    }
+    let rav_request_result = manager.create_rav_request(0, None).await;
+
+    let rav_request = rav_request_result.unwrap();
+
+    // Create more receipts to create a manual rav with different value
+    let mut receipts = Vec::new();
+    for value in 50..60 {
+        receipts.push(
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(allocation_ids[0], value).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+        );
+    }
+
+    let signed_rav_with_wrong_aggregate = EIP712SignedMessage::new(
+        &domain_separator,
+        ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None).unwrap(),
+        &keys.0,
+    )
+    .unwrap();
+
+    assert!(manager
+        .verify_and_store_rav(rav_request.expected_rav, signed_rav_with_wrong_aggregate)
+        .await
+        .is_err());
 }
 
 #[rstest]
@@ -452,4 +515,47 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
         .await
         .is_ok());
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_create_rav_and_ignore_invalid_receipts(
+    keys: (LocalWallet, Address),
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
+    context: ContextFixture,
+) {
+    let ContextFixture {
+        context,
+        checks,
+        escrow_storage,
+        ..
+    } = context;
+
+    let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
+
+    escrow_storage.write().unwrap().insert(keys.1, 999999);
+
+    let mut stored_signed_receipts = Vec::new();
+    //Forcing all receipts but one to be invalid by making all the same
+    for _ in 0..10 {
+        let value = 20u128;
+        let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
+        receipt.nonce = 1;
+        receipt.timestamp_ns = 1;
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        stored_signed_receipts.push(signed_receipt.clone());
+        let _ = manager.verify_and_store_receipt(signed_receipt).await;
+    }
+
+    let rav_request_result = manager.create_rav_request(0, None).await;
+    assert!(rav_request_result.is_ok());
+
+    let rav_request = rav_request_result.unwrap();
+
+    assert!(rav_request.valid_receipts.len() < stored_signed_receipts.len());
+    // All receipts but one being invalid
+    assert_eq!(rav_request.invalid_receipts.len(), 9);
+    //Rav Value corresponds only to value of one receipt
+    assert_eq!(rav_request.expected_rav.valueAggregate, 20);
 }
