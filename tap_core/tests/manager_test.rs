@@ -510,7 +510,6 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     let mut stored_signed_receipts = Vec::new();
     //Forcing all receipts but one to be invalid by making all the same
     for _ in 0..10 {
-        let value = 20u128;
         let receipt = Receipt {
             allocation_id: allocation_ids[0],
             timestamp_ns: 1,
