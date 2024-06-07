@@ -24,6 +24,7 @@ use tap_core::{
         },
         Manager,
     },
+    rav::ReceiptAggregateVoucher,
     receipt::{
         checks::{CheckList, StatefulTimestampCheck},
         Receipt,
@@ -202,6 +203,39 @@ async fn manager_create_rav_request_all_valid_receipts(
         .verify_and_store_rav(rav_request.expected_rav, signed_rav)
         .await
         .is_ok());
+}
+
+#[rstest]
+#[tokio::test]
+async fn deny_rav_due_to_wrong_value(
+    keys: (LocalWallet, Address),
+    domain_separator: Eip712Domain,
+    context: ContextFixture,
+) {
+    let ContextFixture {
+        context, checks, ..
+    } = context;
+    let manager = Manager::new(domain_separator.clone(), context, checks);
+
+    let rav = ReceiptAggregateVoucher {
+        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        timestampNs: 1232442,
+        valueAggregate: 20u128,
+    };
+
+    let rav_wrong_value = ReceiptAggregateVoucher {
+        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        timestampNs: 1232442,
+        valueAggregate: 10u128,
+    };
+
+    let signed_rav_with_wrong_aggregate =
+        EIP712SignedMessage::new(&domain_separator, rav_wrong_value, &keys.0).unwrap();
+
+    assert!(manager
+        .verify_and_store_rav(rav, signed_rav_with_wrong_aggregate)
+        .await
+        .is_err());
 }
 
 #[rstest]
@@ -452,4 +486,49 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
         .await
         .is_ok());
+}
+
+#[rstest]
+#[tokio::test]
+async fn manager_create_rav_and_ignore_invalid_receipts(
+    keys: (LocalWallet, Address),
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
+    context: ContextFixture,
+) {
+    let ContextFixture {
+        context,
+        checks,
+        escrow_storage,
+        ..
+    } = context;
+
+    let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
+
+    escrow_storage.write().unwrap().insert(keys.1, 999999);
+
+    let mut stored_signed_receipts = Vec::new();
+    //Forcing all receipts but one to be invalid by making all the same
+    for _ in 0..10 {
+        let receipt = Receipt {
+            allocation_id: allocation_ids[0],
+            timestamp_ns: 1,
+            nonce: 1,
+            value: 20u128,
+        };
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        stored_signed_receipts.push(signed_receipt.clone());
+        manager
+            .verify_and_store_receipt(signed_receipt)
+            .await
+            .unwrap();
+    }
+
+    let rav_request = manager.create_rav_request(0, None).await.unwrap();
+
+    assert_eq!(rav_request.valid_receipts.len(), 1);
+    // All receipts but one being invalid
+    assert_eq!(rav_request.invalid_receipts.len(), 9);
+    //Rav Value corresponds only to value of one receipt
+    assert_eq!(rav_request.expected_rav.valueAggregate, 20);
 }
