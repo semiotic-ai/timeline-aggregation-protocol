@@ -14,6 +14,7 @@
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
 use alloy_sol_types::Eip712Domain;
+use serde::{Deserialize, Serialize};
 
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::receipt::state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved};
@@ -37,7 +38,7 @@ pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWith
 /// awaiting escrow reservation.
 /// - The [ `Reserved` ] state is used to represent a receipt that has
 /// successfully reserved escrow.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceiptWithState<S>
 where
     S: ReceiptState,
