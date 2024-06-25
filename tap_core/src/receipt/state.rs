@@ -8,13 +8,14 @@
 //! The `ReceiptState` trait represents the different states a receipt can be in.
 
 use crate::receipt::ReceiptError;
+use serde::{Deserialize, Serialize};
 
 /// Checking state represents a receipt that is currently being checked.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Checking;
 
 /// Failed state represents a receipt that has failed a check or validation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Failed {
     /// A list of checks to be completed for the receipt, along with their
     /// current result
@@ -23,11 +24,11 @@ pub struct Failed {
 
 /// AwaitingReserve state represents a receipt that has passed all checks
 /// and is awaiting escrow reservation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AwaitingReserve;
 
 /// Reserved state represents a receipt that has successfully reserved escrow.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reserved;
 
 /// Trait for the different states a receipt can be in.
