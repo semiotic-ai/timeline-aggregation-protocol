@@ -219,9 +219,7 @@ where
             .collect_receipts(timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        Ok(
-            invalid_receipts,
-        )
+        Ok(invalid_receipts)
     }
 
     fn generate_expected_rav(
