@@ -9,7 +9,7 @@ use crate::{
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Failed, Reserved},
-        ReceiptWithState, SignedReceipt,
+        ReceiptError, ReceiptWithState, SignedReceipt,
     },
     Error,
 };
@@ -139,7 +139,10 @@ where
         failed_receipts.extend(already_failed);
 
         for receipt in checking_receipts.into_iter() {
-            let receipt = receipt.finalize_receipt_checks(&self.checks).await;
+            let receipt = receipt
+                .finalize_receipt_checks(&self.checks)
+                .await
+                .map_err(|e| Error::ReceiptError(ReceiptError::RetryableCheck(e)))?;
 
             match receipt {
                 Ok(checked) => awaiting_reserve_receipts.push(checked),

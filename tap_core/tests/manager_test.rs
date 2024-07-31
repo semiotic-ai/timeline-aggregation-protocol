@@ -3,11 +3,12 @@
 use std::{
     collections::HashMap,
     str::FromStr,
-    sync::{Arc, RwLock},
+    sync::{atomic::AtomicBool, Arc, RwLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+use anyhow::anyhow;
 use rstest::*;
 
 fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
@@ -24,8 +25,9 @@ use tap_core::{
     },
     rav::ReceiptAggregateVoucher,
     receipt::{
-        checks::{CheckList, StatefulTimestampCheck},
-        Receipt,
+        checks::{Check, CheckError, CheckList, StatefulTimestampCheck},
+        state::Checking,
+        Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -529,4 +531,80 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     assert_eq!(rav_request.invalid_receipts.len(), 9);
     //Rav Value corresponds only to value of one receipt
     assert_eq!(expected_rav.valueAggregate, 20);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_retryable_checks(
+    allocation_ids: Vec<Address>,
+    domain_separator: Eip712Domain,
+    context: ContextFixture,
+) {
+    struct RetryableCheck(Arc<AtomicBool>);
+
+    #[async_trait::async_trait]
+    impl Check for RetryableCheck {
+        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> Result<(), CheckError> {
+            // we want to fail only if nonce is 5 and if is create rav step
+            if self.0.load(std::sync::atomic::Ordering::SeqCst)
+                && receipt.signed_receipt().message.nonce == 5
+            {
+                Err(CheckError::Retryable(anyhow!("Retryable error")))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    let ContextFixture {
+        context,
+        checks,
+        escrow_storage,
+        signer,
+        ..
+    } = context;
+
+    let is_create_rav = Arc::new(AtomicBool::new(false));
+
+    let mut checks: Vec<Arc<dyn Check + Send + Sync>> = checks.iter().cloned().collect();
+    checks.push(Arc::new(RetryableCheck(is_create_rav.clone())));
+
+    let manager = Manager::new(
+        domain_separator.clone(),
+        context.clone(),
+        CheckList::new(checks),
+    );
+
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
+
+    let mut stored_signed_receipts = Vec::new();
+    for i in 0..10 {
+        let receipt = Receipt {
+            allocation_id: allocation_ids[0],
+            timestamp_ns: i + 1,
+            nonce: i,
+            value: 20u128,
+        };
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
+        stored_signed_receipts.push(signed_receipt.clone());
+        manager
+            .verify_and_store_receipt(signed_receipt)
+            .await
+            .unwrap();
+    }
+
+    is_create_rav.store(true, std::sync::atomic::Ordering::SeqCst);
+
+    let rav_request = manager.create_rav_request(0, None).await;
+
+    assert_eq!(
+        rav_request.expect_err("Didn't fail").to_string(),
+        tap_core::Error::ReceiptError(tap_core::receipt::ReceiptError::RetryableCheck(
+            "Retryable error".to_string()
+        ))
+        .to_string()
+    );
 }

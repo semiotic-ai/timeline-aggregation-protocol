@@ -23,5 +23,7 @@ pub enum ReceiptError {
     #[error("Attempt to collect escrow failed")]
     SubtractEscrowFailed,
     #[error("Issue encountered while performing check: {0}")]
-    CheckFailedToComplete(String),
+    CheckFailure(String),
+    #[error("Retryable check error encountered: {0}")]
+    RetryableCheck(String),
 }

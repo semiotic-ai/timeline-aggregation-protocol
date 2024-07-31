@@ -15,6 +15,7 @@
 
 use alloy::dyn_abi::Eip712Domain;
 
+use super::checks::CheckError;
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::receipt::state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved};
 use crate::{
@@ -92,10 +93,10 @@ impl ReceiptWithState<Checking> {
     pub async fn perform_checks(&mut self, checks: &[ReceiptCheck]) -> ReceiptResult<()> {
         for check in checks {
             // return early on an error
-            check
-                .check(self)
-                .await
-                .map_err(|e| ReceiptError::CheckFailedToComplete(e.to_string()))?;
+            check.check(self).await.map_err(|e| match e {
+                CheckError::Retryable(e) => ReceiptError::RetryableCheck(e.to_string()),
+                CheckError::Failed(e) => ReceiptError::CheckFailure(e.to_string()),
+            })?;
         }
         Ok(())
     }
@@ -108,14 +109,15 @@ impl ReceiptWithState<Checking> {
     pub async fn finalize_receipt_checks(
         mut self,
         checks: &[ReceiptCheck],
-    ) -> ResultReceipt<AwaitingReserve> {
+    ) -> Result<ResultReceipt<AwaitingReserve>, String> {
         let all_checks_passed = self.perform_checks(checks).await;
-
-        if let Err(e) = all_checks_passed {
-            Err(self.perform_state_error(e))
+        if let Err(ReceiptError::RetryableCheck(e)) = all_checks_passed {
+            Err(e.to_string())
+        } else if let Err(e) = all_checks_passed {
+            Ok(Err(self.perform_state_error(e)))
         } else {
             let checked = self.perform_state_changes(AwaitingReserve);
-            Ok(checked)
+            Ok(Ok(checked))
         }
     }
 }
