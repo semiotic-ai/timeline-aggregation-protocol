@@ -261,7 +261,7 @@ impl EscrowHandler for InMemoryContext {
 pub mod checks {
     use crate::{
         receipt::{
-            checks::{Check, CheckResult, ReceiptCheck},
+            checks::{Check, CheckError, CheckResult, ReceiptCheck},
             state::Checking,
             ReceiptError, ReceiptWithState,
         },
@@ -291,34 +291,6 @@ pub mod checks {
         ]
     }
 
-    struct ValueCheck {
-        query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
-    }
-
-    #[async_trait::async_trait]
-    impl Check for ValueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
-            let value = receipt.signed_receipt().message.value;
-            let query_appraisals = self.query_appraisals.read().unwrap();
-            let hash = receipt.signed_receipt().unique_hash();
-            let appraised_value =
-                query_appraisals
-                    .get(&hash)
-                    .ok_or(ReceiptError::CheckFailedToComplete(
-                        "Could not find query_appraisals".into(),
-                    ))?;
-
-            if value != *appraised_value {
-                Err(ReceiptError::InvalidValue {
-                    received_value: value,
-                }
-                .into())
-            } else {
-                Ok(())
-            }
-        }
-    }
-
     struct AllocationIdCheck {
         allocation_ids: Arc<RwLock<HashSet<Address>>>,
     }
@@ -335,10 +307,12 @@ pub mod checks {
             {
                 Ok(())
             } else {
-                Err(ReceiptError::InvalidAllocationID {
-                    received_allocation_id,
-                }
-                .into())
+                Err(CheckError::Failure(
+                    ReceiptError::InvalidAllocationID {
+                        received_allocation_id,
+                    }
+                    .into(),
+                ))
             }
         }
     }
@@ -354,14 +328,22 @@ pub mod checks {
             let recovered_address = receipt
                 .signed_receipt()
                 .recover_signer(&self.domain_separator)
-                .map_err(|e| ReceiptError::InvalidSignature {
-                    source_error_message: e.to_string(),
+                .map_err(|e| {
+                    CheckError::Failure(
+                        ReceiptError::InvalidSignature {
+                            source_error_message: e.to_string(),
+                        }
+                        .into(),
+                    )
                 })?;
+
             if !self.valid_signers.contains(&recovered_address) {
-                Err(ReceiptError::InvalidSignature {
-                    source_error_message: "Invalid signer".to_string(),
-                }
-                .into())
+                Err(CheckError::Failure(
+                    ReceiptError::InvalidSignature {
+                        source_error_message: "Invalid signer".to_string(),
+                    }
+                    .into(),
+                ))
             } else {
                 Ok(())
             }

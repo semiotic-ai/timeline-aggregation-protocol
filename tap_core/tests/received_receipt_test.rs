@@ -189,6 +189,7 @@ async fn partial_then_finalize_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
+        .unwrap()
         .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
@@ -238,6 +239,7 @@ async fn standard_lifetime_valid_receipt(
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
     let receipt = awaiting_escrow_receipt
+        .unwrap()
         .check_and_reserve_escrow(&context, &domain_separator)
         .await;
     assert!(receipt.is_ok());
