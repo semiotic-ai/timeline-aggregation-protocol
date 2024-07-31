@@ -193,7 +193,7 @@ where
             .collect_receipts(timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
+        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
 
         Ok(RAVRequest {
             valid_receipts,
@@ -201,23 +201,6 @@ where
             invalid_receipts,
             expected_rav,
         })
-    }
-
-    pub async fn obtain_invalid_receipts(
-        &self,
-        timestamp_buffer_ns: u64,
-        receipts_limit: Option<u64>,
-    ) -> Result<Vec<ReceiptWithState<Failed>>, Error> {
-        let previous_rav = self.get_previous_rav().await?;
-        let min_timestamp_ns = previous_rav
-            .as_ref()
-            .map(|rav| rav.message.timestampNs + 1)
-            .unwrap_or(0);
-        let (_, invalid_receipts) = self
-            .collect_receipts(timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
-            .await?;
-
-        Ok(invalid_receipts)
     }
 
     fn generate_expected_rav(
