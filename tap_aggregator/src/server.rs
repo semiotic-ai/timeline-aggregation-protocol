@@ -3,10 +3,10 @@
 
 use std::{collections::HashSet, str::FromStr};
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
+use alloy::primitives::Address;
+use alloy::signers::local::PrivateKeySigner;
 use anyhow::Result;
-use ethers_signers::LocalWallet;
 use jsonrpsee::{proc_macros::rpc, server::ServerBuilder, server::ServerHandle};
 use lazy_static::lazy_static;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
@@ -91,7 +91,7 @@ pub trait Rpc {
 }
 
 struct RpcImpl {
-    wallet: LocalWallet,
+    wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
 }
@@ -128,7 +128,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
 
 fn aggregate_receipts_(
     api_version: String,
-    wallet: &LocalWallet,
+    wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
     domain_separator: &Eip712Domain,
     receipts: Vec<EIP712SignedMessage<Receipt>>,
@@ -210,7 +210,7 @@ impl RpcServer for RpcImpl {
 
 pub async fn run_server(
     port: u16,
-    wallet: LocalWallet,
+    wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
     max_request_body_size: u32,
@@ -243,9 +243,7 @@ mod tests {
     use std::collections::HashSet;
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
-    use alloy_sol_types::Eip712Domain;
-    use ethers_signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rand::prelude::*;
     use rand::seq::SliceRandom;
@@ -259,25 +257,14 @@ mod tests {
 
     #[derive(Clone)]
     struct Keys {
-        wallet: LocalWallet,
+        wallet: PrivateKeySigner,
         address: Address,
     }
 
-    fn keys(index: u32) -> Keys {
-        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .index(index)
-         .unwrap()
-         .build()
-         .unwrap();
-        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-        let address: [u8; 20] = wallet.address().into();
-
-        Keys {
-            wallet,
-            address: address.into(),
-        }
+    fn keys() -> Keys {
+        let wallet = PrivateKeySigner::random();
+        let address = wallet.address();
+        Keys { wallet, address }
     }
 
     #[fixture]
@@ -319,7 +306,7 @@ mod tests {
         http_max_concurrent_connections: u32,
     ) {
         // The keys that will be used to sign the new RAVs
-        let keys_main = keys(0);
+        let keys_main = keys();
 
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
@@ -362,10 +349,10 @@ mod tests {
         #[values(0, 1, 2)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
-        let keys_main = keys(0);
+        let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
-        let keys_0 = keys(1);
-        let keys_1 = keys(2);
+        let keys_0 = keys();
+        let keys_1 = keys();
         // Vector of all wallets to make it easier to select one randomly
         let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
         // PRNG for selecting a random wallet
@@ -443,10 +430,10 @@ mod tests {
         #[values(0, 1, 2, 3, 4)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
-        let keys_main = keys(0);
+        let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
-        let keys_0 = keys(1);
-        let keys_1 = keys(2);
+        let keys_0 = keys();
+        let keys_1 = keys();
         // Vector of all wallets to make it easier to select one randomly
         let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
         // PRNG for selecting a random wallet
@@ -528,7 +515,7 @@ mod tests {
         allocation_ids: Vec<Address>,
     ) {
         // The keys that will be used to sign the new RAVs
-        let keys_main = keys(0);
+        let keys_main = keys();
 
         // Start the JSON-RPC server.
         let (handle, local_addr) = server::run_server(
@@ -611,7 +598,7 @@ mod tests {
         #[values("0.0")] api_version: &str,
     ) {
         // The keys that will be used to sign the new RAVs
-        let keys_main = keys(0);
+        let keys_main = keys();
 
         // Set the request byte size limit to a value that easily triggers the HTTP 413
         // error.

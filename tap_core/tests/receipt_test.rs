@@ -1,3 +1,6 @@
+use alloy::dyn_abi::Eip712Domain;
+use alloy::primitives::Address;
+use alloy::signers::local::PrivateKeySigner;
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use rand::seq::SliceRandom;
@@ -8,9 +11,6 @@ use std::sync::{Arc, RwLock};
 use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::receipt::{state::Checking, ReceiptWithState};
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder};
 use rstest::*;
 use tap_core::receipt::checks::StatefulTimestampCheck;
 use tap_core::{
@@ -41,10 +41,7 @@ fn context() -> InMemoryContext {
 #[rstest]
 #[tokio::test]
 async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
+    let wallet = PrivateKeySigner::random();
 
     let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
 
@@ -83,10 +80,7 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
 #[rstest]
 #[tokio::test]
 async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
+    let wallet = PrivateKeySigner::random();
 
     let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
 
@@ -163,10 +157,7 @@ fn safe_truncate_receipts_test(
     #[case] limit: u64,
     #[case] expected: Vec<u64>,
 ) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
+    let wallet = PrivateKeySigner::random();
 
     // Vec of (id, receipt)
     let mut receipts_orig: Vec<ReceiptWithState<Checking>> = Vec::new();

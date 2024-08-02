@@ -13,7 +13,7 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
 
 use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::receipt::state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved};

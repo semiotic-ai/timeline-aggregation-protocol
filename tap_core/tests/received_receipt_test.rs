@@ -7,9 +7,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use rstest::*;
 use tap_core::{
     manager::context::memory::{
@@ -24,16 +22,8 @@ use tap_core::{
 };
 
 #[fixture]
-fn keys() -> (LocalWallet, Address) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
-    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-    let address: [u8; 20] = wallet.address().into();
-
-    (wallet, address.into())
+fn signer() -> PrivateKeySigner {
+    PrivateKeySigner::random()
 }
 
 #[fixture]
@@ -47,13 +37,17 @@ fn allocation_ids() -> Vec<Address> {
 }
 
 #[fixture]
-fn sender_ids() -> Vec<Address> {
-    vec![
-        Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-        Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-        Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
-        keys().1,
-    ]
+fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
+    let address = signer.address();
+    (
+        signer,
+        vec![
+            Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
+            Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
+            Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+            address,
+        ],
+    )
 }
 
 #[fixture]
@@ -66,15 +60,16 @@ struct ContextFixture {
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: Vec<ReceiptCheck>,
+    signer: PrivateKeySigner,
 }
 
 #[fixture]
 fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    sender_ids: Vec<Address>,
-    keys: (LocalWallet, Address),
+    sender_ids: (PrivateKeySigner, Vec<Address>),
 ) -> ContextFixture {
+    let (signer, sender_ids) = sender_ids;
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
@@ -87,7 +82,7 @@ fn context(
         escrow_storage.clone(),
         timestamp_check.clone(),
     )
-    .with_sender_address(keys.1);
+    .with_sender_address(signer.address());
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
@@ -97,6 +92,7 @@ fn context(
     checks.push(timestamp_check);
 
     ContextFixture {
+        signer,
         context,
         escrow_storage,
         query_appraisals,
@@ -107,7 +103,6 @@ fn context(
 #[rstest]
 #[tokio::test]
 async fn partial_then_full_check_valid_receipt(
-    keys: (LocalWallet, Address),
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
     context: ContextFixture,
@@ -116,6 +111,7 @@ async fn partial_then_full_check_valid_receipt(
         checks,
         escrow_storage,
         query_appraisals,
+        signer,
         ..
     } = context;
 
@@ -123,7 +119,7 @@ async fn partial_then_full_check_valid_receipt(
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
 
@@ -133,7 +129,7 @@ async fn partial_then_full_check_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(keys.1, query_value + 500);
+        .insert(signer.address(), query_value + 500);
     // appraise query
     query_appraisals
         .write()
@@ -149,7 +145,6 @@ async fn partial_then_full_check_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn partial_then_finalize_valid_receipt(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -159,6 +154,7 @@ async fn partial_then_finalize_valid_receipt(
         context,
         escrow_storage,
         query_appraisals,
+        signer,
         ..
     } = context;
 
@@ -166,7 +162,7 @@ async fn partial_then_finalize_valid_receipt(
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
     let query_id = signed_receipt.unique_hash();
@@ -175,7 +171,7 @@ async fn partial_then_finalize_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(keys.1, query_value + 500);
+        .insert(signer.address(), query_value + 500);
     // appraise query
     query_appraisals
         .write()
@@ -197,7 +193,6 @@ async fn partial_then_finalize_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn standard_lifetime_valid_receipt(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -207,6 +202,7 @@ async fn standard_lifetime_valid_receipt(
         context,
         escrow_storage,
         query_appraisals,
+        signer,
         ..
     } = context;
 
@@ -214,7 +210,7 @@ async fn standard_lifetime_valid_receipt(
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
 
@@ -224,7 +220,7 @@ async fn standard_lifetime_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(keys.1, query_value + 500);
+        .insert(signer.address(), query_value + 500);
     // appraise query
     query_appraisals
         .write()

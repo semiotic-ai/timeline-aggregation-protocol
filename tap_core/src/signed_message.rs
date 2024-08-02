@@ -8,19 +8,14 @@
 //!
 //! # Example
 //! ```rust
-//! # use alloy_sol_types::Eip712Domain;
+//! # use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 //! # let domain_separator = Eip712Domain::default();
-//! # use ethers::{
-//! #     signers::LocalWallet,
-//! #     signers::Signer
-//! # };
-//! # use alloy_primitives::Address;
 //! use tap_core::{
 //!     signed_message::EIP712SignedMessage,
 //!     receipt::Receipt
 //! };
-//! # let wallet = LocalWallet::new(&mut rand::thread_rng());
-//! # let wallet_address = Address::from_slice(wallet.address().as_bytes());
+//! # let wallet = PrivateKeySigner::random();
+//! # let wallet_address = wallet.address();
 //! # let message = Receipt::new(Address::from([0x11u8; 20]), 100).unwrap();
 //!
 //! let signed_message = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
@@ -30,9 +25,12 @@
 //! ```
 //!
 
-use alloy_primitives::Address;
-use alloy_sol_types::{Eip712Domain, SolStruct};
-use ethers::{signers::LocalWallet, types::Signature};
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::Address,
+    signers::{local::PrivateKeySigner, Signature, SignerSync},
+    sol_types::SolStruct,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -44,6 +42,19 @@ pub struct EIP712SignedMessage<M: SolStruct> {
     pub message: M,
     /// ECDSA Signature of eip712 hash of message
     pub signature: Signature,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SignatureBytes([u8; 65]);
+
+pub trait SignatureBytesExt {
+    fn get_signature_bytes(&self) -> SignatureBytes;
+}
+
+impl SignatureBytesExt for Signature {
+    fn get_signature_bytes(&self) -> SignatureBytes {
+        SignatureBytes(self.as_bytes())
+    }
 }
 
 /// Unique identifier for a message
@@ -62,21 +73,22 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
     pub fn new(
         domain_separator: &Eip712Domain,
         message: M,
-        signing_wallet: &LocalWallet,
+        signing_wallet: &PrivateKeySigner,
     ) -> Result<Self> {
-        let recovery_message_hash: [u8; 32] = message.eip712_signing_hash(domain_separator).into();
+        let recovery_message_hash = message.eip712_signing_hash(domain_separator);
 
-        let signature = signing_wallet.sign_hash(recovery_message_hash.into())?;
+        let signature = signing_wallet.sign_hash_sync(&recovery_message_hash)?;
 
         Ok(Self { message, signature })
     }
 
     /// Recovers and returns the signer of the message from the signature.
     pub fn recover_signer(&self, domain_separator: &Eip712Domain) -> Result<Address> {
-        let recovery_message_hash: [u8; 32] =
-            self.message.eip712_signing_hash(domain_separator).into();
-        let recovered_address: [u8; 20] = self.signature.recover(recovery_message_hash)?.into();
-        Ok(recovered_address.into())
+        let recovery_message_hash = self.message.eip712_signing_hash(domain_separator);
+        let recovered_address = self
+            .signature
+            .recover_address_from_prehash(&recovery_message_hash)?;
+        Ok(recovered_address)
     }
 
     /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
@@ -87,13 +99,15 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
     /// signature is not equal to `expected_address`
     ///
     pub fn verify(&self, domain_separator: &Eip712Domain, expected_address: Address) -> Result<()> {
-        let recovery_message_hash: [u8; 32] =
-            self.message.eip712_signing_hash(domain_separator).into();
-        let expected_address: [u8; 20] = expected_address.into();
-
-        self.signature
-            .verify(recovery_message_hash, expected_address)?;
-        Ok(())
+        let recovered_address = self.recover_signer(domain_separator)?;
+        if recovered_address != expected_address {
+            Err(crate::Error::VerificationFailed {
+                expected: expected_address,
+                received: recovered_address,
+            })
+        } else {
+            Ok(())
+        }
     }
 
     /// Use this a simple key for testing

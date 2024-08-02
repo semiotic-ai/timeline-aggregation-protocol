@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
 
 use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
 use crate::{

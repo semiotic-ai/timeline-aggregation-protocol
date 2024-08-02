@@ -7,11 +7,13 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use alloy_primitives::{Address, FixedBytes, U256};
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
+use alloy::primitives::Address;
+use alloy::primitives::FixedBytes;
+use alloy::signers::local::PrivateKeySigner;
 use anyhow::Result;
 use clap::Parser;
-use ethers_signers::{LocalWallet, Signer};
+use ruint::aliases::U256;
 use tokio::signal::unix::{signal, SignalKind};
 
 use log::{debug, info};
@@ -96,7 +98,7 @@ async fn main() -> Result<()> {
     tokio::spawn(metrics::run_server(args.metrics_port));
 
     // Create a wallet from the mnemonic.
-    let wallet = LocalWallet::from_str(&args.private_key)?;
+    let wallet = PrivateKeySigner::from_str(&args.private_key)?;
 
     info!("Wallet address: {:#40x}", wallet.address());
 

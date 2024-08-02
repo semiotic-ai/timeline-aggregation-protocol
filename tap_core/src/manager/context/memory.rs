@@ -12,7 +12,7 @@ use crate::{
     receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState},
     signed_message::MessageId,
 };
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 use async_trait::async_trait;
 use std::ops::RangeBounds;
 use std::sync::RwLock;
@@ -267,8 +267,7 @@ pub mod checks {
         },
         signed_message::MessageId,
     };
-    use alloy_primitives::Address;
-    use alloy_sol_types::Eip712Domain;
+    use alloy::{dyn_abi::Eip712Domain, primitives::Address};
     use std::{
         collections::{HashMap, HashSet},
         sync::{Arc, RwLock},
@@ -289,34 +288,6 @@ pub mod checks {
                 valid_signers,
             }),
         ]
-    }
-
-    struct ValueCheck {
-        query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
-    }
-
-    #[async_trait::async_trait]
-    impl Check for ValueCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
-            let value = receipt.signed_receipt().message.value;
-            let query_appraisals = self.query_appraisals.read().unwrap();
-            let hash = receipt.signed_receipt().unique_hash();
-            let appraised_value =
-                query_appraisals
-                    .get(&hash)
-                    .ok_or(ReceiptError::CheckFailedToComplete(
-                        "Could not find query_appraisals".into(),
-                    ))?;
-
-            if value != *appraised_value {
-                Err(ReceiptError::InvalidValue {
-                    received_value: value,
-                }
-                .into())
-            } else {
-                Ok(())
-            }
-        }
     }
 
     struct AllocationIdCheck {

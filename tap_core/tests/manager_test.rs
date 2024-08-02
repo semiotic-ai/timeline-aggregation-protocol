@@ -7,9 +7,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use rstest::*;
 
 fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
@@ -34,16 +32,8 @@ use tap_core::{
 };
 
 #[fixture]
-fn keys() -> (LocalWallet, Address) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-        .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-        .build()
-        .unwrap();
-    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-    let address: [u8; 20] = wallet.address().into();
-
-    (wallet, address.into())
+fn signer() -> PrivateKeySigner {
+    PrivateKeySigner::random()
 }
 
 #[fixture]
@@ -57,13 +47,17 @@ fn allocation_ids() -> Vec<Address> {
 }
 
 #[fixture]
-fn sender_ids() -> Vec<Address> {
-    vec![
-        Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-        Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-        Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
-        keys().1,
-    ]
+fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
+    let address = signer.address();
+    (
+        signer,
+        vec![
+            Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
+            Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
+            Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+            address,
+        ],
+    )
 }
 
 #[fixture]
@@ -76,15 +70,16 @@ struct ContextFixture {
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
     checks: CheckList,
+    signer: PrivateKeySigner,
 }
 
 #[fixture]
 fn context(
     domain_separator: Eip712Domain,
     allocation_ids: Vec<Address>,
-    sender_ids: Vec<Address>,
-    keys: (LocalWallet, Address),
+    sender_ids: (PrivateKeySigner, Vec<Address>),
 ) -> ContextFixture {
+    let (signer, sender_ids) = sender_ids;
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
     let rav_storage = Arc::new(RwLock::new(None));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
@@ -96,7 +91,7 @@ fn context(
         escrow_storage.clone(),
         timestamp_check.clone(),
     )
-    .with_sender_address(keys.1);
+    .with_sender_address(signer.address());
 
     let mut checks = get_full_list_of_checks(
         domain_separator,
@@ -108,6 +103,7 @@ fn context(
     let checks = CheckList::new(checks);
 
     ContextFixture {
+        signer,
         context,
         escrow_storage,
         query_appraisals,
@@ -118,7 +114,6 @@ fn context(
 #[rstest]
 #[tokio::test]
 async fn manager_verify_and_store_varying_initial_checks(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -128,6 +123,7 @@ async fn manager_verify_and_store_varying_initial_checks(
         checks,
         query_appraisals,
         escrow_storage,
+        signer,
         ..
     } = context;
     let manager = Manager::new(domain_separator.clone(), context, checks);
@@ -136,12 +132,15 @@ async fn manager_verify_and_store_varying_initial_checks(
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], value).unwrap(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
     let query_id = signed_receipt.unique_hash();
     query_appraisals.write().unwrap().insert(query_id, value);
-    escrow_storage.write().unwrap().insert(keys.1, 999999);
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
 
     assert!(manager
         .verify_and_store_receipt(signed_receipt)
@@ -152,7 +151,6 @@ async fn manager_verify_and_store_varying_initial_checks(
 #[rstest]
 #[tokio::test]
 async fn manager_create_rav_request_all_valid_receipts(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -162,10 +160,14 @@ async fn manager_create_rav_request_all_valid_receipts(
         checks,
         query_appraisals,
         escrow_storage,
+        signer,
         ..
     } = context;
     let manager = Manager::new(domain_separator.clone(), context, checks);
-    escrow_storage.write().unwrap().insert(keys.1, 999999);
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
 
     let mut stored_signed_receipts = Vec::new();
     for _ in 0..10 {
@@ -173,7 +175,7 @@ async fn manager_create_rav_request_all_valid_receipts(
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
-            &keys.0,
+            &signer,
         )
         .unwrap();
         let query_id = signed_receipt.unique_hash();
@@ -197,7 +199,7 @@ async fn manager_create_rav_request_all_valid_receipts(
     assert_eq!(rav_request.invalid_receipts.len(), 0);
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
         .verify_and_store_rav(rav_request.expected_rav, signed_rav)
@@ -207,13 +209,12 @@ async fn manager_create_rav_request_all_valid_receipts(
 
 #[rstest]
 #[tokio::test]
-async fn deny_rav_due_to_wrong_value(
-    keys: (LocalWallet, Address),
-    domain_separator: Eip712Domain,
-    context: ContextFixture,
-) {
+async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: ContextFixture) {
     let ContextFixture {
-        context, checks, ..
+        context,
+        checks,
+        signer,
+        ..
     } = context;
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
@@ -230,7 +231,7 @@ async fn deny_rav_due_to_wrong_value(
     };
 
     let signed_rav_with_wrong_aggregate =
-        EIP712SignedMessage::new(&domain_separator, rav_wrong_value, &keys.0).unwrap();
+        EIP712SignedMessage::new(&domain_separator, rav_wrong_value, &signer).unwrap();
 
     assert!(manager
         .verify_and_store_rav(rav, signed_rav_with_wrong_aggregate)
@@ -241,7 +242,6 @@ async fn deny_rav_due_to_wrong_value(
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -251,12 +251,16 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         checks,
         query_appraisals,
         escrow_storage,
+        signer,
         ..
     } = context;
 
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
-    escrow_storage.write().unwrap().insert(keys.1, 999999);
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
 
     let mut stored_signed_receipts = Vec::new();
     let mut expected_accumulated_value = 0;
@@ -265,7 +269,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
-            &keys.0,
+            &signer,
         )
         .unwrap();
         let query_id = signed_receipt.unique_hash();
@@ -297,7 +301,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     assert!(rav_request.previous_rav.is_none());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
         .verify_and_store_rav(rav_request.expected_rav, signed_rav)
@@ -310,7 +314,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
-            &keys.0,
+            &signer,
         )
         .unwrap();
 
@@ -343,7 +347,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     assert!(rav_request.previous_rav.is_some());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &keys.0)
+        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
         .verify_and_store_rav(rav_request.expected_rav, signed_rav)
@@ -354,7 +358,6 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     #[values(true, false)] remove_old_receipts: bool,
@@ -365,13 +368,17 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         checks,
         query_appraisals,
         escrow_storage,
+        signer,
         ..
     } = context;
     let starting_min_timestamp = get_current_timestamp_u64_ns().unwrap() - 500000000;
 
     let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
 
-    escrow_storage.write().unwrap().insert(keys.1, 999999);
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
 
     let mut stored_signed_receipts = Vec::new();
     let mut expected_accumulated_value = 0;
@@ -379,7 +386,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let value = 20u128;
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
 
         let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
@@ -419,7 +426,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     let signed_rav_1 = EIP712SignedMessage::new(
         &domain_separator,
         rav_request_1.expected_rav.clone(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
     assert!(manager
@@ -432,7 +439,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let value = 20u128;
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
@@ -479,7 +486,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     let signed_rav_2 = EIP712SignedMessage::new(
         &domain_separator,
         rav_request_2.expected_rav.clone(),
-        &keys.0,
+        &signer,
     )
     .unwrap();
     assert!(manager
@@ -491,7 +498,6 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 #[rstest]
 #[tokio::test]
 async fn manager_create_rav_and_ignore_invalid_receipts(
-    keys: (LocalWallet, Address),
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
@@ -500,12 +506,16 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
         context,
         checks,
         escrow_storage,
+        signer,
         ..
     } = context;
 
     let manager = Manager::new(domain_separator.clone(), context.clone(), checks);
 
-    escrow_storage.write().unwrap().insert(keys.1, 999999);
+    escrow_storage
+        .write()
+        .unwrap()
+        .insert(signer.address(), 999999);
 
     let mut stored_signed_receipts = Vec::new();
     //Forcing all receipts but one to be invalid by making all the same
@@ -516,7 +526,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
             nonce: 1,
             value: 20u128,
         };
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &keys.0).unwrap();
+        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         manager
             .verify_and_store_receipt(signed_receipt)

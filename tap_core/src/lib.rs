@@ -8,7 +8,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use alloy_sol_types::eip712_domain;
+use alloy::{dyn_abi::Eip712Domain, sol_types::eip712_domain};
 use thiserror::Error;
 
 mod error;
@@ -46,8 +46,8 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
 /// - `verifying_contract`: The address of the contract that is verifying the signature.
 pub fn tap_eip712_domain(
     chain_id: u64,
-    verifying_contract_address: alloy_primitives::Address,
-) -> alloy_sol_types::Eip712Domain {
+    verifying_contract_address: alloy::primitives::Address,
+) -> Eip712Domain {
     eip712_domain! {
         name: "TAP",
         version: "1",
@@ -60,9 +60,7 @@ pub fn tap_eip712_domain(
 mod tap_tests {
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
-    use alloy_sol_types::Eip712Domain;
-    use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use rstest::*;
 
     use crate::{
@@ -71,16 +69,11 @@ mod tap_tests {
     };
 
     #[fixture]
-    fn keys() -> (LocalWallet, Address) {
-        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
-        // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-        // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-        let address: [u8; 20] = wallet.address().into();
+    fn keys() -> (PrivateKeySigner, Address) {
+        let wallet = PrivateKeySigner::random();
+        let address = wallet.address();
 
-        (wallet, address.into())
+        (wallet, address)
     }
 
     #[fixture]
@@ -103,7 +96,7 @@ mod tap_tests {
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[test]
     fn signed_rav_is_valid_with_no_previous_rav(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
@@ -134,7 +127,7 @@ mod tap_tests {
     #[case::rav_from_zero_valued_receipts(vec![0,0,0,0])]
     #[test]
     fn signed_rav_is_valid_with_previous_rav(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
@@ -177,7 +170,7 @@ mod tap_tests {
     #[rstest]
     #[test]
     fn verify_signature(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
