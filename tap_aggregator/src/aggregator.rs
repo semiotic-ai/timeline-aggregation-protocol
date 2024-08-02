@@ -10,7 +10,9 @@ use alloy::{
 use anyhow::{bail, Ok, Result};
 
 use tap_core::{
-    rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
+    rav::ReceiptAggregateVoucher,
+    receipt::Receipt,
+    signed_message::{EIP712SignedMessage, SignatureBytes, SignatureBytesExt},
 };
 
 pub fn check_and_aggregate_receipts(
@@ -99,9 +101,9 @@ fn check_allocation_id(
 }
 
 fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<()> {
-    let mut receipt_signatures: hash_set::HashSet<[u8; 65]> = hash_set::HashSet::new();
+    let mut receipt_signatures: hash_set::HashSet<SignatureBytes> = hash_set::HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.signature.as_bytes();
+        let signature = receipt.signature.get_signature_bytes();
         if !receipt_signatures.insert(signature) {
             return Err(tap_core::Error::DuplicateReceiptSignature(format!(
                 "{:?}",

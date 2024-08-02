@@ -44,6 +44,19 @@ pub struct EIP712SignedMessage<M: SolStruct> {
     pub signature: Signature,
 }
 
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SignatureBytes([u8; 65]);
+
+pub trait SignatureBytesExt {
+    fn get_signature_bytes(&self) -> SignatureBytes;
+}
+
+impl SignatureBytesExt for Signature {
+    fn get_signature_bytes(&self) -> SignatureBytes {
+        SignatureBytes(self.as_bytes())
+    }
+}
+
 /// Unique identifier for a message
 ///
 /// This is equal to the hash of the contents of a message, excluding the signature.

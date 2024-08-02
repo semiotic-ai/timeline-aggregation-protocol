@@ -29,6 +29,8 @@
 //! let my_check: ReceiptCheck = Arc::new(MyCheck);
 //! ```
 
+use crate::signed_message::{SignatureBytes, SignatureBytesExt};
+
 use super::{
     state::{Checking, Failed},
     ReceiptError, ReceiptWithState,
@@ -168,11 +170,14 @@ impl CheckBatch for UniqueCheck {
         Vec<ReceiptWithState<Checking>>,
         Vec<ReceiptWithState<Failed>>,
     ) {
-        let mut signatures: HashSet<[u8; 65]> = HashSet::new();
+        let mut signatures: HashSet<SignatureBytes> = HashSet::new();
         let (mut checking, mut failed) = (vec![], vec![]);
 
         for received_receipt in receipts.into_iter() {
-            let signature = received_receipt.signed_receipt.signature.as_bytes();
+            let signature = received_receipt
+                .signed_receipt
+                .signature
+                .get_signature_bytes();
             if signatures.insert(signature) {
                 checking.push(received_receipt);
             } else {
