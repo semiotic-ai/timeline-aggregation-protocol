@@ -198,11 +198,13 @@ async fn manager_create_rav_request_all_valid_receipts(
     // no failing
     assert_eq!(rav_request.invalid_receipts.len(), 0);
 
+    let expected_rav = rav_request.expected_rav.unwrap();
+
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+        .verify_and_store_rav(expected_rav, signed_rav)
         .await
         .is_ok());
 }
@@ -292,19 +294,21 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     );
     // no receipts failing
     assert_eq!(rav_request.invalid_receipts.len(), 0);
+
+    let expected_rav = rav_request.expected_rav.unwrap();
     // accumulated value is correct
     assert_eq!(
-        rav_request.expected_rav.valueAggregate,
+        expected_rav.valueAggregate,
         expected_accumulated_value
     );
     // no previous rav
     assert!(rav_request.previous_rav.is_none());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+        .verify_and_store_rav(expected_rav, signed_rav)
         .await
         .is_ok());
 
@@ -338,19 +342,21 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     );
     // no receipts failing
     assert_eq!(rav_request.invalid_receipts.len(), 0);
+
+    let expected_rav = rav_request.expected_rav.unwrap();
     // accumulated value is correct
     assert_eq!(
-        rav_request.expected_rav.valueAggregate,
+        expected_rav.valueAggregate,
         expected_accumulated_value
     );
     // Verify there is a previous rav
     assert!(rav_request.previous_rav.is_some());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, rav_request.expected_rav.clone(), &signer)
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
             .unwrap();
     assert!(manager
-        .verify_and_store_rav(rav_request.expected_rav, signed_rav)
+        .verify_and_store_rav(expected_rav, signed_rav)
         .await
         .is_ok());
 }
@@ -415,9 +421,11 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     );
     // no receipts failing
     assert_eq!(rav_request_1.invalid_receipts.len(), 0);
+
+    let expected_rav_1 = rav_request_1.expected_rav.unwrap();
     // accumulated value is correct
     assert_eq!(
-        rav_request_1.expected_rav.valueAggregate,
+        expected_rav_1.valueAggregate,
         expected_accumulated_value
     );
     // no previous rav
@@ -425,12 +433,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 
     let signed_rav_1 = EIP712SignedMessage::new(
         &domain_separator,
-        rav_request_1.expected_rav.clone(),
+        expected_rav_1.clone(),
         &signer,
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(rav_request_1.expected_rav, signed_rav_1)
+        .verify_and_store_rav(expected_rav_1, signed_rav_1)
         .await
         .is_ok());
 
@@ -475,9 +483,11 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     );
     // no receipts failing
     assert_eq!(rav_request_2.invalid_receipts.len(), 0);
+
+    let expected_rav_2 = rav_request_2.expected_rav.unwrap();
     // accumulated value is correct
     assert_eq!(
-        rav_request_2.expected_rav.valueAggregate,
+        expected_rav_2.valueAggregate,
         expected_accumulated_value
     );
     // Verify there is a previous rav
@@ -485,12 +495,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 
     let signed_rav_2 = EIP712SignedMessage::new(
         &domain_separator,
-        rav_request_2.expected_rav.clone(),
+        expected_rav_2.clone(),
         &signer,
     )
     .unwrap();
     assert!(manager
-        .verify_and_store_rav(rav_request_2.expected_rav, signed_rav_2)
+        .verify_and_store_rav(expected_rav_2, signed_rav_2)
         .await
         .is_ok());
 }
@@ -535,10 +545,11 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     }
 
     let rav_request = manager.create_rav_request(0, None).await.unwrap();
+    let expected_rav = rav_request.expected_rav.unwrap();
 
     assert_eq!(rav_request.valid_receipts.len(), 1);
     // All receipts but one being invalid
     assert_eq!(rav_request.invalid_receipts.len(), 9);
     //Rav Value corresponds only to value of one receipt
-    assert_eq!(rav_request.expected_rav.valueAggregate, 20);
+    assert_eq!(expected_rav.valueAggregate, 20);
 }

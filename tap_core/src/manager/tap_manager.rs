@@ -194,7 +194,7 @@ where
             .collect_receipts(timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone())?;
+        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
 
         Ok(RAVRequest {
             valid_receipts,
