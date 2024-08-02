@@ -168,11 +168,11 @@ impl CheckBatch for UniqueCheck {
         Vec<ReceiptWithState<Checking>>,
         Vec<ReceiptWithState<Failed>>,
     ) {
-        let mut signatures: HashSet<ethers::types::Signature> = HashSet::new();
+        let mut signatures: HashSet<[u8; 65]> = HashSet::new();
         let (mut checking, mut failed) = (vec![], vec![]);
 
         for received_receipt in receipts.into_iter() {
-            let signature = received_receipt.signed_receipt.signature;
+            let signature = received_receipt.signed_receipt.signature.as_bytes();
             if signatures.insert(signature) {
                 checking.push(received_receipt);
             } else {
@@ -189,12 +189,10 @@ mod tests {
     use std::time::Duration;
     use std::time::SystemTime;
 
-    use alloy_primitives::Address;
-    use alloy_sol_types::eip712_domain;
-    use alloy_sol_types::Eip712Domain;
-
-    use ethers::signers::coins_bip39::English;
-    use ethers::signers::{LocalWallet, MnemonicBuilder};
+    use alloy::dyn_abi::Eip712Domain;
+    use alloy::primitives::Address;
+    use alloy::signers::local::PrivateKeySigner;
+    use alloy::sol_types::eip712_domain;
 
     use crate::receipt::Receipt;
     use crate::signed_message::EIP712SignedMessage;
@@ -202,13 +200,7 @@ mod tests {
     use super::*;
 
     fn create_signed_receipt_with_custom_value(value: u128) -> ReceiptWithState<Checking> {
-        let index: u32 = 0;
-        let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-            .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-            .index(index)
-            .unwrap()
-            .build()
-            .unwrap();
+        let wallet: PrivateKeySigner = PrivateKeySigner::random();
         let eip712_domain_separator: Eip712Domain = eip712_domain! {
             name: "TAP",
             version: "1",

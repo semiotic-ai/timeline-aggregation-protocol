@@ -5,7 +5,7 @@ use std::sync::{
     Arc,
 };
 
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::{async_trait, client::ClientT},

@@ -41,8 +41,8 @@ mod request;
 
 use std::cmp;
 
-use alloy_primitives::Address;
-use alloy_sol_types::sol;
+use alloy::primitives::Address;
+use alloy::sol;
 use serde::{Deserialize, Serialize};
 
 use crate::Error;

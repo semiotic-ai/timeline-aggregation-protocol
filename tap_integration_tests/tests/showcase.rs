@@ -12,10 +12,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::Address,
+    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+};
 use anyhow::{Error, Result};
-use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
 use jsonrpsee::{
     core::client::ClientT, http_client::HttpClientBuilder, rpc_params, server::ServerHandle,
 };
@@ -84,30 +86,20 @@ fn receipt_threshold_2(num_queries: u64, num_batches: u64) -> u64 {
 
 // The private key (LocalWallet) and public key (Address) of a Sender
 #[fixture]
-fn keys_sender() -> (LocalWallet, Address) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+fn keys_sender() -> PrivateKeySigner {
+    MnemonicBuilder::<English>::default()
     .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
     .build()
-    .unwrap();
-    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-    let address: [u8; 20] = wallet.address().into();
-
-    (wallet, address.into())
+    .unwrap()
 }
 
 // The private key (LocalWallet) and public key (Address) of a Sender. This key is used to test when the Sender's key differs from the Indexer's expectation.
 #[fixture]
-fn wrong_keys_sender() -> (LocalWallet, Address) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
+fn wrong_keys_sender() -> PrivateKeySigner {
+    MnemonicBuilder::<English>::default()
         .phrase("devote force reopen galaxy humor virtual hobby chief grit nothing bag pulse")
         .build()
-        .unwrap();
-    // Alloy library does not have feature parity with ethers library (yet) This workaround is needed to get the address
-    // to convert to an alloy Address. This will not be needed when the alloy library has wallet support.
-    let address: [u8; 20] = wallet.address().into();
-
-    (wallet, address.into())
+        .unwrap()
 }
 
 // Allocation IDs are used to ensure receipts cannot be double-counted
@@ -125,7 +117,7 @@ fn sender_ids() -> Vec<Address> {
         Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
         Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
         Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
-        keys_sender().1,
+        keys_sender().address(),
     ]
 }
 
@@ -215,18 +207,17 @@ fn indexer_2_context(context: ContextFixture) -> ContextFixture {
 // Messages are formatted according to TAP spec and signed according to EIP-712.
 #[fixture]
 fn requests_1(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
-    let (sender_key, _) = keys_sender;
     // Create your Receipt here
     generate_requests(
         query_price,
         num_batches,
-        &sender_key,
+        &keys_sender,
         allocation_ids[0],
         &domain_separator,
     )
@@ -234,18 +225,17 @@ fn requests_1(
 
 #[fixture]
 fn requests_2(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
-    let (sender_key, _) = keys_sender;
     // Create your Receipt here
     generate_requests(
         query_price,
         num_batches,
-        &sender_key,
+        &keys_sender,
         allocation_ids[1],
         &domain_separator,
     )
@@ -253,20 +243,18 @@ fn requests_2(
 
 #[fixture]
 fn repeated_timestamp_request(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
-    let (sender_key, _) = keys_sender;
-
     // Create signed receipts
     let mut requests = generate_requests(
         query_price,
         num_batches,
-        &sender_key,
+        &keys_sender,
         allocation_ids[0],
         &domain_separator,
     );
@@ -285,25 +273,24 @@ fn repeated_timestamp_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize] =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key).unwrap();
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
     requests
 }
 
 #[fixture]
 fn repeated_timestamp_incremented_by_one_request(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     query_price: &[u128],
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
-    let (sender_key, _) = keys_sender;
     // Create your Receipt here
     let mut requests = generate_requests(
         query_price,
         num_batches,
-        &sender_key,
+        &keys_sender,
         allocation_ids[0],
         &domain_separator,
     );
@@ -323,26 +310,25 @@ fn repeated_timestamp_incremented_by_one_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize] =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &sender_key).unwrap();
+        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
 
     requests
 }
 
 #[fixture]
 fn wrong_requests(
-    wrong_keys_sender: (LocalWallet, Address),
+    wrong_keys_sender: PrivateKeySigner,
     query_price: &[u128],
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
-    let (sender_key, _) = wrong_keys_sender;
     // Create your Receipt here
     // Create your Receipt here
     generate_requests(
         query_price,
         num_batches,
-        &sender_key,
+        &wrong_keys_sender,
         allocation_ids[0],
         &domain_separator,
     )
@@ -351,7 +337,7 @@ fn wrong_requests(
 // Helper fixtures to start servers for tests
 #[fixture]
 async fn single_indexer_test_server(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
@@ -360,7 +346,7 @@ async fn single_indexer_test_server(
     available_escrow: u128,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
-    let sender_id = keys_sender.1;
+    let sender_id = keys_sender.address();
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         keys_sender,
         domain_separator.clone(),
@@ -390,7 +376,7 @@ async fn single_indexer_test_server(
 
 #[fixture]
 async fn two_indexers_test_servers(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
@@ -407,7 +393,7 @@ async fn two_indexers_test_servers(
     ServerHandle,
     SocketAddr,
 )> {
-    let sender_id = keys_sender.1;
+    let sender_id = keys_sender.address();
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         keys_sender,
         domain_separator.clone(),
@@ -460,7 +446,7 @@ async fn two_indexers_test_servers(
 
 #[fixture]
 async fn single_indexer_wrong_sender_test_server(
-    wrong_keys_sender: (LocalWallet, Address),
+    wrong_keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
@@ -469,7 +455,7 @@ async fn single_indexer_wrong_sender_test_server(
     available_escrow: u128,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
-    let sender_id = wrong_keys_sender.1;
+    let sender_id = wrong_keys_sender.address();
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         wrong_keys_sender,
         domain_separator.clone(),
@@ -707,7 +693,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 #[rstest]
 #[tokio::test]
 async fn test_tap_aggregator_rav_timestamp_cuttoff(
-    keys_sender: (LocalWallet, Address),
+    keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
@@ -786,7 +772,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
 fn generate_requests(
     query_price: &[u128],
     num_batches: u64,
-    sender_key: &LocalWallet,
+    sender_key: &PrivateKeySigner,
     allocation_id: Address,
     domain_separator: &Eip712Domain,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
@@ -842,7 +828,7 @@ async fn start_indexer_server(
 
 // Start-up a Sender Aggregator.
 async fn start_sender_aggregator(
-    keys: (LocalWallet, Address),
+    keys: PrivateKeySigner,
     domain_separator: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
@@ -853,11 +839,11 @@ async fn start_sender_aggregator(
         listener.local_addr()?.port()
     };
 
-    let accepted_addresses = HashSet::from([keys.1]);
+    let accepted_addresses = HashSet::from([keys.address()]);
 
     let (server_handle, socket_addr) = agg_server::run_server(
         http_port,
-        keys.0,
+        keys,
         accepted_addresses,
         domain_separator,
         http_request_size_limit,

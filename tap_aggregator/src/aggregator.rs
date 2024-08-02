@@ -3,11 +3,11 @@
 
 use std::collections::{hash_set, HashSet};
 
-use alloy_primitives::Address;
-use alloy_sol_types::{Eip712Domain, SolStruct};
+use alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    sol_types::SolStruct,
+};
 use anyhow::{bail, Ok, Result};
-use ethers_core::types::Signature;
-use ethers_signers::LocalWallet;
 
 use tap_core::{
     rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
@@ -17,7 +17,7 @@ pub fn check_and_aggregate_receipts(
     domain_separator: &Eip712Domain,
     receipts: &[EIP712SignedMessage<Receipt>],
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    wallet: &LocalWallet,
+    wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
     check_signatures_unique(receipts)?;
@@ -99,11 +99,15 @@ fn check_allocation_id(
 }
 
 fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<()> {
-    let mut receipt_signatures: hash_set::HashSet<Signature> = hash_set::HashSet::new();
+    let mut receipt_signatures: hash_set::HashSet<[u8; 65]> = hash_set::HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.signature;
+        let signature = receipt.signature.as_bytes();
         if !receipt_signatures.insert(signature) {
-            return Err(tap_core::Error::DuplicateReceiptSignature(signature.to_string()).into());
+            return Err(tap_core::Error::DuplicateReceiptSignature(format!(
+                "{:?}",
+                receipt.signature
+            ))
+            .into());
         }
     }
     Ok(())
@@ -133,22 +137,17 @@ fn check_receipt_timestamps(
 mod tests {
     use std::str::FromStr;
 
-    use alloy_primitives::Address;
-    use alloy_sol_types::Eip712Domain;
-    use ethers_signers::{LocalWallet, Signer};
+    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use rstest::*;
 
     use crate::aggregator;
     use tap_core::{receipt::Receipt, signed_message::EIP712SignedMessage, tap_eip712_domain};
 
     #[fixture]
-    fn keys() -> (LocalWallet, Address) {
-        let wallet = LocalWallet::from_str(
-            "1ab42cc412b618bdea3a599e3c9bae199ebf030895b039e9db1e30dafb12b727",
-        )
-        .unwrap();
-        let address: [u8; 20] = wallet.address().into();
-        (wallet, address.into())
+    fn keys() -> (PrivateKeySigner, Address) {
+        let wallet = PrivateKeySigner::random();
+        let address = wallet.address();
+        (wallet, address)
     }
 
     #[fixture]
@@ -169,7 +168,7 @@ mod tests {
     #[rstest]
     #[test]
     fn check_signatures_unique_fail(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
@@ -191,7 +190,7 @@ mod tests {
     #[rstest]
     #[test]
     fn check_signatures_unique_ok(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
@@ -219,7 +218,7 @@ mod tests {
     #[test]
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
     fn check_receipt_timestamps(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
@@ -289,7 +288,7 @@ mod tests {
     /// Test check_allocation_id with 2 receipts that have the correct allocation id
     /// and 1 receipt that has the wrong allocation id
     fn check_allocation_id_fail(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
@@ -323,7 +322,7 @@ mod tests {
     #[test]
     /// Test check_allocation_id with 3 receipts that have the correct allocation id
     fn check_allocation_id_ok(
-        keys: (LocalWallet, Address),
+        keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {

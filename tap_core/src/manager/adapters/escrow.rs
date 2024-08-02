@@ -1,8 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
+use alloy::{dyn_abi::Eip712Domain, primitives::Address};
 use async_trait::async_trait;
 
 use crate::{

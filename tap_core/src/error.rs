@@ -5,9 +5,7 @@
 //!
 
 use crate::{rav::ReceiptAggregateVoucher, receipt::ReceiptError};
-use alloy_primitives::Address;
-use ethers::signers::WalletError;
-use ethers_core::types::SignatureError;
+use alloy::primitives::{Address, SignatureError};
 use std::result::Result as StdResult;
 use thiserror::Error as ThisError;
 
@@ -20,12 +18,20 @@ pub enum Error {
     /// Error when Rust fails to get the current system time
     #[error("Failed to get current system time: {source_error_message} ")]
     InvalidSystemTime { source_error_message: String },
-    /// `ethers` wallet error
+    /// `alloy` wallet error
     #[error(transparent)]
-    WalletError(#[from] WalletError),
-    /// Error when signature verification fails
+    WalletError(#[from] alloy::signers::Error),
+
+    /// `alloy` wallet error
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+
+    /// Error when signature verification fails
+    #[error("Expected address {expected} but received {received}")]
+    VerificationFailed {
+        expected: Address,
+        received: Address,
+    },
 
     /// Error when the received RAV does not match the expected RAV
     #[error("Received RAV does not match expexted RAV")]

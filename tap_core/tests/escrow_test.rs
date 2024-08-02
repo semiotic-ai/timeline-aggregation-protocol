@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use ethers::signers::{coins_bip39::English, LocalWallet, MnemonicBuilder, Signer};
+use alloy::signers::local::PrivateKeySigner;
 use rstest::*;
 
 use tap_core::{
@@ -32,19 +32,11 @@ fn context() -> InMemoryContext {
 #[rstest]
 #[tokio::test]
 async fn escrow_handler_test(mut context: InMemoryContext) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
-    let sender_id: [u8; 20] = wallet.address().into();
-    let sender_id = sender_id.into();
+    let wallet = PrivateKeySigner::random();
+    let sender_id = wallet.address();
 
-    let invalid_wallet: LocalWallet = MnemonicBuilder::<English>::default()
-        .phrase("wrong century settle satisfy market forest title connect ten push alley depend")
-        .build()
-        .unwrap();
-    let invalid_sender_id: [u8; 20] = invalid_wallet.address().into();
-    let invalid_sender_id = invalid_sender_id.into();
+    let invalid_wallet = PrivateKeySigner::random();
+    let invalid_sender_id = invalid_wallet.address();
 
     let initial_value = 500u128;
 

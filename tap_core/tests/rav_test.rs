@@ -5,10 +5,9 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 use std::{str::FromStr, sync::Arc};
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
-use ethers::signers::coins_bip39::English;
-use ethers::signers::{LocalWallet, MnemonicBuilder};
+use alloy::dyn_abi::Eip712Domain;
+use alloy::primitives::Address;
+use alloy::signers::local::PrivateKeySigner;
 use rstest::*;
 
 use tap_core::manager::context::memory::InMemoryContext;
@@ -43,15 +42,9 @@ fn context() -> InMemoryContext {
 #[rstest]
 #[tokio::test]
 async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMemoryContext) {
-    let wallet: LocalWallet = MnemonicBuilder::<English>::default()
-         .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-         .build()
-         .unwrap();
+    let wallet = PrivateKeySigner::random();
 
-    let allocation_id: [u8; 20] = Address::from_str("0xabababababababababababababababababababab")
-        .unwrap()
-        .into();
-    let allocation_id = allocation_id.into();
+    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
 
     // Create receipts
     let mut receipts = Vec::new();

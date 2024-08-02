@@ -10,12 +10,10 @@
 
 use std::str::FromStr;
 
-use alloy_primitives::Address;
-use alloy_sol_types::Eip712Domain;
+use alloy::dyn_abi::Eip712Domain;
+use alloy::primitives::Address;
+use alloy::signers::local::PrivateKeySigner;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ethers::signers::{LocalWallet, Signer, Wallet};
-use ethers_core::k256::ecdsa::SigningKey;
-use rand_core::OsRng;
 use tap_core::tap_eip712_domain;
 use tap_core::{
     rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
@@ -25,7 +23,7 @@ pub fn create_and_sign_receipt(
     domain_separator: &Eip712Domain,
     allocation_id: Address,
     value: u128,
-    wallet: &Wallet<SigningKey>,
+    wallet: &PrivateKeySigner,
 ) -> EIP712SignedMessage<Receipt> {
     EIP712SignedMessage::new(
         domain_separator,
@@ -38,9 +36,8 @@ pub fn create_and_sign_receipt(
 pub fn criterion_benchmark(c: &mut Criterion) {
     let domain_seperator = tap_eip712_domain(1, Address::from([0x11u8; 20]));
 
-    let wallet = LocalWallet::new(&mut OsRng);
-    let address: [u8; 20] = wallet.address().into();
-    let address: Address = address.into();
+    let wallet = PrivateKeySigner::random();
+    let address = wallet.address();
 
     // Arbitrary values wrapped in black box to avoid compiler optimizing them out
     let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
