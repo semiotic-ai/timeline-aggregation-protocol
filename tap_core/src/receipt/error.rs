@@ -24,4 +24,6 @@ pub enum ReceiptError {
     SubtractEscrowFailed,
     #[error("Issue encountered while performing check: {0}")]
     CheckFailedToComplete(String),
+    #[error("Issue encountered while performing check: {0}")]
+    RecoverableCheckError(String),
 }
