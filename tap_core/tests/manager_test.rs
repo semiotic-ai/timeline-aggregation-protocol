@@ -201,8 +201,7 @@ async fn manager_create_rav_request_all_valid_receipts(
     let expected_rav = rav_request.expected_rav.unwrap();
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
-            .unwrap();
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -297,16 +296,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
 
     let expected_rav = rav_request.expected_rav.unwrap();
     // accumulated value is correct
-    assert_eq!(
-        expected_rav.valueAggregate,
-        expected_accumulated_value
-    );
+    assert_eq!(expected_rav.valueAggregate, expected_accumulated_value);
     // no previous rav
     assert!(rav_request.previous_rav.is_none());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
-            .unwrap();
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -345,16 +340,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
 
     let expected_rav = rav_request.expected_rav.unwrap();
     // accumulated value is correct
-    assert_eq!(
-        expected_rav.valueAggregate,
-        expected_accumulated_value
-    );
+    assert_eq!(expected_rav.valueAggregate, expected_accumulated_value);
     // Verify there is a previous rav
     assert!(rav_request.previous_rav.is_some());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer)
-            .unwrap();
+        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -424,19 +415,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 
     let expected_rav_1 = rav_request_1.expected_rav.unwrap();
     // accumulated value is correct
-    assert_eq!(
-        expected_rav_1.valueAggregate,
-        expected_accumulated_value
-    );
+    assert_eq!(expected_rav_1.valueAggregate, expected_accumulated_value);
     // no previous rav
     assert!(rav_request_1.previous_rav.is_none());
 
-    let signed_rav_1 = EIP712SignedMessage::new(
-        &domain_separator,
-        expected_rav_1.clone(),
-        &signer,
-    )
-    .unwrap();
+    let signed_rav_1 =
+        EIP712SignedMessage::new(&domain_separator, expected_rav_1.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav_1, signed_rav_1)
         .await
@@ -486,19 +470,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 
     let expected_rav_2 = rav_request_2.expected_rav.unwrap();
     // accumulated value is correct
-    assert_eq!(
-        expected_rav_2.valueAggregate,
-        expected_accumulated_value
-    );
+    assert_eq!(expected_rav_2.valueAggregate, expected_accumulated_value);
     // Verify there is a previous rav
     assert!(rav_request_2.previous_rav.is_some());
 
-    let signed_rav_2 = EIP712SignedMessage::new(
-        &domain_separator,
-        expected_rav_2.clone(),
-        &signer,
-    )
-    .unwrap();
+    let signed_rav_2 =
+        EIP712SignedMessage::new(&domain_separator, expected_rav_2.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav_2, signed_rav_2)
         .await
