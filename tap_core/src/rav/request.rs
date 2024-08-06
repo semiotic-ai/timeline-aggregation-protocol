@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::receipt::state::Reserved;
+use crate::Error;
 use crate::{
     rav::{ReceiptAggregateVoucher, SignedRAV},
     receipt::{state::Failed, ReceiptWithState},
@@ -17,5 +18,5 @@ pub struct RAVRequest {
     /// List of failed receipt used to log invalid receipts
     pub invalid_receipts: Vec<ReceiptWithState<Failed>>,
     /// Expected RAV to be created
-    pub expected_rav: ReceiptAggregateVoucher,
+    pub expected_rav: Result<ReceiptAggregateVoucher, Error>,
 }
