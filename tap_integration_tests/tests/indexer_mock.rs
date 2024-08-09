@@ -201,7 +201,7 @@ where
         .request("aggregate_receipts", params)
         .await?;
     manager
-        .verify_and_store_rav(rav_request.expected_rav, remote_rav_result.data)
+        .verify_and_store_rav(rav_request.expected_rav?, remote_rav_result.data)
         .await?;
 
     // For these tests, we expect every receipt to be valid, i.e. there should be no invalid receipts, nor any missing receipts (less than the expected threshold).
