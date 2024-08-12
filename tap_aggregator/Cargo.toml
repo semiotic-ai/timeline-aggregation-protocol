@@ -12,24 +12,31 @@ name = "tap_aggregator"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.70"
-tokio = { version = "1.27.0", features = ["macros", "signal"] }
-tap_core = { version = "1.0.0", path = "../tap_core" }
-jsonrpsee = { version = "0.18.0", features = ["server", "macros"] }
-clap = { version = "4.2.4", features = ["derive", "env"] }
-serde = { version = "1.0.163", features = ["derive"] }
-serde_json = { version = "1.0.96", features = ["raw_value"] }
-strum = { version = "0.24.1", features = ["strum_macros", "derive"] }
-tracing-subscriber = { version = "0.3.17" }
+tap_core = { path = "../tap_core", version = "*" }
+serde.workspace = true
+alloy.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+jsonrpsee = { workspace = true, features = ["server", "macros"] }
+clap = { version = "4.5.15", features = ["derive", "env"] }
+serde_json = { version = "1.0.124", features = ["raw_value"] }
+strum = { version = "0.26.3", features = ["derive"] }
+tracing-subscriber = "0.3.17"
 log = "0.4.19"
 prometheus = "0.13.3"
-axum = "0.6.18"
+axum = { version = "0.7.5", features = [
+    "http1",
+    "json",
+    "matched-path",
+    "original-uri",
+    "query",
+    "tokio",
+], default-features = false }
 futures-util = "0.3.28"
 lazy_static = "1.4.0"
-alloy = { version = "0.2.0", features = ["full"] }
 ruint = "1.10.1"
 
 [dev-dependencies]
-jsonrpsee = { version = "0.18.0", features = ["http-client", "jsonrpsee-core"] }
-rand = "0.8.5"
-rstest = "0.17.0"
+jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }
+rand.workspace = true
+rstest.workspace = true

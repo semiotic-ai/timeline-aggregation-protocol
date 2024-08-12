@@ -18,7 +18,7 @@ use strum::{self, IntoEnumIterator};
     PartialEq,
     strum::Display,
     strum::EnumString,
-    strum::EnumVariantNames,
+    strum::VariantNames,
     strum::EnumIter,
 )]
 pub enum TapRpcApiVersion {

@@ -7,3 +7,12 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
+
+[workspace.dependencies]
+alloy = { version = "0.2.1", features = ["full"] }
+serde = { version = "1.0.163", features = ["derive"] }
+rstest = "0.22.0"
+anyhow = { version = "1.0.70", default-features = false }
+tokio = { version = "1.27.0", features = ["macros", "signal"] }
+rand = "0.8.5"
+jsonrpsee = { version = "0.18.0", features = ["macros", "server"] }
