@@ -8,21 +8,17 @@ readme = "README.md"
 description = "Core Timeline Aggregation Protocol library: a fast, efficient and trustless unidirectional micro-payments system."
 
 [dependencies]
-rand_core = "0.6.4"
-serde = { version = "1.0", features = ["derive", "rc"] }
-rand = "0.8.5"
+alloy.workspace = true
+serde.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+rand.workspace = true
 thiserror = "1.0.38"
-rstest = "0.17.0"
-anyhow = "1"
-alloy = { version = "0.2.0", features = ["full"] }
-
-strum = "0.24.1"
-strum_macros = "0.24.3"
 async-trait = "0.1.72"
-tokio = { version = "1.29.1", features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }
+rstest.workspace = true
 
 
 [features]
