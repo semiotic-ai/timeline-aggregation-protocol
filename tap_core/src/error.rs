@@ -45,6 +45,9 @@ pub enum Error {
     /// Error when no valid receipts are found for a RAV request
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRAVRequest,
+    /// Error when no valid receipts are found for a RAV request
+    #[error("Failed to produce rav request, all receipts are invalid")]
+    AllInvalidReceiptsForRAVRequest,
 
     /// Error when the previous RAV allocation id does not match the allocation id from the new receipt
     #[error("Previous RAV allocation id ({prev_id}) doesn't match the allocation id from the new receipt ({new_id}).")]
