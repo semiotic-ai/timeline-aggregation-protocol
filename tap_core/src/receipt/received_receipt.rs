@@ -120,6 +120,12 @@ impl ReceiptWithState<Checking> {
     }
 }
 
+impl ReceiptWithState<Failed> {
+    pub fn error(self) -> ReceiptError {
+        self._state.error
+    }
+}
+
 impl<S> ReceiptWithState<S>
 where
     S: ReceiptState,
