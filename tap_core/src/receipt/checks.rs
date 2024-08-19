@@ -45,7 +45,15 @@ use std::{
 pub type ReceiptCheck = Arc<dyn Check + Sync + Send>;
 
 /// Result of a check operation. It uses the `anyhow` crate to handle errors.
-pub type CheckResult = anyhow::Result<()>;
+pub type CheckResult = Result<(), CheckError>;
+
+#[derive(thiserror::Error, Debug)]
+pub enum CheckError {
+    #[error(transparent)]
+    Retryable(anyhow::Error),
+    #[error(transparent)]
+    Failed(anyhow::Error),
+}
 
 /// CheckList is a NewType pattern to store a list of checks.
 /// It is a wrapper around an Arc of ReceiptCheck[].
@@ -115,11 +123,13 @@ impl Check for StatefulTimestampCheck {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
         if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
-            return Err(ReceiptError::InvalidTimestamp {
-                received_timestamp: signed_receipt.message.timestamp_ns,
-                timestamp_min: min_timestamp_ns,
-            }
-            .into());
+            return Err(CheckError::Failed(
+                ReceiptError::InvalidTimestamp {
+                    received_timestamp: signed_receipt.message.timestamp_ns,
+                    timestamp_min: min_timestamp_ns,
+                }
+                .into(),
+            ));
         }
         Ok(())
     }

@@ -261,7 +261,7 @@ impl EscrowHandler for InMemoryContext {
 pub mod checks {
     use crate::{
         receipt::{
-            checks::{Check, CheckResult, ReceiptCheck},
+            checks::{Check, CheckError, CheckResult, ReceiptCheck},
             state::Checking,
             ReceiptError, ReceiptWithState,
         },
@@ -306,10 +306,12 @@ pub mod checks {
             {
                 Ok(())
             } else {
-                Err(ReceiptError::InvalidAllocationID {
-                    received_allocation_id,
-                }
-                .into())
+                Err(CheckError::Failed(
+                    ReceiptError::InvalidAllocationID {
+                        received_allocation_id,
+                    }
+                    .into(),
+                ))
             }
         }
     }
@@ -325,14 +327,22 @@ pub mod checks {
             let recovered_address = receipt
                 .signed_receipt()
                 .recover_signer(&self.domain_separator)
-                .map_err(|e| ReceiptError::InvalidSignature {
-                    source_error_message: e.to_string(),
+                .map_err(|e| {
+                    CheckError::Failed(
+                        ReceiptError::InvalidSignature {
+                            source_error_message: e.to_string(),
+                        }
+                        .into(),
+                    )
                 })?;
+
             if !self.valid_signers.contains(&recovered_address) {
-                Err(ReceiptError::InvalidSignature {
-                    source_error_message: "Invalid signer".to_string(),
-                }
-                .into())
+                Err(CheckError::Failed(
+                    ReceiptError::InvalidSignature {
+                        source_error_message: "Invalid signer".to_string(),
+                    }
+                    .into(),
+                ))
             } else {
                 Ok(())
             }
