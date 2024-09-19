@@ -16,7 +16,7 @@
 use alloy::dyn_abi::Eip712Domain;
 
 use super::checks::CheckError;
-use super::{Receipt, ReceiptError, ReceiptResult, SignedReceipt};
+use super::{Context, Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::receipt::state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved};
 use crate::{
     manager::adapters::EscrowHandler, receipt::checks::ReceiptCheck,
@@ -28,16 +28,15 @@ pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWith
 /// Typestate pattern for tracking the state of a receipt
 ///
 /// - The [ `ReceiptState` ] trait represents the different states a receipt
-/// can be in.
+///   can be in.
 /// - The [ `Checking` ] state is used to represent a receipt that is currently
-/// being checked.
+///   being checked.
 /// - The [ `Failed` ] state is used to represent a receipt that has failed a
-/// check or validation.
+///   check or validation.
 /// - The [ `AwaitingReserve` ] state is used to represent a receipt that has
-/// passed all checks and is
-/// awaiting escrow reservation.
+///   passed all checks and is awaiting escrow reservation.
 /// - The [ `Reserved` ] state is used to represent a receipt that has
-/// successfully reserved escrow.
+///   successfully reserved escrow.
 #[derive(Debug, Clone)]
 pub struct ReceiptWithState<S>
 where
@@ -90,10 +89,14 @@ impl ReceiptWithState<Checking> {
     /// cannot be comleted in the receipts current internal state.
     /// All other checks must be complete before `CheckAndReserveEscrow`.
     ///
-    pub async fn perform_checks(&mut self, checks: &[ReceiptCheck]) -> ReceiptResult<()> {
+    pub async fn perform_checks(
+        &mut self,
+        ctx: &Context,
+        checks: &[ReceiptCheck],
+    ) -> ReceiptResult<()> {
         for check in checks {
             // return early on an error
-            check.check(self).await.map_err(|e| match e {
+            check.check(ctx, self).await.map_err(|e| match e {
                 CheckError::Retryable(e) => ReceiptError::RetryableCheck(e.to_string()),
                 CheckError::Failed(e) => ReceiptError::CheckFailure(e.to_string()),
             })?;
@@ -108,9 +111,10 @@ impl ReceiptWithState<Checking> {
     ///
     pub async fn finalize_receipt_checks(
         mut self,
+        ctx: &Context,
         checks: &[ReceiptCheck],
     ) -> Result<ResultReceipt<AwaitingReserve>, String> {
-        let all_checks_passed = self.perform_checks(checks).await;
+        let all_checks_passed = self.perform_checks(ctx, checks).await;
         if let Err(ReceiptError::RetryableCheck(e)) = all_checks_passed {
             Err(e.to_string())
         } else if let Err(e) = all_checks_passed {

@@ -12,7 +12,7 @@
 //! # use std::sync::Arc;
 //! use tap_core::{
 //!     receipt::checks::{Check, CheckResult, ReceiptCheck},
-//!     receipt::{ReceiptWithState, state::Checking}
+//!     receipt::{Context, ReceiptWithState, state::Checking}
 //! };
 //! # use async_trait::async_trait;
 //!
@@ -20,7 +20,7 @@
 //!
 //! #[async_trait]
 //! impl Check for MyCheck {
-//!    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+//!    async fn check(&self, ctx: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult {
 //!       // Implement your check here
 //!      Ok(())
 //!   }
@@ -33,7 +33,7 @@ use crate::signed_message::{SignatureBytes, SignatureBytesExt};
 
 use super::{
     state::{Checking, Failed},
-    ReceiptError, ReceiptWithState,
+    Context, ReceiptError, ReceiptWithState,
 };
 use std::{
     collections::HashSet,
@@ -80,7 +80,7 @@ impl Deref for CheckList {
 /// Check trait is implemented by the lib user to validate receipts before they are stored.
 #[async_trait::async_trait]
 pub trait Check {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult;
+    async fn check(&self, ctx: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult;
 }
 
 /// CheckBatch is mostly used by the lib to implement checks
@@ -119,7 +119,7 @@ impl StatefulTimestampCheck {
 
 #[async_trait::async_trait]
 impl Check for StatefulTimestampCheck {
-    async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+    async fn check(&self, _: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
         if signed_receipt.message.timestamp_ns <= min_timestamp_ns {
