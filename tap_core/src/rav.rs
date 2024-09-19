@@ -26,7 +26,7 @@
 //! 1. Create a [`RAVRequest`] with the valid receipts and the previous RAV.
 //! 2. Send the request to the aggregator.
 //! 3. The aggregator will verify the request and increment the total amount that
-//! has been aggregated.
+//!    has been aggregated.
 //! 4. The aggregator will return a [`SignedRAV`].
 //! 5. Store the [`SignedRAV`].
 //! 6. Repeat the process until the allocation is closed.
