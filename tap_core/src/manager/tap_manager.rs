@@ -9,7 +9,7 @@ use crate::{
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Failed, Reserved},
-        ReceiptError, ReceiptWithState, SignedReceipt,
+        Context, ReceiptError, ReceiptWithState, SignedReceipt,
     },
     Error,
 };
@@ -99,6 +99,7 @@ where
 {
     async fn collect_receipts(
         &self,
+        ctx: &Context,
         timestamp_buffer_ns: u64,
         min_timestamp_ns: u64,
         limit: Option<u64>,
@@ -140,7 +141,7 @@ where
 
         for receipt in checking_receipts.into_iter() {
             let receipt = receipt
-                .finalize_receipt_checks(&self.checks)
+                .finalize_receipt_checks(ctx, &self.checks)
                 .await
                 .map_err(|e| Error::ReceiptError(ReceiptError::RetryableCheck(e)))?;
 
@@ -184,6 +185,7 @@ where
     ///
     pub async fn create_rav_request(
         &self,
+        ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
     ) -> Result<RAVRequest, Error> {
@@ -194,7 +196,7 @@ where
             .unwrap_or(0);
 
         let (valid_receipts, invalid_receipts) = self
-            .collect_receipts(timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
+            .collect_receipts(ctx, timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
@@ -271,12 +273,13 @@ where
     ///
     pub async fn verify_and_store_receipt(
         &self,
+        ctx: &Context,
         signed_receipt: SignedReceipt,
     ) -> std::result::Result<(), Error> {
         let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
         // perform checks
-        received_receipt.perform_checks(&self.checks).await?;
+        received_receipt.perform_checks(ctx, &self.checks).await?;
 
         // store the receipt
         self.context

@@ -39,7 +39,8 @@
 //!         ReceiptWithState,
 //!         state::Checking,
 //!         checks::CheckList,
-//!         ReceiptError
+//!         ReceiptError,
+//!         Context
 //!     },
 //!     manager::{
 //!         Manager,
@@ -70,7 +71,7 @@
 //! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //!
 //! let manager = Manager::new(domain_separator, MyContext, CheckList::empty());
-//! manager.verify_and_store_receipt(receipt).await.unwrap()
+//! manager.verify_and_store_receipt(&Context::new(), receipt).await.unwrap()
 //! # }
 //! ```
 //!
