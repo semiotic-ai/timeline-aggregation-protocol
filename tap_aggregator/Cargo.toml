@@ -25,16 +25,17 @@ tracing-subscriber = "0.3.17"
 log = "0.4.19"
 prometheus = "0.13.3"
 axum = { version = "0.7.5", features = [
-    "http1",
-    "json",
-    "matched-path",
-    "original-uri",
-    "query",
-    "tokio",
+  "http1",
+  "json",
+  "matched-path",
+  "original-uri",
+  "query",
+  "tokio",
 ], default-features = false }
 futures-util = "0.3.28"
 lazy_static = "1.4.0"
 ruint = "1.10.1"
+tower = { version = "0.4", features = ["util"] }
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }

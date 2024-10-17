@@ -572,7 +572,7 @@ async fn test_manager_wrong_aggregator_keys(
 
     let mut counter = 1;
     for receipt_1 in requests_1 {
-        let result: Result<(), jsonrpsee::core::Error> =
+        let result: Result<(), jsonrpsee::core::ClientError> =
             client_1.request("request", (receipt_1,)).await;
         // The rav request is being made with messages that have been signed with a key that differs from the sender aggregator's.
         // So the Sender Aggregator should send an error to the requesting Indexer.
@@ -612,7 +612,7 @@ async fn test_manager_wrong_requestor_keys(
     let client_1 = HttpClientBuilder::default().build(indexer_1_address)?;
 
     for receipt_1 in wrong_requests {
-        let result: Result<(), jsonrpsee::core::Error> =
+        let result: Result<(), jsonrpsee::core::ClientError> =
             client_1.request("request", (receipt_1,)).await;
         // The receipts have been signed with a key that the Indexer is not expecting.
         // This is one of the initial tests, so it should fail to receive the receipt
@@ -657,7 +657,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 
     let mut counter = 1;
     for receipt_1 in repeated_timestamp_request {
-        let result: Result<(), jsonrpsee::core::Error> =
+        let result: Result<(), jsonrpsee::core::ClientError> =
             client_1.request("request", (receipt_1,)).await;
 
         // The first receipt in the second batch has the same timestamp as the last receipt in the first batch.
@@ -732,7 +732,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     );
     let second_rav_response: Result<
         jsonrpsee_helpers::JsonRpcResponse<SignedRAV>,
-        jsonrpsee::core::Error,
+        jsonrpsee::core::ClientError,
     > = client.request("aggregate_receipts", params).await;
     assert!(
         second_rav_response.is_err(),
