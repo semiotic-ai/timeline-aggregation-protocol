@@ -1,6 +1,6 @@
 [package]
 name = "tap_aggregator"
-version = "0.3.1"
+version = "0.3.2"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -12,7 +12,7 @@ name = "tap_aggregator"
 path = "src/main.rs"
 
 [dependencies]
-tap_core = { path = "../tap_core", version = "*" }
+tap_core = { path = "../tap_core", version = "2.0.0" }
 serde.workspace = true
 alloy.workspace = true
 anyhow.workspace = true
