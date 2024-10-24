@@ -15,7 +15,7 @@ use tap_core::{
     },
     receipt::{
         checks::{ReceiptCheck, StatefulTimestampCheck},
-        Receipt, ReceiptWithState,
+        Context, Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -138,7 +138,9 @@ async fn partial_then_full_check_valid_receipt(
 
     let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
-    let result = received_receipt.perform_checks(&checks).await;
+    let result = received_receipt
+        .perform_checks(&Context::new(), &checks)
+        .await;
     assert!(result.is_ok());
 }
 
@@ -180,7 +182,9 @@ async fn partial_then_finalize_valid_receipt(
 
     let received_receipt = ReceiptWithState::new(signed_receipt);
 
-    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
+    let awaiting_escrow_receipt = received_receipt
+        .finalize_receipt_checks(&Context::new(), &checks)
+        .await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
@@ -230,7 +234,9 @@ async fn standard_lifetime_valid_receipt(
 
     let received_receipt = ReceiptWithState::new(signed_receipt);
 
-    let awaiting_escrow_receipt = received_receipt.finalize_receipt_checks(&checks).await;
+    let awaiting_escrow_receipt = received_receipt
+        .finalize_receipt_checks(&Context::new(), &checks)
+        .await;
     assert!(awaiting_escrow_receipt.is_ok());
 
     let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();

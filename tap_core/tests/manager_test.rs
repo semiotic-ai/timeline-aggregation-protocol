@@ -27,7 +27,7 @@ use tap_core::{
     receipt::{
         checks::{Check, CheckError, CheckList, StatefulTimestampCheck},
         state::Checking,
-        Receipt, ReceiptWithState,
+        Context, Receipt, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -145,7 +145,7 @@ async fn manager_verify_and_store_varying_initial_checks(
         .insert(signer.address(), 999999);
 
     assert!(manager
-        .verify_and_store_receipt(signed_receipt)
+        .verify_and_store_receipt(&Context::new(), signed_receipt)
         .await
         .is_ok());
 }
@@ -184,11 +184,11 @@ async fn manager_create_rav_request_all_valid_receipts(
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .is_ok());
     }
-    let rav_request_result = manager.create_rav_request(0, None).await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -279,12 +279,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager.create_rav_request(0, None).await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -323,12 +323,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager.create_rav_request(0, None).await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -391,7 +391,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -403,7 +403,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
     }
 
-    let rav_request_1_result = manager.create_rav_request(0, None).await;
+    let rav_request_1_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_1_result.is_ok());
 
     let rav_request_1 = rav_request_1_result.unwrap();
@@ -438,7 +438,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .is_ok());
         expected_accumulated_value += value;
@@ -458,7 +458,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         );
     }
 
-    let rav_request_2_result = manager.create_rav_request(0, None).await;
+    let rav_request_2_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_2_result.is_ok());
 
     let rav_request_2 = rav_request_2_result.unwrap();
@@ -518,12 +518,15 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .unwrap();
     }
 
-    let rav_request = manager.create_rav_request(0, None).await.unwrap();
+    let rav_request = manager
+        .create_rav_request(&Context::new(), 0, None)
+        .await
+        .unwrap();
     let expected_rav = rav_request.expected_rav.unwrap();
 
     assert_eq!(rav_request.valid_receipts.len(), 1);
@@ -544,7 +547,11 @@ async fn test_retryable_checks(
 
     #[async_trait::async_trait]
     impl Check for RetryableCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> Result<(), CheckError> {
+        async fn check(
+            &self,
+            _: &Context,
+            receipt: &ReceiptWithState<Checking>,
+        ) -> Result<(), CheckError> {
             // we want to fail only if nonce is 5 and if is create rav step
             if self.0.load(std::sync::atomic::Ordering::SeqCst)
                 && receipt.signed_receipt().message.nonce == 5
@@ -591,14 +598,14 @@ async fn test_retryable_checks(
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         manager
-            .verify_and_store_receipt(signed_receipt)
+            .verify_and_store_receipt(&Context::new(), signed_receipt)
             .await
             .unwrap();
     }
 
     is_create_rav.store(true, std::sync::atomic::Ordering::SeqCst);
 
-    let rav_request = manager.create_rav_request(0, None).await;
+    let rav_request = manager.create_rav_request(&Context::new(), 0, None).await;
 
     assert_eq!(
         rav_request.expect_err("Didn't fail").to_string(),

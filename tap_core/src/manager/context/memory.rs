@@ -263,7 +263,7 @@ pub mod checks {
         receipt::{
             checks::{Check, CheckError, CheckResult, ReceiptCheck},
             state::Checking,
-            ReceiptError, ReceiptWithState,
+            Context, ReceiptError, ReceiptWithState,
         },
         signed_message::MessageId,
     };
@@ -296,7 +296,7 @@ pub mod checks {
 
     #[async_trait::async_trait]
     impl Check for AllocationIdCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+        async fn check(&self, _: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult {
             let received_allocation_id = receipt.signed_receipt().message.allocation_id;
             if self
                 .allocation_ids
@@ -323,7 +323,7 @@ pub mod checks {
 
     #[async_trait::async_trait]
     impl Check for SignatureCheck {
-        async fn check(&self, receipt: &ReceiptWithState<Checking>) -> CheckResult {
+        async fn check(&self, _: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult {
             let recovered_address = receipt
                 .signed_receipt()
                 .recover_signer(&self.domain_separator)
