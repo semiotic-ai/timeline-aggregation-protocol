@@ -171,7 +171,7 @@ where
         aggregate_server_api_version,
     )?;
 
-    let handle = server.start(rpc_manager.into_rpc())?;
+    let handle = server.start(rpc_manager.into_rpc());
     Ok((handle, addr))
 }
 

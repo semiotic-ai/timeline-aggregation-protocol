@@ -233,7 +233,7 @@ pub async fn run_server(
         accepted_addresses,
         domain_separator,
     };
-    let handle = server.start(rpc_impl.into_rpc())?;
+    let handle = server.start(rpc_impl.into_rpc());
     Ok((handle, addr))
 }
 
@@ -547,7 +547,7 @@ mod tests {
         // Create RAV through the JSON-RPC server.
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-            jsonrpsee::core::Error,
+            jsonrpsee::core::ClientError,
         > = client
             .request(
                 "aggregate_receipts",
@@ -566,7 +566,7 @@ mod tests {
 
         // Check the API versions returned by the server
         match res.expect_err("Expected an error") {
-            jsonrpsee::core::Error::Call(err) => {
+            jsonrpsee::core::ClientError::Call(err) => {
                 let versions: server::TapRpcApiVersionsInfo =
                     serde_json::from_str(err.data().unwrap().get()).unwrap();
                 assert!(versions
@@ -645,7 +645,7 @@ mod tests {
         // Test with a number of receipts that stays within request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-            jsonrpsee::core::Error,
+            jsonrpsee::core::ClientError,
         > = client
             .request(
                 "aggregate_receipts",
@@ -662,7 +662,7 @@ mod tests {
         // Test with all receipts to exceed request size limit
         let res: Result<
             server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-            jsonrpsee::core::Error,
+            jsonrpsee::core::ClientError,
         > = client
             .request(
                 "aggregate_receipts",
