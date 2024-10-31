@@ -1,6 +1,6 @@
 [package]
 name = "tap_core"
-version = "1.0.0"
+version = "2.0.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -15,6 +15,7 @@ anyhow.workspace = true
 rand.workspace = true
 thiserror = "1.0.38"
 async-trait = "0.1.72"
+anymap3 = "1.0.0"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_std"] }

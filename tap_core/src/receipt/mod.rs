@@ -36,3 +36,5 @@ pub type SignedReceipt = EIP712SignedMessage<Receipt>;
 
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
+
+pub type Context = anymap3::Map<dyn std::any::Any + Send + Sync>;

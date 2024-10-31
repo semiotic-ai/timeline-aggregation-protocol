@@ -22,7 +22,7 @@ use tap_core::{
         Manager,
     },
     rav::SignedRAV,
-    receipt::{checks::CheckList, SignedReceipt},
+    receipt::{checks::CheckList, Context, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -90,7 +90,11 @@ where
         &self,
         receipt: SignedReceipt,
     ) -> Result<(), jsonrpsee::types::ErrorObjectOwned> {
-        let verify_result = match self.manager.verify_and_store_receipt(receipt).await {
+        let verify_result = match self
+            .manager
+            .verify_and_store_receipt(&Context::new(), receipt)
+            .await
+        {
             Ok(_) => Ok(()),
             Err(e) => Err(to_rpc_error(
                 Box::new(e),
@@ -182,7 +186,9 @@ where
     E: ReceiptRead + RAVRead + RAVStore + EscrowHandler,
 {
     // Create the aggregate_receipts request params
-    let rav_request = manager.create_rav_request(time_stamp_buffer, None).await?;
+    let rav_request = manager
+        .create_rav_request(&Context::new(), time_stamp_buffer, None)
+        .await?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts
     let params = rpc_params!(

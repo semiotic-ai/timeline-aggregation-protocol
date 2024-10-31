@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v1.0.0...tap_core-v2.0.0) (2024-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* add context to checks
+* add retryable errors to checks
+
+### Features
+
+* add context to checks ([58a6a52](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/58a6a52eba8152ee3add27d10e59b9e10ab9a5f4))
+* add retryable errors to checks ([51f04cb](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/51f04cb0dbe7387ffd94f16eb59bbeb1c6c51680))
+* expected_rav to become result&lt;rav,error&gt; ([70fa8fa](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/70fa8fa116c32b074f5c691979de02177b385560))
+* make error public access on failed receipt ([7180b86](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/7180b86e2c5ef5e2009518d6cd2ed8fe16b337eb))
+* obtain invalid receipts ([101dc5e](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/101dc5eea45baf143c5135fe66bbb5f62dfa9109))
+
+
+### Bug Fixes
+
+* Remove obtain_invalid_receipts ([ad255dc](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/ad255dcbb4a5ea101c575038534312b59e12d693))
+
 ## [1.0.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v0.8.0...tap_core-v1.0.0) (2024-03-27)
 
 
