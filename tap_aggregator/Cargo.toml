@@ -36,6 +36,7 @@ futures-util = "0.3.28"
 lazy_static = "1.4.0"
 ruint = "1.10.1"
 tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.6.1", features = ["decompression-zstd"]}
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }
