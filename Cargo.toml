@@ -9,7 +9,7 @@ license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
 
 [workspace.dependencies]
-alloy = { version = "0.5.4", features = ["full"] }
+alloy = { version = "0.6", features = ["full"] }
 serde = { version = "1.0.163", features = ["derive"] }
 rstest = "0.22.0"
 anyhow = { version = "1.0.89" }
