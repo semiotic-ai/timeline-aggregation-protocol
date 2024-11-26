@@ -27,8 +27,8 @@
 
 use alloy::{
     dyn_abi::Eip712Domain,
-    primitives::Address,
-    signers::{local::PrivateKeySigner, Signature, SignerSync},
+    primitives::{Address, PrimitiveSignature as Signature},
+    signers::{local::PrivateKeySigner, SignerSync},
     sol_types::SolStruct,
 };
 use serde::{Deserialize, Serialize};
