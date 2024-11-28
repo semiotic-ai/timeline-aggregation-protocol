@@ -1,3 +1,6 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 use anyhow::anyhow;
 use tap_core::signed_message::EIP712SignedMessage;
 
@@ -25,6 +28,26 @@ impl TryFrom<SignedReceipt> for tap_core::receipt::SignedReceipt {
                 .ok_or(anyhow!("Missing message"))?
                 .try_into()?,
         })
+    }
+}
+
+impl From<tap_core::receipt::Receipt> for Receipt {
+    fn from(value: tap_core::receipt::Receipt) -> Self {
+        Self {
+            allocation_id: value.allocation_id.as_slice().to_vec(),
+            timestamp_ns: value.timestamp_ns,
+            nonce: value.nonce,
+            value: Some(value.value.into()),
+        }
+    }
+}
+
+impl From<tap_core::receipt::SignedReceipt> for SignedReceipt {
+    fn from(value: tap_core::receipt::SignedReceipt) -> Self {
+        Self {
+            message: Some(value.message.into()),
+            signature: value.signature.as_bytes().to_vec(),
+        }
     }
 }
 
@@ -85,5 +108,28 @@ impl From<u128> for Uint128 {
         let high = (value >> 64) as u64;
         let low = value as u64;
         Self { high, low }
+    }
+}
+
+impl RavRequest {
+    pub fn new(
+        receipts: Vec<tap_core::receipt::SignedReceipt>,
+        previous_rav: Option<tap_core::rav::SignedRAV>,
+    ) -> Self {
+        Self {
+            receipts: receipts.into_iter().map(Into::into).collect(),
+            previous_rav: previous_rav.map(Into::into),
+        }
+    }
+}
+
+impl RavResponse {
+    pub fn signed_rav(mut self) -> anyhow::Result<tap_core::rav::SignedRAV> {
+        let signed_rav: tap_core::rav::SignedRAV = self
+            .rav
+            .take()
+            .ok_or(anyhow!("Couldn't find rav"))?
+            .try_into()?;
+        Ok(signed_rav)
     }
 }

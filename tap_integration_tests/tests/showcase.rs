@@ -35,6 +35,7 @@ use tap_core::{
     signed_message::{EIP712SignedMessage, MessageId},
     tap_eip712_domain,
 };
+use tokio::task::JoinHandle;
 
 use crate::indexer_mock;
 
@@ -345,7 +346,7 @@ async fn single_indexer_test_server(
     indexer_1_context: ContextFixture,
     available_escrow: u128,
     receipt_threshold_1: u64,
-) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
+) -> Result<(ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr)> {
     let sender_id = keys_sender.address();
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         keys_sender,
@@ -390,7 +391,7 @@ async fn two_indexers_test_servers(
     SocketAddr,
     ServerHandle,
     SocketAddr,
-    ServerHandle,
+    JoinHandle<()>,
     SocketAddr,
 )> {
     let sender_id = keys_sender.address();
@@ -454,7 +455,7 @@ async fn single_indexer_wrong_sender_test_server(
     indexer_1_context: ContextFixture,
     available_escrow: u128,
     receipt_threshold_1: u64,
-) -> Result<(ServerHandle, SocketAddr, ServerHandle, SocketAddr)> {
+) -> Result<(ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr)> {
     let sender_id = wrong_keys_sender.address();
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         wrong_keys_sender,
@@ -491,7 +492,7 @@ async fn single_indexer_wrong_sender_test_server(
 #[tokio::test]
 async fn test_manager_one_indexer(
     #[future] single_indexer_test_server: Result<
-        (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
+        (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
     requests_1: Vec<EIP712SignedMessage<Receipt>>,
@@ -522,7 +523,7 @@ async fn test_manager_two_indexers(
             SocketAddr,
             ServerHandle,
             SocketAddr,
-            ServerHandle,
+            JoinHandle<()>,
             SocketAddr,
         ),
         Error,
@@ -559,7 +560,7 @@ async fn test_manager_two_indexers(
 #[tokio::test]
 async fn test_manager_wrong_aggregator_keys(
     #[future] single_indexer_wrong_sender_test_server: Result<
-        (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
+        (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
     requests_1: Vec<EIP712SignedMessage<Receipt>>,
@@ -601,7 +602,7 @@ async fn test_manager_wrong_aggregator_keys(
 #[tokio::test]
 async fn test_manager_wrong_requestor_keys(
     #[future] single_indexer_test_server: Result<
-        (ServerHandle, SocketAddr, ServerHandle, SocketAddr),
+        (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
     wrong_requests: Vec<EIP712SignedMessage<Receipt>>,
@@ -631,7 +632,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
             SocketAddr,
             ServerHandle,
             SocketAddr,
-            ServerHandle,
+            JoinHandle<()>,
             SocketAddr,
         ),
         Error,
@@ -765,7 +766,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     }
     assert!(expected_value == second_rav_response.data.message.valueAggregate);
 
-    sender_handle.stop()?;
+    sender_handle.abort();
     Ok(())
 }
 
@@ -833,7 +834,7 @@ async fn start_sender_aggregator(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-) -> Result<(ServerHandle, SocketAddr)> {
+) -> Result<(JoinHandle<()>, SocketAddr)> {
     let http_port = {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.local_addr()?.port()
