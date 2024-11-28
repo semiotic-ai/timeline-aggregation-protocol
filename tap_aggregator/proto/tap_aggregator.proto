@@ -33,7 +33,20 @@ message RavResponse {
   SignedRav rav = 1;
 }
 
+message TapRpcApiVersion {
+  string version = 1;
+}
+
+message TapRpcApiVersionsInfo {
+  repeated TapRpcApiVersion versions_supported = 1;
+  repeated TapRpcApiVersion versions_deprecated = 2;
+}
+
+// Optional request message for ApiVersions (TODO: should we use use google.protobuf.Empty?)
+message ApiVersionsRequest {}
+
 service TapAggregator {
+  rpc ApiVersions(ApiVersionsRequest) returns (TapRpcApiVersionsInfo);
   rpc AggregateReceipts(RavRequest) returns (RavResponse);
 }
 
