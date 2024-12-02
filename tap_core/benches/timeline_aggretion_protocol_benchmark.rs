@@ -72,7 +72,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             .collect::<Vec<_>>();
 
         rav_group.bench_function(
-            &format!("Create RAV w/ 2^{} receipt's", log_number_of_receipts),
+            format!("Create RAV w/ 2^{} receipt's", log_number_of_receipts),
             |b| {
                 b.iter(|| {
                     ReceiptAggregateVoucher::aggregate_receipts(
@@ -92,7 +92,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         .unwrap();
 
         rav_group.bench_function(
-            &format!("Validate RAV w/ 2^{} receipt's", log_number_of_receipts),
+            format!("Validate RAV w/ 2^{} receipt's", log_number_of_receipts),
             |b| b.iter(|| black_box(&signed_rav).verify(&domain_seperator, black_box(address))),
         );
     }
