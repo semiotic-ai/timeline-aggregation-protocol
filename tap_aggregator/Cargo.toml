@@ -35,7 +35,13 @@ axum = { version = "0.7.5", features = [
 futures-util = "0.3.28"
 lazy_static = "1.4.0"
 ruint = "1.10.1"
-tower = { version = "0.4", features = ["util"] }
+tower = { version = "0.4", features = ["util", "steer"] }
+tonic = { version = "0.12.3", features = ["transport"] }
+prost = "0.13.3"
+
+[build-dependencies]
+tonic-build = "0.12.3" 
+
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }
