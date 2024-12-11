@@ -10,6 +10,8 @@ use anyhow::Result;
 use jsonrpsee::{proc_macros::rpc, server::ServerBuilder, server::ServerHandle};
 use lazy_static::lazy_static;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
+use tower::{Layer, ServiceBuilder};
+use tower_http::decompression::RequestDecompressionLayer;
 
 use crate::aggregator::check_and_aggregate_receipts;
 use crate::api_versioning::{
@@ -217,12 +219,15 @@ pub async fn run_server(
     max_response_body_size: u32,
     max_concurrent_connections: u32,
 ) -> Result<(ServerHandle, std::net::SocketAddr)> {
+    let http_middleware = ServiceBuilder::new().layer(RequestDecompressionLayer::new());
+
     // Setting up the JSON RPC server
     println!("Starting server...");
     let server = ServerBuilder::new()
         .max_request_body_size(max_request_body_size)
         .max_response_body_size(max_response_body_size)
         .max_connections(max_concurrent_connections)
+        .set_http_middleware(http_middleware)
         .http_only()
         .build(format!("0.0.0.0:{}", port))
         .await?;
