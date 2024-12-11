@@ -1,0 +1,58 @@
+syntax = "proto3";
+package tap_aggregator.v1;
+
+message Receipt {
+  bytes allocation_id = 1;
+  uint64 timestamp_ns = 2;
+  uint64 nonce = 3;
+  Uint128 value = 4;
+}
+
+message SignedReceipt {
+  Receipt message = 1;
+  bytes signature = 2;
+}
+
+message ReceiptAggregateVoucher {
+  bytes allocation_id = 1;
+  uint64 timestamp_ns = 2;
+  Uint128 value_aggregate = 3;
+}
+
+message SignedRav {
+  ReceiptAggregateVoucher message = 1;
+  bytes signature = 2;
+}
+
+message RavRequest {
+  repeated SignedReceipt receipts = 1;
+  optional SignedRav previous_rav = 2;
+}
+
+message RavResponse {
+  SignedRav rav = 1;
+}
+
+message TapRpcApiVersion {
+  string version = 1;
+}
+
+message TapRpcApiVersionsInfo {
+  repeated TapRpcApiVersion versions_supported = 1;
+  repeated TapRpcApiVersion versions_deprecated = 2;
+}
+
+// Optional request message for ApiVersions (TODO: should we use use google.protobuf.Empty?)
+message ApiVersionsRequest {}
+
+service TapAggregator {
+  rpc ApiVersions(ApiVersionsRequest) returns (TapRpcApiVersionsInfo);
+  rpc AggregateReceipts(RavRequest) returns (RavResponse);
+}
+
+message Uint128 {
+  // Highest 64 bits of a 128 bit number.
+  uint64 high = 1;
+  // Lowest 64 bits of a 128 bit number.
+  uint64 low = 2;
+}

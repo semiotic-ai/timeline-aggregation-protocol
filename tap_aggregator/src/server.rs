@@ -10,6 +10,7 @@ use anyhow::Result;
 use jsonrpsee::{proc_macros::rpc, server::ServerBuilder, server::ServerHandle};
 use lazy_static::lazy_static;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
+// use tower::steer::Steer;
 
 use crate::aggregator::check_and_aggregate_receipts;
 use crate::api_versioning::{
@@ -21,6 +22,10 @@ use crate::jsonrpsee_helpers::{JsonRpcError, JsonRpcResponse, JsonRpcResult, Jso
 use tap_core::{
     rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
 };
+
+pub mod tap_aggregator {
+    tonic::include_proto!("tap_aggregator.v1");
+}
 
 // Register the metrics into the global metrics registry.
 lazy_static! {
@@ -171,6 +176,45 @@ fn aggregate_receipts_(
     }
 }
 
+use tap_aggregator::tap_aggregator_server::TapAggregator;
+use tap_aggregator::{
+    ApiVersionsRequest, RavRequest, RavResponse, SignedRav,
+    TapRpcApiVersionsInfo as TapGRpcApiVersionsInfo,
+};
+use tonic::{Request, Response, Status};
+
+#[tonic::async_trait]
+impl TapAggregator for RpcImpl {
+    async fn api_versions(
+        &self,
+        _request: Request<ApiVersionsRequest>,
+    ) -> Result<Response<TapGRpcApiVersionsInfo>, Status> {
+        // Example response
+        let response = TapGRpcApiVersionsInfo {
+            versions_deprecated: vec![],
+            versions_supported: vec![],
+        };
+
+        Ok(Response::new(response))
+    }
+
+    async fn aggregate_receipts(
+        &self,
+        request: Request<RavRequest>,
+    ) -> Result<Response<RavResponse>, Status> {
+        let rav_request = request.into_inner();
+
+        // Example implementation: create a dummy response
+        let response = RavResponse {
+            rav: Some(SignedRav {
+                message: None, // Fill this with your aggregate logic
+                signature: vec![],
+            }),
+        };
+        Ok(Response::new(response))
+    }
+}
+
 impl RpcServer for RpcImpl {
     fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
         Ok(JsonRpcResponse::ok(tap_rpc_api_versions_info()))
@@ -208,6 +252,7 @@ impl RpcServer for RpcImpl {
     }
 }
 
+// TODO: create a gRPC alike run_server
 pub async fn run_server(
     port: u16,
     wallet: PrivateKeySigner,
