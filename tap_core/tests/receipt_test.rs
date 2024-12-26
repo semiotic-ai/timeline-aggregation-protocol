@@ -1,12 +1,11 @@
 use alloy::dyn_abi::Eip712Domain;
-use alloy::primitives::Address;
+use alloy::primitives::{address, Address};
 use alloy::signers::local::PrivateKeySigner;
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use tap_core::manager::context::memory::InMemoryContext;
 use tap_core::receipt::{state::Checking, ReceiptWithState};
@@ -43,14 +42,16 @@ fn context() -> InMemoryContext {
 async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let payer = address!("abababababababababababababababababababab");
+    let data_service = address!("abababababababababababababababababababab");
+    let service_provider = address!("abababababababababababababababababababab");
 
     // Create receipts
     let value = 100u128;
     let received_receipt = ReceiptWithState::new(
         EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_id, value).unwrap(),
+            Receipt::new(payer, data_service, service_provider, value).unwrap(),
             &wallet,
         )
         .unwrap(),
@@ -82,7 +83,9 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
 async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let payer = address!("abababababababababababababababababababab");
+    let data_service = address!("abababababababababababababababababababab");
+    let service_provider = address!("abababababababababababababababababababab");
 
     // Create receipts
     let mut received_receipts = Vec::new();
@@ -90,7 +93,7 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context:
         received_receipts.push(ReceiptWithState::new(
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_id, value).unwrap(),
+                Receipt::new(payer, data_service, service_provider, value).unwrap(),
                 &wallet,
             )
             .unwrap(),
@@ -168,7 +171,9 @@ fn safe_truncate_receipts_test(
             EIP712SignedMessage::new(
                 &domain_separator,
                 Receipt {
-                    allocation_id: Address::ZERO,
+                    payer: Address::ZERO,
+                    data_service: Address::ZERO,
+                    service_provider: Address::ZERO,
                     timestamp_ns: *timestamp,
                     nonce: 0,
                     value: 0,

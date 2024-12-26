@@ -7,7 +7,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::{address, Address, Bytes},
+    signers::local::PrivateKeySigner,
+};
 use anyhow::anyhow;
 use rstest::*;
 
@@ -46,6 +50,21 @@ fn allocation_ids() -> Vec<Address> {
         Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
         Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
     ]
+}
+
+#[fixture]
+fn payer() -> Address {
+    address!("abababababababababababababababababababab")
+}
+
+#[fixture]
+fn data_service() -> Address {
+    address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+}
+
+#[fixture]
+fn service_provider() -> Address {
+    address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
 }
 
 #[fixture]
@@ -116,7 +135,9 @@ fn context(
 #[rstest]
 #[tokio::test]
 async fn manager_verify_and_store_varying_initial_checks(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -133,7 +154,7 @@ async fn manager_verify_and_store_varying_initial_checks(
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], value).unwrap(),
+        Receipt::new(payer, data_service, service_provider, value).unwrap(),
         &signer,
     )
     .unwrap();
@@ -153,7 +174,9 @@ async fn manager_verify_and_store_varying_initial_checks(
 #[rstest]
 #[tokio::test]
 async fn manager_create_rav_request_all_valid_receipts(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -176,7 +199,7 @@ async fn manager_create_rav_request_all_valid_receipts(
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], value).unwrap(),
+            Receipt::new(payer, data_service, service_provider, value).unwrap(),
             &signer,
         )
         .unwrap();
@@ -212,7 +235,13 @@ async fn manager_create_rav_request_all_valid_receipts(
 
 #[rstest]
 #[tokio::test]
-async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: ContextFixture) {
+async fn deny_rav_due_to_wrong_value(
+    domain_separator: Eip712Domain,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
+    context: ContextFixture,
+) {
     let ContextFixture {
         context,
         checks,
@@ -222,15 +251,21 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
     let rav = ReceiptAggregateVoucher {
-        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        payer,
+        dataService: data_service,
+        serviceProvider: service_provider,
         timestampNs: 1232442,
         valueAggregate: 20u128,
+        metadata: Bytes::new(),
     };
 
     let rav_wrong_value = ReceiptAggregateVoucher {
-        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        payer,
+        dataService: data_service,
+        serviceProvider: service_provider,
         timestampNs: 1232442,
         valueAggregate: 10u128,
+        metadata: Bytes::new(),
     };
 
     let signed_rav_with_wrong_aggregate =
@@ -245,7 +280,9 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -271,7 +308,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], value).unwrap(),
+            Receipt::new(payer, data_service, service_provider, value).unwrap(),
             &signer,
         )
         .unwrap();
@@ -314,7 +351,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         let value = 20u128;
         let signed_receipt = EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], value).unwrap(),
+            Receipt::new(payer, data_service, service_provider, value).unwrap(),
             &signer,
         )
         .unwrap();
@@ -357,7 +394,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     #[values(true, false)] remove_old_receipts: bool,
     context: ContextFixture,
@@ -383,7 +422,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     let mut expected_accumulated_value = 0;
     for query_id in 0..10 {
         let value = 20u128;
-        let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
+        let mut receipt = Receipt::new(payer, data_service, service_provider, value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
 
@@ -431,7 +470,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     stored_signed_receipts.clear();
     for query_id in 10..20 {
         let value = 20u128;
-        let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
+        let mut receipt = Receipt::new(payer, data_service, service_provider, value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         let query_id = signed_receipt.unique_hash();
@@ -487,7 +526,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 #[rstest]
 #[tokio::test]
 async fn manager_create_rav_and_ignore_invalid_receipts(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -510,7 +551,9 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     //Forcing all receipts but one to be invalid by making all the same
     for _ in 0..10 {
         let receipt = Receipt {
-            allocation_id: allocation_ids[0],
+            payer,
+            data_service,
+            service_provider,
             timestamp_ns: 1,
             nonce: 1,
             value: 20u128,
@@ -539,7 +582,9 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
 #[rstest]
 #[tokio::test]
 async fn test_retryable_checks(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -590,7 +635,9 @@ async fn test_retryable_checks(
     let mut stored_signed_receipts = Vec::new();
     for i in 0..10 {
         let receipt = Receipt {
-            allocation_id: allocation_ids[0],
+            payer,
+            data_service,
+            service_provider,
             timestamp_ns: i + 1,
             nonce: i,
             value: 20u128,

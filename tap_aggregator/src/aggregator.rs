@@ -46,28 +46,63 @@ pub fn check_and_aggregate_receipts(
     check_receipt_timestamps(receipts, previous_rav.as_ref())?;
 
     // Get the allocation id from the first receipt, return error if there are no receipts
-    let allocation_id = match receipts.first() {
-        Some(receipt) => receipt.message.allocation_id,
+    let (payer, data_service, service_provider) = match receipts.first() {
+        Some(receipt) => (
+            receipt.message.payer,
+            receipt.message.data_service,
+            receipt.message.service_provider,
+        ),
         None => return Err(tap_core::Error::NoValidReceiptsForRAVRequest.into()),
     };
 
-    // Check that the receipts all have the same allocation id
-    check_allocation_id(receipts, allocation_id)?;
+    // Check that the receipts all have the same payer
+    check_payer(receipts, payer)?;
+
+    // Check that the receipts all have the same service_provider
+    check_data_service(receipts, data_service)?;
+
+    // Check that the receipts all have the same service_provider
+    check_service_provider(receipts, service_provider)?;
 
     // Check that the rav has the correct allocation id
     if let Some(previous_rav) = &previous_rav {
-        let prev_id = previous_rav.message.allocationId;
-        if prev_id != allocation_id {
-            return Err(tap_core::Error::RavAllocationIdMismatch {
-                prev_id: format!("{prev_id:#X}"),
-                new_id: format!("{allocation_id:#X}"),
+        let prev_payer = previous_rav.message.payer;
+        if prev_payer != payer {
+            return Err(tap_core::Error::RavPayerMismatch {
+                prev_id: format!("{prev_payer:#X}"),
+                new_id: format!("{payer:#X}"),
+            }
+            .into());
+        }
+
+        let prev_data_service = previous_rav.message.dataService;
+        if prev_data_service != data_service {
+            return Err(tap_core::Error::RavDataServiceMismatch {
+                prev_id: format!("{prev_payer:#X}"),
+                new_id: format!("{payer:#X}"),
+            }
+            .into());
+        }
+
+        let prev_service_provider = previous_rav.message.serviceProvider;
+
+        if prev_service_provider != service_provider {
+            return Err(tap_core::Error::RavServiceProviderMismatch {
+                prev_id: format!("{prev_payer:#X}"),
+                new_id: format!("{payer:#X}"),
             }
             .into());
         }
     }
 
     // Aggregate the receipts
-    let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
+    let rav = ReceiptAggregateVoucher::aggregate_receipts(
+        payer,
+        data_service,
+        service_provider,
+        receipts,
+        previous_rav,
+    )?;
 
     // Sign the rav and return
     Ok(EIP712SignedMessage::new(domain_separator, rav, wallet)?)
@@ -87,13 +122,36 @@ fn check_signature_is_from_one_of_addresses<M: SolStruct>(
     Ok(())
 }
 
-fn check_allocation_id(
+fn check_payer(receipts: &[EIP712SignedMessage<Receipt>], payer: Address) -> Result<()> {
+    for receipt in receipts.iter() {
+        let receipt = &receipt.message;
+        if receipt.payer != payer {
+            return Err(tap_core::Error::RavAllocationIdNotUniform.into());
+        }
+    }
+    Ok(())
+}
+
+fn check_data_service(
     receipts: &[EIP712SignedMessage<Receipt>],
-    allocation_id: Address,
+    data_service: Address,
 ) -> Result<()> {
     for receipt in receipts.iter() {
         let receipt = &receipt.message;
-        if receipt.allocation_id != allocation_id {
+        if receipt.data_service != data_service {
+            return Err(tap_core::Error::RavAllocationIdNotUniform.into());
+        }
+    }
+    Ok(())
+}
+
+fn check_service_provider(
+    receipts: &[EIP712SignedMessage<Receipt>],
+    service_provider: Address,
+) -> Result<()> {
+    for receipt in receipts.iter() {
+        let receipt = &receipt.message;
+        if receipt.service_provider != service_provider {
             return Err(tap_core::Error::RavAllocationIdNotUniform.into());
         }
     }
@@ -137,9 +195,11 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+    use alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{address, Address, Bytes},
+        signers::local::PrivateKeySigner,
+    };
     use rstest::*;
 
     use crate::aggregator;
@@ -153,13 +213,23 @@ mod tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
-        vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
-        ]
+    fn payer() -> Address {
+        address!("abababababababababababababababababababab")
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
+    }
+
+    #[fixture]
+    fn other_address() -> Address {
+        address!("1234567890abcdef1234567890abcdef12345678")
     }
 
     #[fixture]
@@ -171,14 +241,16 @@ mod tests {
     #[test]
     fn check_signatures_unique_fail(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
     ) {
         // Create the same receipt twice (replay attack)
         let mut receipts = Vec::new();
         let receipt = EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(payer, data_service, service_provider, 42).unwrap(),
             &keys.0,
         )
         .unwrap();
@@ -193,20 +265,22 @@ mod tests {
     #[test]
     fn check_signatures_unique_ok(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
     ) {
         // Create 2 different receipts
         let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
@@ -221,7 +295,9 @@ mod tests {
     /// Test that a receipt with a timestamp greater then the rav timestamp passes
     fn check_receipt_timestamps(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
     ) {
         // Create receipts with consecutive timestamps
@@ -232,7 +308,9 @@ mod tests {
                 EIP712SignedMessage::new(
                     &domain_separator,
                     Receipt {
-                        allocation_id: allocation_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
                         timestamp_ns: i,
                         nonce: 0,
                         value: 42,
@@ -247,9 +325,12 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::rav::ReceiptAggregateVoucher {
-                allocationId: allocation_ids[0],
+                payer,
+                dataService: data_service,
+                serviceProvider: service_provider,
                 timestampNs: receipt_timestamp_range.clone().min().unwrap() - 1,
                 valueAggregate: 42,
+                metadata: Bytes::new(),
             },
             &keys.0,
         )
@@ -261,9 +342,12 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::rav::ReceiptAggregateVoucher {
-                allocationId: allocation_ids[0],
+                payer,
+                dataService: data_service,
+                serviceProvider: service_provider,
                 timestampNs: receipt_timestamp_range.clone().min().unwrap(),
                 valueAggregate: 42,
+                metadata: Bytes::new(),
             },
             &keys.0,
         )
@@ -275,9 +359,12 @@ mod tests {
         let rav = EIP712SignedMessage::new(
             &domain_separator,
             tap_core::rav::ReceiptAggregateVoucher {
-                allocationId: allocation_ids[0],
+                payer,
+                dataService: data_service,
+                serviceProvider: service_provider,
                 timestampNs: receipt_timestamp_range.clone().max().unwrap() + 1,
                 valueAggregate: 42,
+                metadata: Bytes::new(),
             },
             &keys.0,
         )
@@ -287,69 +374,222 @@ mod tests {
 
     #[rstest]
     #[test]
-    /// Test check_allocation_id with 2 receipts that have the correct allocation id
-    /// and 1 receipt that has the wrong allocation id
-    fn check_allocation_id_fail(
+    /// Test check_service_provider with 2 receipts that have the correct service_provicer
+    /// and 1 receipt that has the wrong service_provider
+    fn check_service_provider_fail(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        other_address: Address,
         domain_separator: Eip712Domain,
     ) {
         let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[1], 44).unwrap(),
+                Receipt::new(payer, data_service, other_address, 44).unwrap(),
                 &keys.0,
             )
             .unwrap(),
         ];
 
-        let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
+        let res = aggregator::check_service_provider(&receipts, service_provider);
 
         assert!(res.is_err());
     }
 
     #[rstest]
     #[test]
-    /// Test check_allocation_id with 3 receipts that have the correct allocation id
-    fn check_allocation_id_ok(
+    /// Test check_service_provider with 3 receipts that have the correct service provider
+    fn check_service_provider_ok(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
     ) {
         let receipts = vec![
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             EIP712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 44).unwrap(),
+                Receipt::new(payer, data_service, service_provider, 44).unwrap(),
                 &keys.0,
             )
             .unwrap(),
         ];
 
-        let res = aggregator::check_allocation_id(&receipts, allocation_ids[0]);
+        let res = aggregator::check_service_provider(&receipts, service_provider);
+
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[test]
+    /// Test check_payer with 2 receipts that have the correct payer
+    /// and 1 receipt that has the wrong payer
+    fn check_payer_fail(
+        keys: (PrivateKeySigner, Address),
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        other_address: Address,
+        domain_separator: Eip712Domain,
+    ) {
+        let receipts = vec![
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(other_address, data_service, service_provider, 44).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+        ];
+
+        let res = aggregator::check_payer(&receipts, payer);
+
+        assert!(res.is_err());
+    }
+
+    #[rstest]
+    #[test]
+    /// Test check_payer with 3 receipts that have the correct payer
+    fn check_payer_ok(
+        keys: (PrivateKeySigner, Address),
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        domain_separator: Eip712Domain,
+    ) {
+        let receipts = vec![
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 44).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+        ];
+
+        let res = aggregator::check_payer(&receipts, payer);
+
+        assert!(res.is_ok());
+    }
+
+    #[rstest]
+    #[test]
+    /// Test check_data_service with 2 receipts that have the correct data service
+    /// and 1 receipt that has the wrong data service
+    fn check_data_service_fail(
+        keys: (PrivateKeySigner, Address),
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        other_address: Address,
+        domain_separator: Eip712Domain,
+    ) {
+        let receipts = vec![
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, other_address, service_provider, 44).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+        ];
+
+        let res = aggregator::check_data_service(&receipts, data_service);
+
+        assert!(res.is_err());
+    }
+
+    #[rstest]
+    #[test]
+    /// Test check_data_service with 3 receipts that have the correct data service
+    fn check_data_service_ok(
+        keys: (PrivateKeySigner, Address),
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        domain_separator: Eip712Domain,
+    ) {
+        let receipts = vec![
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 42).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 43).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt::new(payer, data_service, service_provider, 44).unwrap(),
+                &keys.0,
+            )
+            .unwrap(),
+        ];
+
+        let res = aggregator::check_data_service(&receipts, data_service);
 
         assert!(res.is_ok());
     }

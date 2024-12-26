@@ -7,7 +7,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+use alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::{address, Address},
+    signers::local::PrivateKeySigner,
+};
 use rstest::*;
 use tap_core::{
     manager::context::memory::{
@@ -34,6 +38,21 @@ fn allocation_ids() -> Vec<Address> {
         Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
         Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
     ]
+}
+
+#[fixture]
+fn payer() -> Address {
+    address!("abababababababababababababababababababab")
+}
+
+#[fixture]
+fn data_service() -> Address {
+    address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+}
+
+#[fixture]
+fn service_provider() -> Address {
+    address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
 }
 
 #[fixture]
@@ -104,7 +123,9 @@ fn context(
 #[tokio::test]
 async fn partial_then_full_check_valid_receipt(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     context: ContextFixture,
 ) {
     let ContextFixture {
@@ -118,7 +139,7 @@ async fn partial_then_full_check_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(payer, data_service, service_provider, query_value).unwrap(),
         &signer,
     )
     .unwrap();
@@ -147,7 +168,9 @@ async fn partial_then_full_check_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn partial_then_finalize_valid_receipt(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -163,7 +186,7 @@ async fn partial_then_finalize_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(payer, data_service, service_provider, query_value).unwrap(),
         &signer,
     )
     .unwrap();
@@ -198,7 +221,9 @@ async fn partial_then_finalize_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn standard_lifetime_valid_receipt(
-    allocation_ids: Vec<Address>,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -214,7 +239,7 @@ async fn standard_lifetime_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(payer, data_service, service_provider, query_value).unwrap(),
         &signer,
     )
     .unwrap();

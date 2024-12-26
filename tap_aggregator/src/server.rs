@@ -241,9 +241,12 @@ pub async fn run_server(
 #[allow(clippy::too_many_arguments)]
 mod tests {
     use std::collections::HashSet;
-    use std::str::FromStr;
 
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+    use alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{address, Address},
+        signers::local::PrivateKeySigner,
+    };
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rand::prelude::*;
     use rand::seq::SliceRandom;
@@ -268,13 +271,18 @@ mod tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
-        vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
-        ]
+    fn payer() -> Address {
+        address!("abababababababababababababababababababab")
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
     }
 
     #[fixture]
@@ -343,7 +351,9 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
         #[values(0, 1, 2)] random_seed: u64,
@@ -382,7 +392,7 @@ mod tests {
             receipts.push(
                 EIP712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
                 .unwrap(),
@@ -401,11 +411,18 @@ mod tests {
 
         let remote_rav = res.data;
 
-        let local_rav =
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-                .unwrap();
+        let local_rav = ReceiptAggregateVoucher::aggregate_receipts(
+            payer,
+            data_service,
+            service_provider,
+            &receipts,
+            None,
+        )
+        .unwrap();
 
-        assert!(remote_rav.message.allocationId == local_rav.allocationId);
+        assert!(remote_rav.message.payer == local_rav.payer);
+        assert!(remote_rav.message.dataService == local_rav.dataService);
+        assert!(remote_rav.message.serviceProvider == local_rav.serviceProvider);
         assert!(remote_rav.message.timestampNs == local_rav.timestampNs);
         assert!(remote_rav.message.valueAggregate == local_rav.valueAggregate);
 
@@ -424,7 +441,9 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
         #[values(0, 1, 2, 3, 4)] random_seed: u64,
@@ -463,7 +482,7 @@ mod tests {
             receipts.push(
                 EIP712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
                 .unwrap(),
@@ -472,7 +491,9 @@ mod tests {
 
         // Create previous RAV from first half of receipts locally
         let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            payer,
+            data_service,
+            service_provider,
             &receipts[0..receipts.len() / 2],
             None,
         )
@@ -512,7 +533,9 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
     ) {
         // The keys that will be used to sign the new RAVs
         let keys_main = keys();
@@ -538,7 +561,7 @@ mod tests {
         // Create receipts
         let receipts = vec![EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(payer, data_service, service_provider, 42).unwrap(),
             &keys_main.wallet,
         )
         .unwrap()];
@@ -594,7 +617,9 @@ mod tests {
         domain_separator: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[values("0.0")] api_version: &str,
     ) {
         // The keys that will be used to sign the new RAVs
@@ -602,7 +627,7 @@ mod tests {
 
         // Set the request byte size limit to a value that easily triggers the HTTP 413
         // error.
-        let http_request_size_limit = 100 * 1024;
+        let http_request_size_limit = 120 * 1024;
 
         // Number of receipts that is just above the number that would fit within the
         // request size limit. This value is hard-coded here because it supports the
@@ -633,7 +658,7 @@ mod tests {
             receipts.push(
                 EIP712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, u128::MAX / 1000).unwrap(),
                     &keys_main.wallet,
                 )
                 .unwrap(),
@@ -656,6 +681,7 @@ mod tests {
                 ),
             )
             .await;
+        println!("{res:?}");
         assert!(res.is_ok());
 
         // Create RAV through the JSON-RPC server.
