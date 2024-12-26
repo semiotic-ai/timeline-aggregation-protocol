@@ -6,8 +6,9 @@ use std::sync::RwLock;
 use std::{str::FromStr, sync::Arc};
 
 use alloy::dyn_abi::Eip712Domain;
-use alloy::primitives::Address;
-use alloy::signers::local::PrivateKeySigner;
+#[allow(deprecated)]
+use alloy::primitives::{Address, PrimitiveSignature, Signature};
+use alloy::signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner};
 use rstest::*;
 
 use tap_core::manager::context::memory::InMemoryContext;
@@ -37,6 +38,51 @@ fn context() -> InMemoryContext {
         escrow_storage.clone(),
         timestamp_check,
     )
+}
+
+#[rstest]
+fn check_for_rav_serialization(domain_separator: Eip712Domain) {
+    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let wallet = MnemonicBuilder::<English>::default()
+        .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+        .build()
+        .unwrap();
+    let mut receipts = Vec::new();
+    for value in 50..60 {
+        receipts.push(
+            EIP712SignedMessage::new(
+                &domain_separator,
+                Receipt {
+                    allocation_id,
+                    value,
+                    nonce: value as u64,
+                    timestamp_ns: value as u64,
+                },
+                &wallet,
+            )
+            .unwrap(),
+        );
+    }
+
+    let signed_rav = EIP712SignedMessage::new(
+        &domain_separator,
+        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        &wallet,
+    )
+    .unwrap();
+
+    insta::assert_json_snapshot!(receipts);
+    insta::assert_json_snapshot!(signed_rav);
+
+    let raw_sig = r#"{
+      "r": "0x1596dd0d380ede7aa5dec5ed09ea7d1fa8e4bc8dfdb43a4e965bb4f16906e321",
+      "s": "0x788b69625a031fbd2e769928b63505387df16e7c51f19ff67c782bfec101a387",
+      "yParity": "0x1"
+    }"#;
+
+    serde_json::from_str::<PrimitiveSignature>(raw_sig).unwrap();
+    #[allow(deprecated)]
+    serde_json::from_str::<Signature>(raw_sig).unwrap();
 }
 
 #[rstest]

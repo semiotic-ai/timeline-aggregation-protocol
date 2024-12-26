@@ -17,9 +17,9 @@ serde.workspace = true
 alloy.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
+serde_json.workspace = true
 jsonrpsee = { workspace = true, features = ["server", "macros"] }
 clap = { version = "4.5.15", features = ["derive", "env"] }
-serde_json = { version = "1.0.124", features = ["raw_value"] }
 strum = { version = "0.26.3", features = ["derive"] }
 tracing-subscriber = "0.3.17"
 log = "0.4.19"
