@@ -3,22 +3,15 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
-use alloy::dyn_abi::Eip712Domain;
-use alloy::primitives::Address;
-use alloy::primitives::FixedBytes;
-use alloy::signers::local::PrivateKeySigner;
+use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use anyhow::Result;
 use clap::Parser;
-use ruint::aliases::U256;
-use tokio::signal::unix::{signal, SignalKind};
-
 use log::{debug, info};
-use tap_aggregator::metrics;
-use tap_aggregator::server;
+use tap_core::tap_eip712_domain;
+
+use tap_aggregator::{metrics, server};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -126,22 +119,10 @@ async fn main() -> Result<()> {
     .await?;
     info!("Server started. Listening on port {}.", args.port);
 
-    // Have tokio wait for SIGTERM or SIGINT.
-    let mut signal_sigint = signal(SignalKind::interrupt())?;
-    let mut signal_sigterm = signal(SignalKind::terminate())?;
-    tokio::select! {
-        _ = signal_sigint.recv() => debug!("Received SIGINT."),
-        _ = signal_sigterm.recv() => debug!("Received SIGTERM."),
-    }
+    let _ = handle.await;
 
     // If we're here, we've received a signal to exit.
     info!("Shutting down...");
-
-    // Stop the server and wait for it to finish gracefully.
-    handle.stop()?;
-    handle.stopped().await;
-
-    debug!("Goodbye!");
     Ok(())
 }
 
@@ -149,14 +130,11 @@ fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     // Transfrom the args into the types expected by Eip712Domain::new().
 
     // Transform optional strings into optional Cow<str>.
-    let name = args.domain_name.clone().map(Cow::Owned);
-    let version = args.domain_version.clone().map(Cow::Owned);
-
     // Transform optional strings into optional U256.
     if args.domain_chain_id.is_some() {
         debug!("Parsing domain chain ID...");
     }
-    let chain_id: Option<U256> = args
+    let chain_id: Option<u64> = args
         .domain_chain_id
         .as_ref()
         .map(|s| s.parse())
@@ -165,17 +143,13 @@ fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     if args.domain_salt.is_some() {
         debug!("Parsing domain salt...");
     }
-    let salt: Option<FixedBytes<32>> = args.domain_salt.as_ref().map(|s| s.parse()).transpose()?;
 
     // Transform optional strings into optional Address.
     let verifying_contract: Option<Address> = args.domain_verifying_contract;
 
     // Create the EIP-712 domain separator.
-    Ok(Eip712Domain::new(
-        name,
-        version,
-        chain_id,
-        verifying_contract,
-        salt,
+    Ok(tap_eip712_domain(
+        chain_id.unwrap_or(1),
+        verifying_contract.unwrap_or_default(),
     ))
 }

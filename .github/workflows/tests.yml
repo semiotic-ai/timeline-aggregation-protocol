@@ -26,6 +26,8 @@ jobs:
       image: rust:1.83-bookworm
     steps:
       - uses: actions/checkout@v3
+      - name: Install protobuf compiler
+        run: apt-get update && apt-get install protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
@@ -50,6 +52,8 @@ jobs:
       image: rust:1.83-bookworm
     steps:
       - uses: actions/checkout@v3
+      - name: Install protobuf compiler
+        run: apt-get update && apt-get install protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
@@ -75,6 +79,8 @@ jobs:
       image: rust:1.83-bookworm
     steps:
       - uses: actions/checkout@v3
+      - name: Install protobuf compiler
+        run: apt-get update && apt-get install protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
