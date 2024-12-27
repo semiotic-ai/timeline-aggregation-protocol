@@ -39,10 +39,10 @@ tower = { version = "0.4", features = ["util", "steer"] }
 tonic = { version = "0.12.3", features = ["transport", "zstd"] }
 prost = "0.13.3"
 hyper = { version = "1", features = ["full"] }
+rayon = "1.10.0"
 
 [build-dependencies]
 tonic-build = "0.12.3"
-
 
 [dev-dependencies]
 jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }

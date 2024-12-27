@@ -8,7 +8,7 @@ use alloy::{
     sol_types::SolStruct,
 };
 use anyhow::{bail, Ok, Result};
-
+use rayon::prelude::*;
 use tap_core::{
     rav::ReceiptAggregateVoucher,
     receipt::Receipt,
@@ -25,18 +25,14 @@ pub fn check_and_aggregate_receipts(
     check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
-    receipts.iter().try_for_each(|receipt| {
-        check_signature_is_from_one_of_addresses(
-            receipt.clone(),
-            domain_separator,
-            accepted_addresses,
-        )
+    receipts.par_iter().try_for_each(|receipt| {
+        check_signature_is_from_one_of_addresses(receipt, domain_separator, accepted_addresses)
     })?;
 
     // Check that the previous rav is signed by an accepted signer address
     if let Some(previous_rav) = &previous_rav {
         check_signature_is_from_one_of_addresses(
-            previous_rav.clone(),
+            previous_rav,
             domain_separator,
             accepted_addresses,
         )?;
@@ -74,7 +70,7 @@ pub fn check_and_aggregate_receipts(
 }
 
 fn check_signature_is_from_one_of_addresses<M: SolStruct>(
-    message: EIP712SignedMessage<M>,
+    message: &EIP712SignedMessage<M>,
     domain_separator: &Eip712Domain,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<()> {
