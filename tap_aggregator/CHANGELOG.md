@@ -20,6 +20,18 @@
   * dependencies
     * tap_core bumped from * to 2.0.0
 
+## [0.3.3](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.3.2...tap_aggregator-v0.3.3) (2024-12-27)
+
+
+### Features
+
+* accept grpc requests in tap-aggregator ([#253](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/253)) ([3c56018](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3c56018a321736ff19103ea69015160c3647364b))
+
+
+### Performance Improvements
+
+* add rayon to verify signatures process ([#255](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/255)) ([cfa4a06](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/cfa4a0610e901f90ff7397fcaf1ba4ac633e774b))
+
 ## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.2.0...tap_aggregator-v0.3.0) (2024-03-11)
 
 
