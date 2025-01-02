@@ -276,13 +276,13 @@ pub mod checks {
     pub fn get_full_list_of_checks(
         domain_separator: Eip712Domain,
         valid_signers: HashSet<Address>,
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+        payers: Arc<RwLock<HashSet<Address>>>,
         _query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
     ) -> Vec<ReceiptCheck> {
         vec![
             // Arc::new(UniqueCheck ),
             // Arc::new(ValueCheck { query_appraisals }),
-            Arc::new(AllocationIdCheck { allocation_ids }),
+            Arc::new(PayerCheck { payers }),
             Arc::new(SignatureCheck {
                 domain_separator,
                 valid_signers,
@@ -290,16 +290,16 @@ pub mod checks {
         ]
     }
 
-    struct AllocationIdCheck {
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+    struct PayerCheck {
+        payers: Arc<RwLock<HashSet<Address>>>,
     }
 
     #[async_trait::async_trait]
-    impl Check for AllocationIdCheck {
+    impl Check for PayerCheck {
         async fn check(&self, _: &Context, receipt: &ReceiptWithState<Checking>) -> CheckResult {
-            let received_allocation_id = receipt.signed_receipt().message.allocation_id;
+            let received_allocation_id = receipt.signed_receipt().message.payer;
             if self
-                .allocation_ids
+                .payers
                 .read()
                 .unwrap()
                 .contains(&received_allocation_id)

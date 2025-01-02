@@ -16,8 +16,12 @@ sol! {
     /// Holds information needed for promise of payment signed with ECDSA
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct Receipt {
-        /// Unique allocation id this receipt belongs to
-        address allocation_id;
+        // The address of the payer the RAV was issued by
+        address payer;
+        // The address of the data service the RAV was issued to
+        address data_service;
+        // The address of the service provider the RAV was issued to
+        address service_provider;
         /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
         uint64 timestamp_ns;
         /// Random value used to avoid collisions from multiple receipts with one timestamp
@@ -29,11 +33,18 @@ sol! {
 
 impl Receipt {
     /// Returns a receipt with provided values
-    pub fn new(allocation_id: Address, value: u128) -> crate::Result<Self> {
+    pub fn new(
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+        value: u128,
+    ) -> crate::Result<Self> {
         let timestamp_ns = crate::get_current_timestamp_u64_ns()?;
         let nonce = thread_rng().gen::<u64>();
         Ok(Self {
-            allocation_id,
+            payer,
+            data_service,
+            service_provider,
             timestamp_ns,
             nonce,
             value,
@@ -44,27 +55,34 @@ impl Receipt {
 #[cfg(test)]
 mod receipt_unit_test {
     use super::*;
+    use alloy::primitives::address;
     use rstest::*;
-    use std::str::FromStr;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
-        vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
-        ]
+    fn payer() -> Address {
+        address!("abababababababababababababababababababab")
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
     }
 
     #[rstest]
-    fn test_new_receipt(allocation_ids: Vec<Address>) {
+    fn test_new_receipt(payer: Address, data_service: Address, service_provider: Address) {
         let value = 1234;
 
-        let receipt = Receipt::new(allocation_ids[0], value).unwrap();
+        let receipt = Receipt::new(payer, data_service, service_provider, value).unwrap();
 
-        assert_eq!(receipt.allocation_id, allocation_ids[0]);
+        assert_eq!(receipt.payer, payer);
+        assert_eq!(receipt.data_service, data_service);
+        assert_eq!(receipt.service_provider, service_provider);
         assert_eq!(receipt.value, value);
 
         // Check that the timestamp is within a reasonable range
@@ -77,11 +95,15 @@ mod receipt_unit_test {
     }
 
     #[rstest]
-    fn test_unique_nonce_and_timestamp(allocation_ids: Vec<Address>) {
+    fn test_unique_nonce_and_timestamp(
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
+    ) {
         let value = 1234;
 
-        let receipt1 = Receipt::new(allocation_ids[0], value).unwrap();
-        let receipt2 = Receipt::new(allocation_ids[0], value).unwrap();
+        let receipt1 = Receipt::new(payer, data_service, service_provider, value).unwrap();
+        let receipt2 = Receipt::new(payer, data_service, service_provider, value).unwrap();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Current system time should be greater than `UNIX_EPOCH`")

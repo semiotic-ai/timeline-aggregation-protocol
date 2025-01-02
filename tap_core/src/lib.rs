@@ -60,7 +60,11 @@ pub fn tap_eip712_domain(
 mod tap_tests {
     use std::str::FromStr;
 
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+    use alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{address, Address},
+        signers::local::PrivateKeySigner,
+    };
     use rstest::*;
 
     use crate::{
@@ -77,13 +81,18 @@ mod tap_tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
-        vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
-        ]
+    fn payer() -> Address {
+        address!("abababababababababababababababababababab")
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        address!("deaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        address!("beefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
     }
 
     #[fixture]
@@ -97,7 +106,9 @@ mod tap_tests {
     #[test]
     fn signed_rav_is_valid_with_no_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
     ) {
@@ -107,7 +118,7 @@ mod tap_tests {
             receipts.push(
                 EIP712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, value).unwrap(),
                     &keys.0,
                 )
                 .unwrap(),
@@ -116,8 +127,14 @@ mod tap_tests {
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
 
-        let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-            .unwrap();
+        let rav = ReceiptAggregateVoucher::aggregate_receipts(
+            payer,
+            data_service,
+            service_provider,
+            &receipts,
+            None,
+        )
+        .unwrap();
         let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
@@ -128,7 +145,9 @@ mod tap_tests {
     #[test]
     fn signed_rav_is_valid_with_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
         #[case] values: Vec<u128>,
     ) {
@@ -138,7 +157,7 @@ mod tap_tests {
             receipts.push(
                 EIP712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, value).unwrap(),
                     &keys.0,
                 )
                 .unwrap(),
@@ -147,7 +166,9 @@ mod tap_tests {
 
         // Create previous RAV from first half of receipts
         let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            payer,
+            data_service,
+            service_provider,
             &receipts[0..receipts.len() / 2],
             None,
         )
@@ -157,7 +178,9 @@ mod tap_tests {
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            payer,
+            data_service,
+            service_provider,
             &receipts[receipts.len() / 2..receipts.len()],
             Some(signed_prev_rav),
         )
@@ -171,12 +194,14 @@ mod tap_tests {
     #[test]
     fn verify_signature(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         domain_separator: Eip712Domain,
     ) {
         let signed_message = EIP712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(payer, data_service, service_provider, 42).unwrap(),
             &keys.0,
         )
         .unwrap();

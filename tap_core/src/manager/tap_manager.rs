@@ -216,13 +216,17 @@ where
         if receipts.is_empty() {
             return Err(Error::NoValidReceiptsForRAVRequest);
         }
-        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let payer = receipts[0].signed_receipt().message.payer;
+        let service_provider = receipts[0].signed_receipt().message.service_provider;
+        let data_service = receipts[0].signed_receipt().message.data_service;
         let receipts = receipts
             .iter()
             .map(|rx_receipt| rx_receipt.signed_receipt().clone())
             .collect::<Vec<_>>();
         ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_id,
+            payer,
+            service_provider,
+            data_service,
             receipts.as_slice(),
             previous_rav,
         )

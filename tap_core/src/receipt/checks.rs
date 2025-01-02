@@ -200,11 +200,11 @@ impl CheckBatch for UniqueCheck {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
     use std::time::Duration;
     use std::time::SystemTime;
 
     use alloy::dyn_abi::Eip712Domain;
+    use alloy::primitives::address;
     use alloy::primitives::Address;
     use alloy::signers::local::PrivateKeySigner;
     use alloy::sol_types::eip712_domain;
@@ -235,8 +235,9 @@ mod tests {
         let receipt = EIP712SignedMessage::new(
             &eip712_domain_separator,
             Receipt {
-                allocation_id: Address::from_str("0xabababababababababababababababababababab")
-                    .unwrap(),
+                payer: address!("abababababababababababababababababababab"),
+                data_service: address!("abababababababababababababababababababab"),
+                service_provider: address!("abababababababababababababababababababab"),
                 nonce,
                 timestamp_ns,
                 value,

@@ -21,13 +21,15 @@ use tap_core::{
 
 pub fn create_and_sign_receipt(
     domain_separator: &Eip712Domain,
-    allocation_id: Address,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     value: u128,
     wallet: &PrivateKeySigner,
 ) -> EIP712SignedMessage<Receipt> {
     EIP712SignedMessage::new(
         domain_separator,
-        Receipt::new(allocation_id, value).unwrap(),
+        Receipt::new(payer, data_service, service_provider, value).unwrap(),
         wallet,
     )
     .unwrap()
@@ -40,21 +42,32 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let address = wallet.address();
 
     // Arbitrary values wrapped in black box to avoid compiler optimizing them out
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let payer = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let data_service = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let service_provider = Address::from_str("0xabababababababababababababababababababab").unwrap();
     let value = 12345u128;
 
     c.bench_function("Create Receipt", |b| {
         b.iter(|| {
             create_and_sign_receipt(
                 black_box(&domain_seperator),
-                black_box(allocation_id),
+                black_box(payer),
+                black_box(data_service),
+                black_box(service_provider),
                 black_box(value),
                 black_box(&wallet),
             )
         })
     });
 
-    let receipt = create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet);
+    let receipt = create_and_sign_receipt(
+        &domain_seperator,
+        payer,
+        data_service,
+        service_provider,
+        value,
+        &wallet,
+    );
 
     c.bench_function("Validate Receipt", |b| {
         b.iter(|| {
@@ -68,7 +81,16 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     for log_number_of_receipts in 10..30 {
         let receipts = (0..2 ^ log_number_of_receipts)
-            .map(|_| create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet))
+            .map(|_| {
+                create_and_sign_receipt(
+                    &domain_seperator,
+                    payer,
+                    data_service,
+                    service_provider,
+                    value,
+                    &wallet,
+                )
+            })
             .collect::<Vec<_>>();
 
         rav_group.bench_function(
@@ -76,7 +98,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             |b| {
                 b.iter(|| {
                     ReceiptAggregateVoucher::aggregate_receipts(
-                        black_box(allocation_id),
+                        black_box(payer),
+                        black_box(data_service),
+                        black_box(service_provider),
                         black_box(&receipts),
                         black_box(None),
                     )
@@ -86,7 +110,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let signed_rav = EIP712SignedMessage::new(
             &domain_seperator,
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+            ReceiptAggregateVoucher::aggregate_receipts(
+                payer,
+                data_service,
+                service_provider,
+                &receipts,
+                None,
+            )
+            .unwrap(),
             &wallet,
         )
         .unwrap();

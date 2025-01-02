@@ -220,6 +220,8 @@ fn requests_1(
         num_batches,
         &keys_sender,
         allocation_ids[0],
+        allocation_ids[0],
+        allocation_ids[0],
         &domain_separator,
     )
 }
@@ -237,6 +239,8 @@ fn requests_2(
         query_price,
         num_batches,
         &keys_sender,
+        allocation_ids[1],
+        allocation_ids[1],
         allocation_ids[1],
         &domain_separator,
     )
@@ -257,6 +261,8 @@ fn repeated_timestamp_request(
         num_batches,
         &keys_sender,
         allocation_ids[0],
+        allocation_ids[0],
+        allocation_ids[0],
         &domain_separator,
     );
 
@@ -266,7 +272,9 @@ fn repeated_timestamp_request(
         .timestamp_ns;
     let target_receipt = &requests[receipt_threshold_1 as usize].message;
     let repeat_receipt = Receipt {
-        allocation_id: target_receipt.allocation_id,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
@@ -293,6 +301,8 @@ fn repeated_timestamp_incremented_by_one_request(
         num_batches,
         &keys_sender,
         allocation_ids[0],
+        allocation_ids[0],
+        allocation_ids[0],
         &domain_separator,
     );
 
@@ -303,7 +313,9 @@ fn repeated_timestamp_incremented_by_one_request(
         + 1;
     let target_receipt = &requests[receipt_threshold_1 as usize].message;
     let repeat_receipt = Receipt {
-        allocation_id: target_receipt.allocation_id,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
@@ -330,6 +342,8 @@ fn wrong_requests(
         query_price,
         num_batches,
         &wrong_keys_sender,
+        allocation_ids[0],
+        allocation_ids[0],
         allocation_ids[0],
         &domain_separator,
     )
@@ -774,7 +788,9 @@ fn generate_requests(
     query_price: &[u128],
     num_batches: u64,
     sender_key: &PrivateKeySigner,
-    allocation_id: Address,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
     domain_separator: &Eip712Domain,
 ) -> Vec<EIP712SignedMessage<Receipt>> {
     let mut requests: Vec<EIP712SignedMessage<Receipt>> = Vec::new();
@@ -784,7 +800,7 @@ fn generate_requests(
             requests.push(
                 EIP712SignedMessage::new(
                     domain_separator,
-                    Receipt::new(allocation_id, *value).unwrap(),
+                    Receipt::new(payer, data_service, service_provider, *value).unwrap(),
                     sender_key,
                 )
                 .unwrap(),

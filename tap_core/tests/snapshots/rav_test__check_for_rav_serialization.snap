@@ -6,142 +6,162 @@ snapshot_kind: text
 [
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 50,
       "nonce": 50,
       "value": 50
     },
     "signature": {
-      "r": "0x5257bab234e33525cd999db4defc805c2d3b4e51cde3697f43e37ce39473720f",
-      "s": "0x6c3af14c3d400dfd047fd2da90eb9e8cee863e77cc52742ebcbf080b8d6ec2",
+      "r": "0x4ecb862a64112bcdac18567b9ecdea86bdaa23278363dd9ad7b0866460443cff",
+      "s": "0x55c351e35b610c372d988d9854701c4c539ca171f0daad0e2da391689cb9b739",
       "yParity": "0x1",
       "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 51,
       "nonce": 51,
       "value": 51
     },
     "signature": {
-      "r": "0x1596dd0d380ede7aa5dec5ed09ea7d1fa8e4bc8dfdb43a4e965bb4f16906e321",
-      "s": "0x788b69625a031fbd2e769928b63505387df16e7c51f19ff67c782bfec101a387",
+      "r": "0xb86b4f2a3952fe0a63b853571f9ba3a8949d60fd47aa77b4079507b2e0d183a9",
+      "s": "0x6f0692e52df1a2162080ef8f471032b2d456fd64f193f0be42e461ad9be69f44",
       "yParity": "0x0",
       "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 52,
       "nonce": 52,
       "value": 52
     },
     "signature": {
-      "r": "0xb3b8e2c1249fc14183024e28b14f7749ef852c898906c2442f380a26bf07a625",
-      "s": "0x6925e7dce01d539a658d552e43cfd92d9d204d6997604f8f613977251b964db3",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0xcc84e1950cf91c07596e9e8a7919a438f41598d2ad0b1d36bd4ca873387e3bf",
+      "s": "0x69ba08cbf960f893276193b2ceb285cd4597d681a841c9f09f36d56aee579edb",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 53,
       "nonce": 53,
       "value": 53
     },
     "signature": {
-      "r": "0x3b4d08db319497c2cc0d515d25057e28ce44b194a23e84b9d35682f97027c7e3",
-      "s": "0x232e02eb4b52d302d620867a4c10829e5a307404ea1bcbbd2ee33e8422a18a16",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0x9ea79f4be4c140a264e2d1a203cd7dd93d1495b25093783bb7fb18a2c22d0fe5",
+      "s": "0x39040040de42a251eae1c0a71e08d775416351f05199be7807400dce1d498afd",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 54,
       "nonce": 54,
       "value": 54
     },
     "signature": {
-      "r": "0x619d84f659ea3941cdb0656100b2ea8a3d2f5658dbd67f796ebfb8840156530b",
-      "s": "0x163b236f88207b89452255da8ce196997d8f2f0880081659c780f2093797f75e",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0x21f8af664178560f5aa274ea98ee145ce479d1295da4fed08c3d7102df8cc2af",
+      "s": "0x540418686c0f21d48786e46f773205d2b4ecaa5f0876cf6c8f4dff15d89d7510",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 55,
       "nonce": 55,
       "value": 55
     },
     "signature": {
-      "r": "0x48e1e0e31eaf40eabbcbc3c6d125b7656c0796d51188f89d27194e22f2c5d6bb",
-      "s": "0xd26efc0ae8cc3646993a20b5aabac1125ecb149ad91d733c702ac9f03222b66",
+      "r": "0x522915411cc85754f513d582c1d6fc38fa348a48eac0b8fddb3293ba87e41437",
+      "s": "0xde39cb8b91574ec392bc07367aea8df7d1cf37f9d2489ff6e5b4ea8b5ee50f2",
       "yParity": "0x1",
       "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 56,
       "nonce": 56,
       "value": 56
     },
     "signature": {
-      "r": "0xc3adb8be5db130f563d3a18fc9e742fca84f69a903413e04dc567b9c3aca8626",
-      "s": "0x564dd73bdd33897c7a085e4eb1bc0ce002b1d65c6006781ab54cd670846fe358",
-      "yParity": "0x0",
-      "v": "0x0"
+      "r": "0x7b0199df25fc87969fcdf795e9cfd246e743d786a9208614b00d8af03730398",
+      "s": "0x772b54a7bc5da81d06534b8e524fa0e52019f76c826eead029c7903fcb19ea42",
+      "yParity": "0x1",
+      "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 57,
       "nonce": 57,
       "value": 57
     },
     "signature": {
-      "r": "0xa0fe51e1b7253daed14f99c9320d0a539ef18b6ead6552947e5c93dde6f40dea",
-      "s": "0x4277d66d3a8c9f67cddc8d96a71ef8437e47e34a5b5789d7843eb691c3b9864",
+      "r": "0x72d7802e0802e8391469a9711259e6a9983ebab673d2baf7eceadfef9c2afc77",
+      "s": "0x647e0ae9f3ef205d31955b3ac3e132296b57b1b218cb5f221678ca7ab7e0b875",
       "yParity": "0x0",
       "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 58,
       "nonce": 58,
       "value": 58
     },
     "signature": {
-      "r": "0x26f1657e4b8759867820be12c25e982e15ff9d70aa99fe1fd2587cbb644829de",
-      "s": "0x5cabbd965f93e544b07e5956c2831148dbf7960b4e2edadfa6ecbf1209dacda4",
+      "r": "0x98a01a0cad9ff3ab95157d03c6d253872935149f361fa3003b4776ea095b907e",
+      "s": "0x55034f5bdac601bd78a3091d82450e844a8ff1e554498fb0ef6b8c4ef9e61a6",
       "yParity": "0x0",
       "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
+      "payer": "0xabababababababababababababababababababab",
+      "data_service": "0xabababababababababababababababababababab",
+      "service_provider": "0xabababababababababababababababababababab",
       "timestamp_ns": 59,
       "nonce": 59,
       "value": 59
     },
     "signature": {
-      "r": "0x90ce08049b9ce9fa38077ebeed0e24558442d8ae001aeff6b9f4b06f4f553c69",
-      "s": "0x7a873491448ae696555f9d1314b4e78a7cc98a19a6b0c26aad562053dc26a202",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0x27ce1976e8a0645d04e31f95c14b038f75de27e8fb1e4604b1ac7723232228cb",
+      "s": "0x31652a9a504057ca9c22d577370538d38b3c8a74070e3a844172e280f6587946",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   }
 ]

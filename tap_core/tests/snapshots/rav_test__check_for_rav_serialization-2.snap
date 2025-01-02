@@ -5,13 +5,16 @@ snapshot_kind: text
 ---
 {
   "message": {
-    "allocationId": "0xabababababababababababababababababababab",
+    "payer": "0xabababababababababababababababababababab",
+    "dataService": "0xabababababababababababababababababababab",
+    "serviceProvider": "0xabababababababababababababababababababab",
     "timestampNs": 59,
-    "valueAggregate": 545
+    "valueAggregate": 545,
+    "metadata": "0x"
   },
   "signature": {
-    "r": "0x11d760201bac73d4e772d0999a1f9b5f6b8d8979d94ee29b7cb2659d23f2a551",
-    "s": "0x1036a994ff414de83f24601ab7cc22e0ece134d2199e0b675d94bd8cf7015226",
+    "r": "0xe1a54286f4c8d483c410eb1d6a3972593d81b3f6d89458d9c177b4cd0aaf7fa9",
+    "s": "0x1307ee4fee865c2fad8e6373ad5873a54f614ecb4d8f60ead3641e6c1b959405",
     "yParity": "0x0",
     "v": "0x0"
   }

@@ -41,7 +41,7 @@ mod request;
 
 use std::cmp;
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, Bytes};
 use alloy::sol;
 use serde::{Deserialize, Serialize};
 
@@ -58,14 +58,19 @@ sol! {
     /// We use camelCase for field names to match the Ethereum ABI encoding
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct ReceiptAggregateVoucher {
-        /// Unique allocation id this RAV belongs to
-        address allocationId;
-        /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
-        /// corresponding to max timestamp from receipt batch aggregated
+        // The address of the payer the RAV was issued by
+        address payer;
+        // The address of the data service the RAV was issued to
+        address dataService;
+        // The address of the service provider the RAV was issued to
+        address serviceProvider;
+        // The RAV timestamp, indicating the latest TAP Receipt in the RAV
         uint64 timestampNs;
-        /// Aggregated value from receipt batch and any previous RAV provided
-        /// (truncate to lower bits)
+        // Total amount owed to the service provider since the beginning of the
+        // payer-service provider relationship, including all debt that is already paid for.
         uint128 valueAggregate;
+        // Arbitrary metadata to extend functionality if a data service requires it
+        bytes metadata;
     }
 }
 
@@ -78,7 +83,9 @@ impl ReceiptAggregateVoucher {
     /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate
     /// value to overflow
     pub fn aggregate_receipts(
-        allocation_id: Address,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         receipts: &[EIP712SignedMessage<Receipt>],
         previous_rav: Option<EIP712SignedMessage<Self>>,
     ) -> crate::Result<Self> {
@@ -102,9 +109,12 @@ impl ReceiptAggregateVoucher {
         }
 
         Ok(Self {
-            allocationId: allocation_id,
             timestampNs: timestamp_max,
             valueAggregate: value_aggregate,
+            payer,
+            dataService: data_service,
+            serviceProvider: service_provider,
+            metadata: Bytes::new(),
         })
     }
 }

@@ -66,7 +66,7 @@
 //! # use tap_core::signed_message::EIP712SignedMessage;
 //! # let domain_separator = Eip712Domain::default();
 //! # let wallet = PrivateKeySigner::random();
-//! # let message = Receipt::new(Address::from([0x11u8; 20]), 100).unwrap();
+//! # let message = Receipt::new(Address::ZERO, Address::ZERO, Address::ZERO, 100).unwrap();
 //!
 //! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //!

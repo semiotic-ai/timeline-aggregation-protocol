@@ -16,7 +16,7 @@
 //! };
 //! # let wallet = PrivateKeySigner::random();
 //! # let wallet_address = wallet.address();
-//! # let message = Receipt::new(Address::from([0x11u8; 20]), 100).unwrap();
+//! # let message = Receipt::new(Address::ZERO, Address::ZERO, Address::ZERO, 100).unwrap();
 //!
 //! let signed_message = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //! let signer = signed_message.recover_signer(&domain_separator).unwrap();

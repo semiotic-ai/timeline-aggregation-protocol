@@ -47,8 +47,18 @@ pub enum Error {
     NoValidReceiptsForRAVRequest,
 
     /// Error when the previous RAV allocation id does not match the allocation id from the new receipt
-    #[error("Previous RAV allocation id ({prev_id}) doesn't match the allocation id from the new receipt ({new_id}).")]
-    RavAllocationIdMismatch { prev_id: String, new_id: String },
+    #[error(
+        "Previous RAV payer ({prev_id}) doesn't match the payer from the new receipt ({new_id})."
+    )]
+    RavPayerMismatch { prev_id: String, new_id: String },
+
+    /// Error when the previous RAV data service does not match the data service from the new receipt
+    #[error("Previous RAV data_service ({prev_id}) doesn't match the data_service from the new receipt ({new_id}).")]
+    RavDataServiceMismatch { prev_id: String, new_id: String },
+
+    /// Error when the previous RAV service provider does not match the service provider from the new receipt
+    #[error("Previous RAV service_provider ({prev_id}) doesn't match the service_provider from the new receipt ({new_id}).")]
+    RavServiceProviderMismatch { prev_id: String, new_id: String },
 
     /// Error when all receipts do not have the same allocation id
     ///
