@@ -20,8 +20,8 @@ use tap_core::{
         adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
         Manager,
     },
-    rav::SignedRAV,
-    receipt::{checks::CheckList, Context, SignedReceipt},
+    rav::{self, ReceiptAggregateVoucher, SignedRAV},
+    receipt::{checks::CheckList, Context, Receipt, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
@@ -43,9 +43,9 @@ pub trait Rpc {
 /// threshold is a limit to which receipt_count can increment, after reaching which RAV request is triggered.
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<E> {
-    manager: Arc<Manager<E>>, // Manager object reference counted with an Arc
+    manager: Arc<Manager<E, Receipt, ReceiptAggregateVoucher>>, // Manager object reference counted with an Arc
     receipt_count: Arc<AtomicU64>, // Thread-safe atomic counter for receipts
-    threshold: u64,           // The count at which a RAV request will be triggered
+    threshold: u64,                // The count at which a RAV request will be triggered
     aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
 }
 
@@ -59,17 +59,13 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         context: E,
-        required_checks: CheckList,
+        required_checks: CheckList<Receipt>,
         threshold: u64,
         aggregate_server_address: String,
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Manager::<E>::new(
-                domain_separator,
-                context,
-                required_checks,
-            )),
+            manager: Arc::new(Manager::new(domain_separator, context, required_checks)),
             receipt_count: Arc::new(AtomicU64::new(0)),
             threshold,
             aggregator_client: (
@@ -83,7 +79,14 @@ where
 #[async_trait]
 impl<E> RpcServer for RpcManager<E>
 where
-    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowHandler + Send + Sync + 'static,
+    E: ReceiptStore<Receipt>
+        + ReceiptRead<Receipt>
+        + RAVStore<ReceiptAggregateVoucher>
+        + RAVRead<ReceiptAggregateVoucher>
+        + EscrowHandler
+        + Send
+        + Sync
+        + 'static,
 {
     async fn request(
         &self,
@@ -137,16 +140,16 @@ pub async fn run_server<E>(
     port: u16,                            // Port on which the server will listen
     domain_separator: Eip712Domain,       // EIP712 domain separator
     context: E,                           // context instance
-    required_checks: CheckList, // Vector of required checks to be performed on each request
-    threshold: u64,             // The count at which a RAV request will be triggered
-    aggregate_server_address: String, // Address of the aggregator server
+    required_checks: CheckList<Receipt>, // Vector of required checks to be performed on each request
+    threshold: u64,                      // The count at which a RAV request will be triggered
+    aggregate_server_address: String,    // Address of the aggregator server
     aggregate_server_api_version: String, // API version of the aggregator server
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
 where
-    E: ReceiptStore
-        + ReceiptRead
-        + RAVStore
-        + RAVRead
+    E: ReceiptStore<Receipt>
+        + ReceiptRead<Receipt>
+        + RAVStore<ReceiptAggregateVoucher>
+        + RAVRead<ReceiptAggregateVoucher>
         + EscrowHandler
         + Clone
         + Send
@@ -176,17 +179,25 @@ where
 
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<E>(
-    manager: &Arc<Manager<E>>,
+    manager: &Arc<Manager<E, Receipt, ReceiptAggregateVoucher>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
 ) -> Result<()>
 where
-    E: ReceiptRead + RAVRead + RAVStore + EscrowHandler,
+    E: ReceiptRead<Receipt>
+        + RAVRead<ReceiptAggregateVoucher>
+        + RAVStore<ReceiptAggregateVoucher>
+        + EscrowHandler,
 {
     // Create the aggregate_receipts request params
     let rav_request = manager
-        .create_rav_request(&Context::new(), time_stamp_buffer, None)
+        .create_rav_request(
+            &Context::new(),
+            time_stamp_buffer,
+            None,
+            rav::generate_expected_rav,
+        )
         .await?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts

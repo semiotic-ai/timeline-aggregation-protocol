@@ -44,7 +44,12 @@ use std::cmp;
 use alloy::{primitives::Address, sol};
 use serde::{Deserialize, Serialize};
 
-use crate::{receipt::Receipt, signed_message::EIP712SignedMessage, Error};
+use crate::{
+    manager::WithValueAndTimestamp,
+    receipt::{state::Reserved, Receipt, ReceiptWithState},
+    signed_message::EIP712SignedMessage,
+    Error,
+};
 
 /// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
@@ -64,6 +69,16 @@ sol! {
         /// Aggregated value from receipt batch and any previous RAV provided
         /// (truncate to lower bits)
         uint128 valueAggregate;
+    }
+}
+
+impl WithValueAndTimestamp for ReceiptAggregateVoucher {
+    fn value(&self) -> u128 {
+        self.valueAggregate
+    }
+
+    fn timestamp(&self) -> u64 {
+        self.timestampNs
     }
 }
 
@@ -105,4 +120,19 @@ impl ReceiptAggregateVoucher {
             valueAggregate: value_aggregate,
         })
     }
+}
+
+pub fn generate_expected_rav(
+    receipts: &[ReceiptWithState<Reserved, Receipt>],
+    previous_rav: Option<SignedRAV>,
+) -> Result<ReceiptAggregateVoucher, Error> {
+    if receipts.is_empty() {
+        return Err(Error::NoValidReceiptsForRAVRequest);
+    }
+    let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+    let receipts = receipts
+        .iter()
+        .map(|rx_receipt| rx_receipt.signed_receipt().clone())
+        .collect::<Vec<_>>();
+    ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts.as_slice(), previous_rav)
 }

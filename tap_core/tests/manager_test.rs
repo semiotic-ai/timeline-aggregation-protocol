@@ -23,7 +23,7 @@ use tap_core::{
         },
         Manager,
     },
-    rav::ReceiptAggregateVoucher,
+    rav::{self, ReceiptAggregateVoucher},
     receipt::{
         checks::{Check, CheckError, CheckList, StatefulTimestampCheck},
         state::Checking,
@@ -71,7 +71,7 @@ struct ContextFixture {
     context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: CheckList,
+    checks: CheckList<Receipt>,
     signer: PrivateKeySigner,
 }
 
@@ -128,7 +128,8 @@ async fn manager_verify_and_store_varying_initial_checks(
         signer,
         ..
     } = context;
-    let manager = Manager::new(domain_separator.clone(), context, checks);
+    let manager =
+        Manager::<_, _, ReceiptAggregateVoucher>::new(domain_separator.clone(), context, checks);
 
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
@@ -188,7 +189,9 @@ async fn manager_create_rav_request_all_valid_receipts(
             .await
             .is_ok());
     }
-    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request_result = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -284,7 +287,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request_result = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -328,7 +333,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request_result = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -403,7 +410,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
     }
 
-    let rav_request_1_result = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request_1_result = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
     assert!(rav_request_1_result.is_ok());
 
     let rav_request_1 = rav_request_1_result.unwrap();
@@ -458,7 +467,9 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         );
     }
 
-    let rav_request_2_result = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request_2_result = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
     assert!(rav_request_2_result.is_ok());
 
     let rav_request_2 = rav_request_2_result.unwrap();
@@ -524,7 +535,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     }
 
     let rav_request = manager
-        .create_rav_request(&Context::new(), 0, None)
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
         .await
         .unwrap();
     let expected_rav = rav_request.expected_rav.unwrap();
@@ -546,11 +557,11 @@ async fn test_retryable_checks(
     struct RetryableCheck(Arc<AtomicBool>);
 
     #[async_trait::async_trait]
-    impl Check for RetryableCheck {
+    impl Check<Receipt> for RetryableCheck {
         async fn check(
             &self,
             _: &Context,
-            receipt: &ReceiptWithState<Checking>,
+            receipt: &ReceiptWithState<Checking, Receipt>,
         ) -> Result<(), CheckError> {
             // we want to fail only if nonce is 5 and if is create rav step
             if self.0.load(std::sync::atomic::Ordering::SeqCst)
@@ -573,7 +584,7 @@ async fn test_retryable_checks(
 
     let is_create_rav = Arc::new(AtomicBool::new(false));
 
-    let mut checks: Vec<Arc<dyn Check + Send + Sync>> = checks.iter().cloned().collect();
+    let mut checks: Vec<Arc<dyn Check<Receipt> + Send + Sync>> = checks.iter().cloned().collect();
     checks.push(Arc::new(RetryableCheck(is_create_rav.clone())));
 
     let manager = Manager::new(
@@ -605,7 +616,9 @@ async fn test_retryable_checks(
 
     is_create_rav.store(true, std::sync::atomic::Ordering::SeqCst);
 
-    let rav_request = manager.create_rav_request(&Context::new(), 0, None).await;
+    let rav_request = manager
+        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .await;
 
     assert_eq!(
         rav_request.expect_err("Didn't fail").to_string(),

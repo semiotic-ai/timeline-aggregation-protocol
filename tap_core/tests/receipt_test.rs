@@ -159,7 +159,7 @@ fn safe_truncate_receipts_test(
     let wallet = PrivateKeySigner::random();
 
     // Vec of (id, receipt)
-    let mut receipts_orig: Vec<ReceiptWithState<Checking>> = Vec::new();
+    let mut receipts_orig: Vec<ReceiptWithState<Checking, Receipt>> = Vec::new();
 
     for timestamp in input.iter() {
         // The contents of the receipt only need to be unique for this test (so we can check)

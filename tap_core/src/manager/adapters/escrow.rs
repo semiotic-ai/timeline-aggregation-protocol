@@ -1,12 +1,13 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address};
+use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol_types::SolStruct};
 use async_trait::async_trait;
 
 use crate::{
-    rav::SignedRAV,
+    manager::WithValueAndTimestamp,
     receipt::{state::AwaitingReserve, ReceiptError, ReceiptResult, ReceiptWithState},
+    signed_message::EIP712SignedMessage,
     Error,
 };
 
@@ -41,9 +42,9 @@ pub trait EscrowHandler: Send + Sync {
     async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError>;
 
     /// Checks and reserves escrow for the received receipt
-    async fn check_and_reserve_escrow(
+    async fn check_and_reserve_escrow<T: SolStruct + WithValueAndTimestamp + Sync>(
         &self,
-        received_receipt: &ReceiptWithState<AwaitingReserve>,
+        received_receipt: &ReceiptWithState<AwaitingReserve, T>,
         domain_separator: &Eip712Domain,
     ) -> ReceiptResult<()> {
         let signed_receipt = &received_receipt.signed_receipt;
@@ -55,7 +56,7 @@ pub trait EscrowHandler: Send + Sync {
                 })?;
 
         if self
-            .subtract_escrow(receipt_signer_address, signed_receipt.message.value)
+            .subtract_escrow(receipt_signer_address, signed_receipt.message.value())
             .await
             .is_err()
         {
@@ -66,9 +67,9 @@ pub trait EscrowHandler: Send + Sync {
     }
 
     /// Checks the signature of the RAV
-    async fn check_rav_signature(
+    async fn check_rav_signature<R: SolStruct + Sync>(
         &self,
-        signed_rav: &SignedRAV,
+        signed_rav: &EIP712SignedMessage<R>,
         domain_separator: &Eip712Domain,
     ) -> Result<(), Error> {
         let recovered_address = signed_rav.recover_signer(domain_separator)?;

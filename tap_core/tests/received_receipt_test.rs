@@ -59,7 +59,7 @@ struct ContextFixture {
     context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Vec<ReceiptCheck>,
+    checks: Vec<ReceiptCheck<Receipt>>,
     signer: PrivateKeySigner,
 }
 

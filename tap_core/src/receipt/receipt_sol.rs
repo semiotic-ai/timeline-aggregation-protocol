@@ -12,6 +12,8 @@ use alloy::{primitives::Address, sol};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
+use crate::manager::WithValueAndTimestamp;
+
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -24,6 +26,16 @@ sol! {
         uint64 nonce;
         /// GRT value for transaction (truncate to lower bits)
         uint128 value;
+    }
+}
+
+impl WithValueAndTimestamp for Receipt {
+    fn value(&self) -> u128 {
+        self.value
+    }
+
+    fn timestamp(&self) -> u64 {
+        self.timestamp_ns
     }
 }
 

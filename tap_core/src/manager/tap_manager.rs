@@ -1,48 +1,62 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy::dyn_abi::Eip712Domain;
+use std::marker::PhantomData;
 
-use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
+use alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
+
+use super::{
+    adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore},
+    WithValueAndTimestamp,
+};
 use crate::{
-    rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
+    rav::RAVRequest,
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Failed, Reserved},
-        Context, ReceiptError, ReceiptWithState, SignedReceipt,
+        Context, ReceiptError, ReceiptWithState,
     },
+    signed_message::EIP712SignedMessage,
     Error,
 };
 
-pub struct Manager<E> {
+pub struct Manager<E, T, R> {
     /// Context that implements adapters
     context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    checks: CheckList,
+    checks: CheckList<T>,
 
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     domain_separator: Eip712Domain,
+
+    _receipt: PhantomData<(T, R)>,
 }
 
-impl<E> Manager<E> {
+impl<E, T, R> Manager<E, T, R> {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<CheckList>) -> Self {
+    pub fn new(
+        domain_separator: Eip712Domain,
+        context: E,
+        checks: impl Into<CheckList<T>>,
+    ) -> Self {
         Self {
             context,
             domain_separator,
             checks: checks.into(),
+            _receipt: PhantomData,
         }
     }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: RAVStore + EscrowHandler,
+    E: RAVStore<R> + EscrowHandler,
+    R: SolStruct + PartialEq + Sync + std::fmt::Debug,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -52,8 +66,8 @@ where
     ///
     pub async fn verify_and_store_rav(
         &self,
-        expected_rav: ReceiptAggregateVoucher,
-        signed_rav: SignedRAV,
+        expected_rav: R,
+        signed_rav: EIP712SignedMessage<R>,
     ) -> std::result::Result<(), Error> {
         self.context
             .check_rav_signature(&signed_rav, &self.domain_separator)
@@ -61,8 +75,8 @@ where
 
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRAV {
-                received_rav: signed_rav.message,
-                expected_rav,
+                received_rav: format!("{:?}", signed_rav.message),
+                expected_rav: format!("{:?}", expected_rav),
             });
         }
 
@@ -77,11 +91,12 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: RAVRead,
+    E: RAVRead<R>,
+    R: SolStruct,
 {
-    async fn get_previous_rav(&self) -> Result<Option<SignedRAV>, Error> {
+    async fn get_previous_rav(&self) -> Result<Option<EIP712SignedMessage<R>>, Error> {
         let previous_rav = self
             .context
             .last_rav()
@@ -93,9 +108,10 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: ReceiptRead + EscrowHandler,
+    E: ReceiptRead<T> + EscrowHandler,
+    T: SolStruct + WithValueAndTimestamp + Sync,
 {
     async fn collect_receipts(
         &self,
@@ -105,8 +121,8 @@ where
         limit: Option<u64>,
     ) -> Result<
         (
-            Vec<ReceiptWithState<Reserved>>,
-            Vec<ReceiptWithState<Failed>>,
+            Vec<ReceiptWithState<Reserved, T>>,
+            Vec<ReceiptWithState<Failed, T>>,
         ),
         Error,
     > {
@@ -164,9 +180,11 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: ReceiptRead + RAVRead + EscrowHandler,
+    E: ReceiptRead<T> + RAVRead<R> + EscrowHandler,
+    T: SolStruct + WithValueAndTimestamp + Sync,
+    R: SolStruct + WithValueAndTimestamp + Clone,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
@@ -188,18 +206,22 @@ where
         ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
-    ) -> Result<RAVRequest, Error> {
+        generate_rav: impl FnOnce(
+            &[ReceiptWithState<Reserved, T>],
+            Option<EIP712SignedMessage<R>>,
+        ) -> Result<R, Error>,
+    ) -> Result<RAVRequest<T, R>, Error> {
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
-            .map(|rav| rav.message.timestampNs + 1)
+            .map(|rav| rav.message.timestamp() + 1)
             .unwrap_or(0);
 
         let (valid_receipts, invalid_receipts) = self
             .collect_receipts(ctx, timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
+        let expected_rav = generate_rav(&valid_receipts, previous_rav.clone());
 
         Ok(RAVRequest {
             valid_receipts,
@@ -208,30 +230,12 @@ where
             expected_rav,
         })
     }
-
-    fn generate_expected_rav(
-        receipts: &[ReceiptWithState<Reserved>],
-        previous_rav: Option<SignedRAV>,
-    ) -> Result<ReceiptAggregateVoucher, Error> {
-        if receipts.is_empty() {
-            return Err(Error::NoValidReceiptsForRAVRequest);
-        }
-        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
-        let receipts = receipts
-            .iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
-            .collect::<Vec<_>>();
-        ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_id,
-            receipts.as_slice(),
-            previous_rav,
-        )
-    }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: ReceiptDelete + RAVRead,
+    E: ReceiptDelete + RAVRead<R>,
+    R: SolStruct + WithValueAndTimestamp,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts
     /// that are older than the last RAV, and therefore already aggregated into the RAV.
@@ -247,7 +251,7 @@ where
         match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.context
-                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestampNs)
+                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp())
                     .await
                     .map_err(|err| Error::AdapterError {
                         source_error: anyhow::Error::new(err),
@@ -259,9 +263,10 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, T, R> Manager<E, T, R>
 where
-    E: ReceiptStore,
+    E: ReceiptStore<T>,
+    T: SolStruct,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification,
     /// then stores received receipt.
@@ -274,7 +279,7 @@ where
     pub async fn verify_and_store_receipt(
         &self,
         ctx: &Context,
-        signed_receipt: SignedReceipt,
+        signed_receipt: EIP712SignedMessage<T>,
     ) -> std::result::Result<(), Error> {
         let mut received_receipt = ReceiptWithState::new(signed_receipt);
 

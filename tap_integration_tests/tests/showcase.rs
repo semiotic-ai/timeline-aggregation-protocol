@@ -161,7 +161,7 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
 
 struct ContextFixture {
     context: InMemoryContext,
-    checks: CheckList,
+    checks: CheckList<Receipt>,
 }
 
 #[fixture]
@@ -800,7 +800,7 @@ async fn start_indexer_server(
     mut context: InMemoryContext,
     sender_id: Address,
     available_escrow: u128,
-    required_checks: CheckList,
+    required_checks: CheckList<Receipt>,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,
 ) -> Result<(ServerHandle, SocketAddr)> {
