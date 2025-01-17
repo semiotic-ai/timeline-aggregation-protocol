@@ -9,7 +9,7 @@ use std::result::Result as StdResult;
 use alloy::primitives::{Address, SignatureError};
 use thiserror::Error as ThisError;
 
-use crate::{rav::ReceiptAggregateVoucher, receipt::ReceiptError};
+use crate::receipt::ReceiptError;
 
 /// Error type for the TAP protocol
 #[derive(ThisError, Debug)]
@@ -38,8 +38,8 @@ pub enum Error {
     /// Error when the received RAV does not match the expected RAV
     #[error("Received RAV does not match expexted RAV")]
     InvalidReceivedRAV {
-        received_rav: ReceiptAggregateVoucher,
-        expected_rav: ReceiptAggregateVoucher,
+        received_rav: String,
+        expected_rav: String,
     },
     /// Generic error from the adapter
     #[error("Error from adapter.\n Caused by: {source_error}")]

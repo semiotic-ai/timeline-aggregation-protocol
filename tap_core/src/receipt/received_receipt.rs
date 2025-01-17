@@ -13,11 +13,11 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use alloy::dyn_abi::Eip712Domain;
+use alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
 
-use super::{checks::CheckError, Context, Receipt, ReceiptError, ReceiptResult, SignedReceipt};
+use super::{checks::CheckError, Context, ReceiptError, ReceiptResult};
 use crate::{
-    manager::adapters::EscrowHandler,
+    manager::{adapters::EscrowHandler, WithValueAndTimestamp},
     receipt::{
         checks::ReceiptCheck,
         state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved},
@@ -25,7 +25,8 @@ use crate::{
     signed_message::EIP712SignedMessage,
 };
 
-pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
+pub type ResultReceipt<S, R> =
+    std::result::Result<ReceiptWithState<S, R>, ReceiptWithState<Failed, R>>;
 
 /// Typestate pattern for tracking the state of a receipt
 ///
@@ -40,17 +41,21 @@ pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWith
 /// - The [ `Reserved` ] state is used to represent a receipt that has
 ///   successfully reserved escrow.
 #[derive(Debug, Clone)]
-pub struct ReceiptWithState<S>
+pub struct ReceiptWithState<S, R>
 where
     S: ReceiptState,
+    R: SolStruct,
 {
     /// An EIP712 signed receipt message
-    pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
+    pub(crate) signed_receipt: EIP712SignedMessage<R>,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
     pub(crate) _state: S,
 }
 
-impl ReceiptWithState<AwaitingReserve> {
+impl<R> ReceiptWithState<AwaitingReserve, R>
+where
+    R: SolStruct + Sync + WithValueAndTimestamp,
+{
     /// Perform the checks implemented by the context and reserve escrow if
     /// all checks pass
     ///
@@ -60,7 +65,7 @@ impl ReceiptWithState<AwaitingReserve> {
         self,
         context: &E,
         domain_separator: &Eip712Domain,
-    ) -> ResultReceipt<Reserved>
+    ) -> ResultReceipt<Reserved, R>
     where
         E: EscrowHandler,
     {
@@ -74,9 +79,12 @@ impl ReceiptWithState<AwaitingReserve> {
     }
 }
 
-impl ReceiptWithState<Checking> {
+impl<R> ReceiptWithState<Checking, R>
+where
+    R: SolStruct,
+{
     /// Creates a new `ReceiptWithState` in the `Checking` state
-    pub fn new(signed_receipt: SignedReceipt) -> ReceiptWithState<Checking> {
+    pub fn new(signed_receipt: EIP712SignedMessage<R>) -> ReceiptWithState<Checking, R> {
         ReceiptWithState {
             signed_receipt,
             _state: Checking,
@@ -94,7 +102,7 @@ impl ReceiptWithState<Checking> {
     pub async fn perform_checks(
         &mut self,
         ctx: &Context,
-        checks: &[ReceiptCheck],
+        checks: &[ReceiptCheck<R>],
     ) -> ReceiptResult<()> {
         for check in checks {
             // return early on an error
@@ -114,8 +122,8 @@ impl ReceiptWithState<Checking> {
     pub async fn finalize_receipt_checks(
         mut self,
         ctx: &Context,
-        checks: &[ReceiptCheck],
-    ) -> Result<ResultReceipt<AwaitingReserve>, String> {
+        checks: &[ReceiptCheck<R>],
+    ) -> Result<ResultReceipt<AwaitingReserve, R>, String> {
         let all_checks_passed = self.perform_checks(ctx, checks).await;
         if let Err(ReceiptError::RetryableCheck(e)) = all_checks_passed {
             Err(e.to_string())
@@ -128,24 +136,28 @@ impl ReceiptWithState<Checking> {
     }
 }
 
-impl ReceiptWithState<Failed> {
+impl<R> ReceiptWithState<Failed, R>
+where
+    R: SolStruct,
+{
     pub fn error(self) -> ReceiptError {
         self._state.error
     }
 }
 
-impl<S> ReceiptWithState<S>
+impl<S, R> ReceiptWithState<S, R>
 where
     S: ReceiptState,
+    R: SolStruct,
 {
-    pub(super) fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed> {
+    pub(super) fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed, R> {
         ReceiptWithState {
             signed_receipt: self.signed_receipt,
             _state: Failed { error },
         }
     }
 
-    fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T>
+    fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T, R>
     where
         T: ReceiptState,
     {
@@ -156,7 +168,7 @@ where
     }
 
     /// Returns the signed receipt
-    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
+    pub fn signed_receipt(&self) -> &EIP712SignedMessage<R> {
         &self.signed_receipt
     }
 }

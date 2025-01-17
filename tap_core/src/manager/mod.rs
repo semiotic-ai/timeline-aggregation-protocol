@@ -34,6 +34,7 @@
 //!
 //! ```rust
 //! use async_trait::async_trait;
+//! use alloy::sol_types::SolStruct;
 //! use tap_core::{
 //!     receipt::{
 //!         ReceiptWithState,
@@ -42,6 +43,7 @@
 //!         ReceiptError,
 //!         Context
 //!     },
+//!#     rav::ReceiptAggregateVoucher,
 //!     manager::{
 //!         Manager,
 //!         adapters::ReceiptStore
@@ -51,14 +53,19 @@
 //! struct MyContext;
 //!
 //! #[async_trait]
-//! impl ReceiptStore for MyContext {
+//! impl<T> ReceiptStore<T> for MyContext
+//! where
+//!     T: SolStruct + Send + 'static
+//! {
 //!     type AdapterError = ReceiptError;
 //!
-//!     async fn store_receipt(&self, receipt: ReceiptWithState<Checking>) -> Result<u64, Self::AdapterError> {
+//!     async fn store_receipt(&self, receipt: ReceiptWithState<Checking, T>) -> Result<u64, Self::AdapterError> {
 //!         // ...
 //!         # Ok(0)
 //!     }
 //! }
+//!
+//! # type Rav = ReceiptAggregateVoucher;
 //! # #[tokio::main]
 //! # async fn main() {
 //! # use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
@@ -70,7 +77,7 @@
 //!
 //! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //!
-//! let manager = Manager::new(domain_separator, MyContext, CheckList::empty());
+//! let manager = Manager::<_, _, Rav>::new(domain_separator, MyContext, CheckList::empty());
 //! manager.verify_and_store_receipt(&Context::new(), receipt).await.unwrap()
 //! # }
 //! ```
@@ -82,3 +89,8 @@ pub mod context;
 mod tap_manager;
 
 pub use tap_manager::Manager;
+
+pub trait WithValueAndTimestamp {
+    fn value(&self) -> u128;
+    fn timestamp(&self) -> u64;
+}
