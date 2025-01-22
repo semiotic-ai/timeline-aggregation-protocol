@@ -16,5 +16,5 @@ anyhow = { version = "1.0.95" }
 tokio = { version = "1.43.0", features = ["macros", "signal"] }
 rand = "0.8.5"
 jsonrpsee = { version = "0.24.7", features = ["macros", "server"] }
-insta = { version = "1.41.1", features = ["json"] }
+insta = { version = "1.42.0", features = ["json"] }
 serde_json = { version = "1.0.124", features = ["raw_value"] }
