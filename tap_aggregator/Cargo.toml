@@ -12,18 +12,8 @@ name = "tap_aggregator"
 path = "src/main.rs"
 
 [dependencies]
-tap_core = { path = "../tap_core", version = "2.0.0" }
-serde.workspace = true
 alloy.workspace = true
 anyhow.workspace = true
-tokio.workspace = true
-serde_json.workspace = true
-jsonrpsee = { workspace = true, features = ["server", "macros"] }
-clap = { version = "4.5.15", features = ["derive", "env"] }
-strum = { version = "0.26.3", features = ["derive"] }
-tracing-subscriber = "0.3.17"
-log = "0.4.19"
-prometheus = "0.13.3"
 axum = { version = "0.7.5", features = [
   "http1",
   "json",
@@ -32,14 +22,23 @@ axum = { version = "0.7.5", features = [
   "query",
   "tokio",
 ], default-features = false }
+clap = { version = "4.5.15", features = ["derive", "env"] }
 futures-util = "0.3.28"
-lazy_static = "1.4.0"
-ruint = "1.10.1"
-tower = { version = "0.5.2", features = ["util", "steer"] }
-tonic = { version = "0.12.3", features = ["transport", "zstd"] }
-prost = "0.13.3"
 hyper = { version = "1", features = ["full"] }
+jsonrpsee = { workspace = true, features = ["server", "macros"] }
+lazy_static = "1.4.0"
+log = "0.4.19"
+prometheus = "0.13.3"
+prost = "0.13.3"
 rayon = "1.10.0"
+serde.workspace = true
+serde_json.workspace = true
+strum = { version = "0.26.3", features = ["derive"] }
+tap_core = { path = "../tap_core", version = "2.0.0" }
+tokio.workspace = true
+tonic = { version = "0.12.3", features = ["transport", "zstd"] }
+tower = { version = "0.5.2", features = ["util", "steer"] }
+tracing-subscriber = "0.3.17"
 
 [build-dependencies]
 tonic-build = "0.12.3"
