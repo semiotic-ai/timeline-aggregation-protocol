@@ -23,7 +23,7 @@ use tap_core::{
         },
         Manager,
     },
-    rav::{self, ReceiptAggregateVoucher},
+    rav::ReceiptAggregateVoucher,
     receipt::{
         checks::{Check, CheckError, CheckList, StatefulTimestampCheck},
         state::Checking,
@@ -189,9 +189,7 @@ async fn manager_create_rav_request_all_valid_receipts(
             .await
             .is_ok());
     }
-    let rav_request_result = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -287,9 +285,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -333,9 +329,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             .is_ok());
         expected_accumulated_value += value;
     }
-    let rav_request_result = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_result.is_ok());
 
     let rav_request = rav_request_result.unwrap();
@@ -410,9 +404,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         manager.remove_obsolete_receipts().await.unwrap();
     }
 
-    let rav_request_1_result = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request_1_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_1_result.is_ok());
 
     let rav_request_1 = rav_request_1_result.unwrap();
@@ -467,9 +459,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         );
     }
 
-    let rav_request_2_result = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request_2_result = manager.create_rav_request(&Context::new(), 0, None).await;
     assert!(rav_request_2_result.is_ok());
 
     let rav_request_2 = rav_request_2_result.unwrap();
@@ -535,7 +525,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     }
 
     let rav_request = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
+        .create_rav_request(&Context::new(), 0, None)
         .await
         .unwrap();
     let expected_rav = rav_request.expected_rav.unwrap();
@@ -616,9 +606,7 @@ async fn test_retryable_checks(
 
     is_create_rav.store(true, std::sync::atomic::Ordering::SeqCst);
 
-    let rav_request = manager
-        .create_rav_request(&Context::new(), 0, None, rav::generate_expected_rav)
-        .await;
+    let rav_request = manager.create_rav_request(&Context::new(), 0, None).await;
 
     assert_eq!(
         rav_request.expect_err("Didn't fail").to_string(),

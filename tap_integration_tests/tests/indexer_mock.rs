@@ -20,7 +20,7 @@ use tap_core::{
         adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
         Manager,
     },
-    rav::{self, ReceiptAggregateVoucher, SignedRAV},
+    rav::{ReceiptAggregateVoucher, SignedRAV},
     receipt::{checks::CheckList, Context, Receipt, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
@@ -192,12 +192,7 @@ where
 {
     // Create the aggregate_receipts request params
     let rav_request = manager
-        .create_rav_request(
-            &Context::new(),
-            time_stamp_buffer,
-            None,
-            rav::generate_expected_rav,
-        )
+        .create_rav_request(&Context::new(), time_stamp_buffer, None)
         .await?;
 
     // To-do: Need to add previous RAV, when tap_manager supports replacing receipts

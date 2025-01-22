@@ -10,7 +10,7 @@ use super::{
     WithValueAndTimestamp,
 };
 use crate::{
-    rav::RAVRequest,
+    rav::{GenerateRav, RAVRequest},
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Failed, Reserved},
@@ -184,7 +184,7 @@ impl<E, T, R> Manager<E, T, R>
 where
     E: ReceiptRead<T> + RAVRead<R> + EscrowHandler,
     T: SolStruct + WithValueAndTimestamp + Sync,
-    R: SolStruct + WithValueAndTimestamp + Clone,
+    R: SolStruct + WithValueAndTimestamp + Clone + GenerateRav<T>,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
@@ -206,10 +206,6 @@ where
         ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
-        generate_rav: impl FnOnce(
-            &[ReceiptWithState<Reserved, T>],
-            Option<EIP712SignedMessage<R>>,
-        ) -> Result<R, Error>,
     ) -> Result<RAVRequest<T, R>, Error> {
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
@@ -221,7 +217,7 @@ where
             .collect_receipts(ctx, timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        let expected_rav = generate_rav(&valid_receipts, previous_rav.clone());
+        let expected_rav = R::generate_rav(&valid_receipts, previous_rav.clone());
 
         Ok(RAVRequest {
             valid_receipts,

@@ -41,7 +41,7 @@ mod request;
 
 use std::cmp;
 
-use alloy::{primitives::Address, sol};
+use alloy::{primitives::Address, sol, sol_types::SolStruct};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -54,6 +54,16 @@ use crate::{
 /// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
 pub use request::RAVRequest;
+
+pub trait GenerateRav<T>: SolStruct
+where
+    T: SolStruct,
+{
+    fn generate_rav(
+        receipts: &[ReceiptWithState<Reserved, T>],
+        previous_rav: Option<EIP712SignedMessage<Self>>,
+    ) -> Result<Self, Error>;
+}
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
@@ -122,17 +132,23 @@ impl ReceiptAggregateVoucher {
     }
 }
 
-pub fn generate_expected_rav(
-    receipts: &[ReceiptWithState<Reserved, Receipt>],
-    previous_rav: Option<SignedRAV>,
-) -> Result<ReceiptAggregateVoucher, Error> {
-    if receipts.is_empty() {
-        return Err(Error::NoValidReceiptsForRAVRequest);
+impl GenerateRav<Receipt> for ReceiptAggregateVoucher {
+    fn generate_rav(
+        receipts: &[ReceiptWithState<Reserved, Receipt>],
+        previous_rav: Option<EIP712SignedMessage<Self>>,
+    ) -> Result<Self, Error> {
+        if receipts.is_empty() {
+            return Err(Error::NoValidReceiptsForRAVRequest);
+        }
+        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let receipts = receipts
+            .iter()
+            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
+            .collect::<Vec<_>>();
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            receipts.as_slice(),
+            previous_rav,
+        )
     }
-    let allocation_id = receipts[0].signed_receipt().message.allocation_id;
-    let receipts = receipts
-        .iter()
-        .map(|rx_receipt| rx_receipt.signed_receipt().clone())
-        .collect::<Vec<_>>();
-    ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts.as_slice(), previous_rav)
 }
