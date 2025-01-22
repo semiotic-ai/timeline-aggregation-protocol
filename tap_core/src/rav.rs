@@ -93,7 +93,7 @@ impl WithValueAndTimestamp for ReceiptAggregateVoucher {
         self.valueAggregate
     }
 
-    fn timestamp(&self) -> u64 {
+    fn timestamp_ns(&self) -> u64 {
         self.timestampNs
     }
 }

@@ -202,7 +202,7 @@ where
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
-            .map(|rav| rav.message.timestamp() + 1)
+            .map(|rav| rav.message.timestamp_ns() + 1)
             .unwrap_or(0);
 
         let (valid_receipts, invalid_receipts) = self
@@ -239,7 +239,7 @@ where
         match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.context
-                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp())
+                    .remove_receipts_in_timestamp_range(..=last_rav.message.timestamp_ns())
                     .await
                     .map_err(|err| Error::AdapterError {
                         source_error: anyhow::Error::new(err),

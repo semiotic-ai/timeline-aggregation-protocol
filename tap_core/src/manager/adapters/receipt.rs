@@ -113,12 +113,12 @@ pub fn safe_truncate_receipts<T: ReceiptState, R: WithValueAndTimestamp>(
         return;
     }
 
-    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().timestamp());
+    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().timestamp_ns());
 
     // This one will be the last timestamp in `receipts` after naive truncation
-    let last_timestamp = receipts[limit as usize - 1].signed_receipt().timestamp();
+    let last_timestamp = receipts[limit as usize - 1].signed_receipt().timestamp_ns();
     // This one is the timestamp that comes just after the one above
-    let after_last_timestamp = receipts[limit as usize].signed_receipt().timestamp();
+    let after_last_timestamp = receipts[limit as usize].signed_receipt().timestamp_ns();
 
     receipts.truncate(limit as usize);
 
@@ -126,6 +126,6 @@ pub fn safe_truncate_receipts<T: ReceiptState, R: WithValueAndTimestamp>(
         // If the last timestamp is the same as the one that came after it, we need to
         // remove all the receipts with the same timestamp as the last one, because
         // otherwise we would leave behind part of the receipts for that timestamp.
-        receipts.retain(|rx_receipt| rx_receipt.signed_receipt().timestamp() != last_timestamp);
+        receipts.retain(|rx_receipt| rx_receipt.signed_receipt().timestamp_ns() != last_timestamp);
     }
 }

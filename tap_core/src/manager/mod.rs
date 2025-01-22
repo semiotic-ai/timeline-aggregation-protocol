@@ -92,7 +92,7 @@ pub use tap_manager::Manager;
 
 pub trait WithValueAndTimestamp {
     fn value(&self) -> u128;
-    fn timestamp(&self) -> u64;
+    fn timestamp_ns(&self) -> u64;
 }
 
 pub trait WithUniqueId {

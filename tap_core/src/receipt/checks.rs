@@ -160,7 +160,7 @@ where
     ) {
         let (mut checking, mut failed) = (vec![], vec![]);
         for receipt in receipts.into_iter() {
-            let receipt_timestamp_ns = receipt.signed_receipt().timestamp();
+            let receipt_timestamp_ns = receipt.signed_receipt().timestamp_ns();
             let min_timestamp_ns = self.0;
             if receipt_timestamp_ns >= min_timestamp_ns {
                 checking.push(receipt);

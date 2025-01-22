@@ -35,7 +35,7 @@ impl WithValueAndTimestamp for Receipt {
         self.value
     }
 
-    fn timestamp(&self) -> u64 {
+    fn timestamp_ns(&self) -> u64 {
         self.timestamp_ns
     }
 }

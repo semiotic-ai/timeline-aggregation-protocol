@@ -55,8 +55,8 @@ where
         self.message.value()
     }
 
-    fn timestamp(&self) -> u64 {
-        self.message.timestamp()
+    fn timestamp_ns(&self) -> u64 {
+        self.message.timestamp_ns()
     }
 }
 
