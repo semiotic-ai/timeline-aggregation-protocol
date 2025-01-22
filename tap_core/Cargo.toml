@@ -13,7 +13,7 @@ serde.workspace = true
 tokio.workspace = true
 anyhow.workspace = true
 rand.workspace = true
-thiserror = "1.0.38"
+thiserror = "2.0.11"
 async-trait = "0.1.72"
 anymap3 = "1.0.0"
 
