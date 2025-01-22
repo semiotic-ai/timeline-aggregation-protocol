@@ -19,7 +19,7 @@ jsonrpsee.workspace = true
 
 
 [dev-dependencies]
-rstest = "0.22.0"
+rstest.workspace = true
 alloy = { workspace = true, features = ["signer-mnemonic"] }
 
 [[test]]
