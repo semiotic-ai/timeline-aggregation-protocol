@@ -18,13 +18,13 @@ use async_trait::async_trait;
 use crate::{
     manager::adapters::*,
     rav::{ReceiptAggregateVoucher, SignedRAV},
-    receipt::{checks::StatefulTimestampCheck, state::Checking, Receipt, ReceiptWithState},
+    receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState, SignedReceipt},
     signed_message::MessageId,
 };
 
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
-pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceiptWithState<Checking, Receipt>>>>;
+pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceiptWithState<Checking, SignedReceipt>>>>;
 pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
 
 use thiserror::Error;
@@ -71,7 +71,7 @@ impl InMemoryContext {
     pub async fn retrieve_receipt_by_id(
         &self,
         receipt_id: u64,
-    ) -> Result<ReceiptWithState<Checking, Receipt>, InMemoryError> {
+    ) -> Result<ReceiptWithState<Checking, SignedReceipt>, InMemoryError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
 
         receipt_storage
@@ -85,7 +85,7 @@ impl InMemoryContext {
     pub async fn retrieve_receipts_by_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<(u64, ReceiptWithState<Checking, Receipt>)>, InMemoryError> {
+    ) -> Result<Vec<(u64, ReceiptWithState<Checking, SignedReceipt>)>, InMemoryError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
         Ok(receipt_storage
             .iter()
@@ -99,7 +99,7 @@ impl InMemoryContext {
     pub async fn retrieve_receipts_upto_timestamp(
         &self,
         timestamp_ns: u64,
-    ) -> Result<Vec<ReceiptWithState<Checking, Receipt>>, InMemoryError> {
+    ) -> Result<Vec<ReceiptWithState<Checking, SignedReceipt>>, InMemoryError> {
         self.retrieve_receipts_in_timestamp_range(..=timestamp_ns, None)
             .await
     }
@@ -147,12 +147,12 @@ impl RAVRead<ReceiptAggregateVoucher> for InMemoryContext {
 }
 
 #[async_trait]
-impl ReceiptStore<Receipt> for InMemoryContext {
+impl ReceiptStore<SignedReceipt> for InMemoryContext {
     type AdapterError = InMemoryError;
 
     async fn store_receipt(
         &self,
-        receipt: ReceiptWithState<Checking, Receipt>,
+        receipt: ReceiptWithState<Checking, SignedReceipt>,
     ) -> Result<u64, Self::AdapterError> {
         let mut id_pointer = self.unique_id.write().unwrap();
         let id_previous = *id_pointer;
@@ -179,15 +179,15 @@ impl ReceiptDelete for InMemoryContext {
     }
 }
 #[async_trait]
-impl ReceiptRead<Receipt> for InMemoryContext {
+impl ReceiptRead<SignedReceipt> for InMemoryContext {
     type AdapterError = InMemoryError;
     async fn retrieve_receipts_in_timestamp_range<R: RangeBounds<u64> + std::marker::Send>(
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<ReceiptWithState<Checking, Receipt>>, Self::AdapterError> {
+    ) -> Result<Vec<ReceiptWithState<Checking, SignedReceipt>>, Self::AdapterError> {
         let receipt_storage = self.receipt_storage.read().unwrap();
-        let mut receipts_in_range: Vec<ReceiptWithState<Checking, Receipt>> = receipt_storage
+        let mut receipts_in_range: Vec<ReceiptWithState<Checking, SignedReceipt>> = receipt_storage
             .iter()
             .filter(|(_, rx_receipt)| {
                 timestamp_range_ns.contains(&rx_receipt.signed_receipt().message.timestamp_ns)
@@ -243,16 +243,6 @@ impl InMemoryContext {
 #[async_trait]
 impl EscrowHandler for InMemoryContext {
     type AdapterError = InMemoryError;
-    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
-        self.escrow(sender_id)
-    }
-    async fn subtract_escrow(
-        &self,
-        sender_id: Address,
-        value: u128,
-    ) -> Result<(), Self::AdapterError> {
-        self.reduce_escrow(sender_id, value)
-    }
 
     async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
         Ok(self
@@ -274,7 +264,7 @@ pub mod checks {
         receipt::{
             checks::{Check, CheckError, CheckResult, ReceiptCheck},
             state::Checking,
-            Context, Receipt, ReceiptError, ReceiptWithState,
+            Context, ReceiptError, ReceiptWithState, SignedReceipt,
         },
         signed_message::MessageId,
     };
@@ -284,7 +274,7 @@ pub mod checks {
         valid_signers: HashSet<Address>,
         allocation_ids: Arc<RwLock<HashSet<Address>>>,
         _query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
-    ) -> Vec<ReceiptCheck<Receipt>> {
+    ) -> Vec<ReceiptCheck<SignedReceipt>> {
         vec![
             // Arc::new(UniqueCheck ),
             // Arc::new(ValueCheck { query_appraisals }),
@@ -301,11 +291,11 @@ pub mod checks {
     }
 
     #[async_trait::async_trait]
-    impl Check<Receipt> for AllocationIdCheck {
+    impl Check<SignedReceipt> for AllocationIdCheck {
         async fn check(
             &self,
             _: &Context,
-            receipt: &ReceiptWithState<Checking, Receipt>,
+            receipt: &ReceiptWithState<Checking, SignedReceipt>,
         ) -> CheckResult {
             let received_allocation_id = receipt.signed_receipt().message.allocation_id;
             if self
@@ -332,11 +322,11 @@ pub mod checks {
     }
 
     #[async_trait::async_trait]
-    impl Check<Receipt> for SignatureCheck {
+    impl Check<SignedReceipt> for SignatureCheck {
         async fn check(
             &self,
             _: &Context,
-            receipt: &ReceiptWithState<Checking, Receipt>,
+            receipt: &ReceiptWithState<Checking, SignedReceipt>,
         ) -> CheckResult {
             let recovered_address = receipt
                 .signed_receipt()

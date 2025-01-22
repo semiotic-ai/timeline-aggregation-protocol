@@ -55,7 +55,7 @@
 //! #[async_trait]
 //! impl<T> ReceiptStore<T> for MyContext
 //! where
-//!     T: SolStruct + Send + 'static
+//!     T: Send + 'static
 //! {
 //!     type AdapterError = ReceiptError;
 //!
@@ -93,4 +93,9 @@ pub use tap_manager::Manager;
 pub trait WithValueAndTimestamp {
     fn value(&self) -> u128;
     fn timestamp(&self) -> u64;
+}
+
+pub trait WithUniqueId {
+    type Output: Eq + std::hash::Hash;
+    fn unique_id(&self) -> Self::Output;
 }

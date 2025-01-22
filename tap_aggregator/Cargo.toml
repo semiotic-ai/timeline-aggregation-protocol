@@ -12,7 +12,7 @@ name = "tap_aggregator"
 path = "src/main.rs"
 
 [dependencies]
-tap_core = { path = "../tap_core", version = "2.0.0" }
+tap_core = { path = "../tap_core", version = "2.0.0", features = ["test"] }
 serde.workspace = true
 alloy.workspace = true
 anyhow.workspace = true

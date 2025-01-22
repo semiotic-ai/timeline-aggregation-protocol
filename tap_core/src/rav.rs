@@ -41,12 +41,12 @@ mod request;
 
 use std::cmp;
 
-use alloy::{primitives::Address, sol, sol_types::SolStruct};
+use alloy::{sol, sol_types::SolStruct};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     manager::WithValueAndTimestamp,
-    receipt::{state::Reserved, Receipt, ReceiptWithState},
+    receipt::{state::Checked, ReceiptWithState, SignedReceipt},
     signed_message::EIP712SignedMessage,
     Error,
 };
@@ -55,12 +55,18 @@ use crate::{
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
 pub use request::RAVRequest;
 
-pub trait GenerateRav<T>: SolStruct
-where
-    T: SolStruct,
-{
-    fn generate_rav(
-        receipts: &[ReceiptWithState<Reserved, T>],
+pub trait Aggregate<T>: SolStruct {
+    /// Aggregates a batch of validated receipts with optional validated previous RAV,
+    /// returning a new RAV if all provided items are valid or an error if not.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate
+    /// value to overflow
+    ///
+    /// Returns [`Error::NoValidReceiptsForRAVRequest`] if receipt list is empty
+    fn aggregate_receipts(
+        receipts: &[ReceiptWithState<Checked, T>],
         previous_rav: Option<EIP712SignedMessage<Self>>,
     ) -> Result<Self, Error>;
 }
@@ -92,19 +98,20 @@ impl WithValueAndTimestamp for ReceiptAggregateVoucher {
     }
 }
 
-impl ReceiptAggregateVoucher {
-    /// Aggregates a batch of validated receipts with optional validated previous RAV,
-    /// returning a new RAV if all provided items are valid or an error if not.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate
-    /// value to overflow
-    pub fn aggregate_receipts(
-        allocation_id: Address,
-        receipts: &[EIP712SignedMessage<Receipt>],
+impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
+    fn aggregate_receipts(
+        receipts: &[ReceiptWithState<Checked, SignedReceipt>],
         previous_rav: Option<EIP712SignedMessage<Self>>,
-    ) -> crate::Result<Self> {
+    ) -> Result<Self, Error> {
+        if receipts.is_empty() {
+            return Err(Error::NoValidReceiptsForRAVRequest);
+        }
+        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let receipts = receipts
+            .iter()
+            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
+            .collect::<Vec<_>>();
+
         //TODO(#29): When receipts in flight struct in created check that the state
         // of every receipt is OK with all checks complete (relies on #28)
         // If there is a previous RAV get initialize values from it, otherwise get default values
@@ -129,26 +136,5 @@ impl ReceiptAggregateVoucher {
             timestampNs: timestamp_max,
             valueAggregate: value_aggregate,
         })
-    }
-}
-
-impl GenerateRav<Receipt> for ReceiptAggregateVoucher {
-    fn generate_rav(
-        receipts: &[ReceiptWithState<Reserved, Receipt>],
-        previous_rav: Option<EIP712SignedMessage<Self>>,
-    ) -> Result<Self, Error> {
-        if receipts.is_empty() {
-            return Err(Error::NoValidReceiptsForRAVRequest);
-        }
-        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
-        let receipts = receipts
-            .iter()
-            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
-            .collect::<Vec<_>>();
-        ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_id,
-            receipts.as_slice(),
-            previous_rav,
-        )
     }
 }

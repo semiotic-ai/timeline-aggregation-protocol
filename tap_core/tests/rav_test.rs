@@ -19,7 +19,7 @@ use tap_core::{
         adapters::{RAVRead, RAVStore},
         context::memory::InMemoryContext,
     },
-    rav::ReceiptAggregateVoucher,
+    rav::{Aggregate, ReceiptAggregateVoucher},
     receipt::{checks::StatefulTimestampCheck, Receipt},
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -65,18 +65,22 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
                 },
                 &wallet,
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
         );
     }
 
     let signed_rav = EIP712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(&receipts, None).unwrap(),
         &wallet,
     )
     .unwrap();
 
-    insta::assert_json_snapshot!(receipts);
+    insta::assert_json_snapshot!(receipts
+        .into_iter()
+        .map(|e| e.signed_receipt().clone())
+        .collect::<Vec<_>>());
     insta::assert_json_snapshot!(signed_rav);
 
     let raw_sig = r#"{
@@ -106,13 +110,14 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
                 Receipt::new(allocation_id, value).unwrap(),
                 &wallet,
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
         );
     }
 
     let signed_rav = EIP712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(&receipts, None).unwrap(),
         &wallet,
     )
     .unwrap();
@@ -134,13 +139,14 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
                 Receipt::new(allocation_id, value).unwrap(),
                 &wallet,
             )
-            .unwrap(),
+            .unwrap()
+            .into(),
         );
     }
 
     let signed_rav = EIP712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(&receipts, None).unwrap(),
         &wallet,
     )
     .unwrap();

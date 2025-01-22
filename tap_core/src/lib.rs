@@ -64,7 +64,9 @@ mod tap_tests {
     use rstest::*;
 
     use crate::{
-        rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
+        rav::{Aggregate, ReceiptAggregateVoucher},
+        receipt::Receipt,
+        signed_message::EIP712SignedMessage,
         tap_eip712_domain,
     };
 
@@ -102,6 +104,7 @@ mod tap_tests {
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
+
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
@@ -110,14 +113,14 @@ mod tap_tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .unwrap(),
+                .unwrap()
+                .into(),
             );
         }
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
 
-        let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-            .unwrap();
+        let rav = ReceiptAggregateVoucher::aggregate_receipts(&receipts, None).unwrap();
         let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
@@ -141,23 +144,20 @@ mod tap_tests {
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
                 )
-                .unwrap(),
+                .unwrap()
+                .into(),
             );
         }
 
         // Create previous RAV from first half of receipts
-        let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
-            &receipts[0..receipts.len() / 2],
-            None,
-        )
-        .unwrap();
+        let prev_rav =
+            ReceiptAggregateVoucher::aggregate_receipts(&receipts[0..receipts.len() / 2], None)
+                .unwrap();
         let signed_prev_rav =
             EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0).unwrap();
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
             &receipts[receipts.len() / 2..receipts.len()],
             Some(signed_prev_rav),
         )

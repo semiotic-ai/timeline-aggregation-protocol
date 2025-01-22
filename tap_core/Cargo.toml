@@ -22,10 +22,12 @@ criterion = { version = "0.5", features = ["async_std"] }
 rstest.workspace = true
 insta.workspace = true
 serde_json.workspace = true
+tap_core = { path = ".", features = ["test"] }
 
 
 [features]
 default = ["in_memory"]
+test = []
 in_memory = []
 
 [[bench]]

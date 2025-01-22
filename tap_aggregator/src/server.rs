@@ -159,7 +159,7 @@ fn aggregate_receipts_(
     let res = match api_version {
         TapRpcApiVersion::V0_0 => check_and_aggregate_receipts(
             domain_separator,
-            &receipts,
+            receipts,
             previous_rav,
             wallet,
             accepted_addresses,
@@ -202,7 +202,7 @@ impl TapAggregator for RpcImpl {
 
         match check_and_aggregate_receipts(
             &self.domain_separator,
-            receipts.as_slice(),
+            receipts,
             previous_rav,
             &self.wallet,
             &self.accepted_addresses,
@@ -494,6 +494,8 @@ mod tests {
         #[values(0, 1, 2)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
+
+        use tap_core::rav::Aggregate;
         let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
         let keys_0 = keys();
@@ -546,9 +548,11 @@ mod tests {
 
         let remote_rav = res.data;
 
-        let local_rav =
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-                .unwrap();
+        let local_rav = ReceiptAggregateVoucher::aggregate_receipts(
+            &receipts.into_iter().map(Into::into).collect::<Vec<_>>(),
+            None,
+        )
+        .unwrap();
 
         assert!(remote_rav.message.allocationId == local_rav.allocationId);
         assert!(remote_rav.message.timestampNs == local_rav.timestampNs);
@@ -574,6 +578,8 @@ mod tests {
         #[values(0, 1, 2, 3, 4)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
+
+        use tap_core::rav::Aggregate;
         let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
         let keys_0 = keys();
@@ -614,10 +620,10 @@ mod tests {
             );
         }
 
+        let checked_receipt = receipts.iter().cloned().map(Into::into).collect::<Vec<_>>();
         // Create previous RAV from first half of receipts locally
         let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
-            &receipts[0..receipts.len() / 2],
+            &checked_receipt[0..checked_receipt.len() / 2],
             None,
         )
         .unwrap();

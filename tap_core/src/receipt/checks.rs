@@ -12,7 +12,7 @@
 //! # use std::sync::Arc;
 //! use tap_core::{
 //!     receipt::checks::{Check, CheckResult, ReceiptCheck},
-//!     receipt::{Context, ReceiptWithState, state::Checking, Receipt}
+//!     receipt::{Context, ReceiptWithState, state::Checking, SignedReceipt}
 //! };
 //! use alloy::sol_types::SolStruct;
 //! # use async_trait::async_trait;
@@ -21,8 +21,6 @@
 //!
 //! #[async_trait]
 //! impl<T> Check<T> for MyCheck
-//! where
-//!     T: SolStruct
 //! {
 //!    async fn check(&self, ctx: &Context, receipt: &ReceiptWithState<Checking, T>) -> CheckResult {
 //!       // Implement your check here
@@ -30,25 +28,21 @@
 //!   }
 //! }
 //!
-//! let my_check: ReceiptCheck<Receipt> = Arc::new(MyCheck);
+//! let my_check: ReceiptCheck<SignedReceipt> = Arc::new(MyCheck);
 //! ```
 
 use std::{
     collections::HashSet,
+    hash::Hash,
     ops::Deref,
     sync::{Arc, RwLock},
 };
 
-use alloy::sol_types::SolStruct;
-
 use super::{
     state::{Checking, Failed},
-    Context, Receipt, ReceiptError, ReceiptWithState,
+    Context, ReceiptError, ReceiptWithState, SignedReceipt,
 };
-use crate::{
-    manager::WithValueAndTimestamp,
-    signed_message::{SignatureBytes, SignatureBytesExt},
-};
+use crate::manager::{WithUniqueId, WithValueAndTimestamp};
 
 /// ReceiptCheck is a type alias for an Arc of a struct that implements the `Check` trait.
 pub type ReceiptCheck<R> = Arc<dyn Check<R> + Sync + Send>;
@@ -88,10 +82,7 @@ impl<R> Deref for CheckList<R> {
 
 /// Check trait is implemented by the lib user to validate receipts before they are stored.
 #[async_trait::async_trait]
-pub trait Check<T>
-where
-    T: SolStruct,
-{
+pub trait Check<T> {
     async fn check(&self, ctx: &Context, receipt: &ReceiptWithState<Checking, T>) -> CheckResult;
 }
 
@@ -102,10 +93,7 @@ type CheckBatchResponse<R> = (
 
 /// CheckBatch is mostly used by the lib to implement checks
 /// that transition from one state to another.
-pub trait CheckBatch<R>
-where
-    R: SolStruct,
-{
+pub trait CheckBatch<R> {
     fn check_batch(&self, receipts: Vec<ReceiptWithState<Checking, R>>) -> CheckBatchResponse<R>;
 }
 
@@ -132,11 +120,11 @@ impl StatefulTimestampCheck {
 }
 
 #[async_trait::async_trait]
-impl Check<Receipt> for StatefulTimestampCheck {
+impl Check<SignedReceipt> for StatefulTimestampCheck {
     async fn check(
         &self,
         _: &Context,
-        receipt: &ReceiptWithState<Checking, Receipt>,
+        receipt: &ReceiptWithState<Checking, SignedReceipt>,
     ) -> CheckResult {
         let min_timestamp_ns = *self.min_timestamp_ns.read().unwrap();
         let signed_receipt = receipt.signed_receipt();
@@ -161,7 +149,7 @@ pub struct TimestampCheck(pub u64);
 
 impl<T> CheckBatch<T> for TimestampCheck
 where
-    T: SolStruct + WithValueAndTimestamp,
+    T: WithValueAndTimestamp,
 {
     fn check_batch(
         &self,
@@ -172,7 +160,7 @@ where
     ) {
         let (mut checking, mut failed) = (vec![], vec![]);
         for receipt in receipts.into_iter() {
-            let receipt_timestamp_ns = receipt.signed_receipt().message.timestamp();
+            let receipt_timestamp_ns = receipt.signed_receipt().timestamp();
             let min_timestamp_ns = self.0;
             if receipt_timestamp_ns >= min_timestamp_ns {
                 checking.push(receipt);
@@ -193,9 +181,10 @@ where
 /// Used by the [`crate::manager::Manager`].
 pub struct UniqueCheck;
 
-impl<T> CheckBatch<T> for UniqueCheck
+impl<T, U> CheckBatch<T> for UniqueCheck
 where
-    T: SolStruct,
+    T: WithUniqueId<Output = U>,
+    U: Eq + Hash,
 {
     fn check_batch(
         &self,
@@ -204,14 +193,11 @@ where
         Vec<ReceiptWithState<Checking, T>>,
         Vec<ReceiptWithState<Failed, T>>,
     ) {
-        let mut signatures: HashSet<SignatureBytes> = HashSet::new();
+        let mut signatures: HashSet<U> = HashSet::new();
         let (mut checking, mut failed) = (vec![], vec![]);
 
         for received_receipt in receipts.into_iter() {
-            let signature = received_receipt
-                .signed_receipt
-                .signature
-                .get_signature_bytes();
+            let signature = received_receipt.signed_receipt.unique_id();
             if signatures.insert(signature) {
                 checking.push(received_receipt);
             } else {
@@ -237,7 +223,9 @@ mod tests {
     use super::*;
     use crate::{receipt::Receipt, signed_message::EIP712SignedMessage};
 
-    fn create_signed_receipt_with_custom_value(value: u128) -> ReceiptWithState<Checking, Receipt> {
+    fn create_signed_receipt_with_custom_value(
+        value: u128,
+    ) -> ReceiptWithState<Checking, SignedReceipt> {
         let wallet: PrivateKeySigner = PrivateKeySigner::random();
         let eip712_domain_separator: Eip712Domain = eip712_domain! {
             name: "TAP",
@@ -267,7 +255,7 @@ mod tests {
             &wallet,
         )
         .unwrap();
-        ReceiptWithState::<Checking, Receipt>::new(receipt)
+        ReceiptWithState::<Checking, SignedReceipt>::new(receipt)
     }
 
     #[tokio::test]

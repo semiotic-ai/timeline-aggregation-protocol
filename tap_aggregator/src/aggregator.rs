@@ -10,19 +10,19 @@ use alloy::{
 use anyhow::{bail, Ok, Result};
 use rayon::prelude::*;
 use tap_core::{
-    rav::ReceiptAggregateVoucher,
+    rav::{Aggregate, ReceiptAggregateVoucher},
     receipt::Receipt,
     signed_message::{EIP712SignedMessage, SignatureBytes, SignatureBytesExt},
 };
 
 pub fn check_and_aggregate_receipts(
     domain_separator: &Eip712Domain,
-    receipts: &[EIP712SignedMessage<Receipt>],
+    receipts: Vec<EIP712SignedMessage<Receipt>>,
     previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
-    check_signatures_unique(receipts)?;
+    check_signatures_unique(&receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
     receipts.par_iter().try_for_each(|receipt| {
@@ -39,7 +39,7 @@ pub fn check_and_aggregate_receipts(
     }
 
     // Check that the receipts timestamp is greater than the previous rav
-    check_receipt_timestamps(receipts, previous_rav.as_ref())?;
+    check_receipt_timestamps(&receipts, previous_rav.as_ref())?;
 
     // Get the allocation id from the first receipt, return error if there are no receipts
     let allocation_id = match receipts.first() {
@@ -48,7 +48,7 @@ pub fn check_and_aggregate_receipts(
     };
 
     // Check that the receipts all have the same allocation id
-    check_allocation_id(receipts, allocation_id)?;
+    check_allocation_id(&receipts, allocation_id)?;
 
     // Check that the rav has the correct allocation id
     if let Some(previous_rav) = &previous_rav {
@@ -62,8 +62,10 @@ pub fn check_and_aggregate_receipts(
         }
     }
 
+    let receipts = receipts.into_iter().map(Into::into).collect::<Vec<_>>();
+
     // Aggregate the receipts
-    let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
+    let rav = ReceiptAggregateVoucher::aggregate_receipts(&receipts, previous_rav)?;
 
     // Sign the rav and return
     Ok(EIP712SignedMessage::new(domain_separator, rav, wallet)?)

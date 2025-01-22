@@ -7,13 +7,13 @@ use alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
 
 use super::{
     adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore},
-    WithValueAndTimestamp,
+    WithUniqueId, WithValueAndTimestamp,
 };
 use crate::{
-    rav::{GenerateRav, RAVRequest},
+    rav::{Aggregate, RAVRequest},
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
-        state::{Failed, Reserved},
+        state::{Checked, Failed},
         Context, ReceiptError, ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
@@ -108,10 +108,11 @@ where
     }
 }
 
-impl<E, T, R> Manager<E, T, R>
+impl<E, T, R, U> Manager<E, T, R>
 where
     E: ReceiptRead<T> + EscrowHandler,
-    T: SolStruct + WithValueAndTimestamp + Sync,
+    T: WithValueAndTimestamp + Sync + WithUniqueId<Output = U>,
+    U: Eq + std::hash::Hash,
 {
     async fn collect_receipts(
         &self,
@@ -121,7 +122,7 @@ where
         limit: Option<u64>,
     ) -> Result<
         (
-            Vec<ReceiptWithState<Reserved, T>>,
+            Vec<ReceiptWithState<Checked, T>>,
             Vec<ReceiptWithState<Failed, T>>,
         ),
         Error,
@@ -142,9 +143,8 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let mut awaiting_reserve_receipts = vec![];
+        let mut checked_receipts = vec![];
         let mut failed_receipts = vec![];
-        let mut reserved_receipts = vec![];
 
         // check for timestamp
         let (checking_receipts, already_failed) =
@@ -162,29 +162,21 @@ where
                 .map_err(|e| Error::ReceiptError(ReceiptError::RetryableCheck(e)))?;
 
             match receipt {
-                Ok(checked) => awaiting_reserve_receipts.push(checked),
-                Err(failed) => failed_receipts.push(failed),
-            }
-        }
-        for checked in awaiting_reserve_receipts {
-            match checked
-                .check_and_reserve_escrow(&self.context, &self.domain_separator)
-                .await
-            {
-                Ok(reserved) => reserved_receipts.push(reserved),
+                Ok(checked) => checked_receipts.push(checked),
                 Err(failed) => failed_receipts.push(failed),
             }
         }
 
-        Ok((reserved_receipts, failed_receipts))
+        Ok((checked_receipts, failed_receipts))
     }
 }
 
-impl<E, T, R> Manager<E, T, R>
+impl<E, T, R, U> Manager<E, T, R>
 where
     E: ReceiptRead<T> + RAVRead<R> + EscrowHandler,
-    T: SolStruct + WithValueAndTimestamp + Sync,
-    R: SolStruct + WithValueAndTimestamp + Clone + GenerateRav<T>,
+    T: WithValueAndTimestamp + Sync + WithUniqueId<Output = U>,
+    R: SolStruct + WithValueAndTimestamp + Clone + Aggregate<T>,
+    U: Eq + std::hash::Hash,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
@@ -217,7 +209,7 @@ where
             .collect_receipts(ctx, timestamp_buffer_ns, min_timestamp_ns, receipts_limit)
             .await?;
 
-        let expected_rav = R::generate_rav(&valid_receipts, previous_rav.clone());
+        let expected_rav = R::aggregate_receipts(&valid_receipts, previous_rav.clone());
 
         Ok(RAVRequest {
             valid_receipts,
@@ -262,7 +254,6 @@ where
 impl<E, T, R> Manager<E, T, R>
 where
     E: ReceiptStore<T>,
-    T: SolStruct,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification,
     /// then stores received receipt.
@@ -275,7 +266,7 @@ where
     pub async fn verify_and_store_receipt(
         &self,
         ctx: &Context,
-        signed_receipt: EIP712SignedMessage<T>,
+        signed_receipt: T,
     ) -> std::result::Result<(), Error> {
         let mut received_receipt = ReceiptWithState::new(signed_receipt);
 

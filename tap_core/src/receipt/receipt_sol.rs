@@ -27,6 +27,7 @@ sol! {
         /// GRT value for transaction (truncate to lower bits)
         uint128 value;
     }
+
 }
 
 impl WithValueAndTimestamp for Receipt {

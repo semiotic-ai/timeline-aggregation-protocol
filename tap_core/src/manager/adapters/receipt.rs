@@ -3,7 +3,6 @@
 
 use std::ops::RangeBounds;
 
-use alloy::sol_types::SolStruct;
 use async_trait::async_trait;
 
 use crate::{
@@ -20,10 +19,7 @@ use crate::{
 ///
 /// For example code see [crate::manager::context::memory::ReceiptStorage]
 #[async_trait]
-pub trait ReceiptStore<T>
-where
-    T: SolStruct,
-{
+pub trait ReceiptStore<T> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from the standard library.
@@ -69,10 +65,7 @@ pub trait ReceiptDelete {
 ///
 /// For example code see [crate::manager::context::memory::ReceiptStorage]
 #[async_trait]
-pub trait ReceiptRead<T>
-where
-    T: SolStruct,
-{
+pub trait ReceiptRead<T> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from
@@ -109,7 +102,7 @@ where
 ///
 /// WARNING: Will sort the receipts by timestamp using
 /// [vec::sort_unstable](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort_unstable).
-pub fn safe_truncate_receipts<T: ReceiptState, R: SolStruct + WithValueAndTimestamp>(
+pub fn safe_truncate_receipts<T: ReceiptState, R: WithValueAndTimestamp>(
     receipts: &mut Vec<ReceiptWithState<T, R>>,
     limit: u64,
 ) {
@@ -120,18 +113,12 @@ pub fn safe_truncate_receipts<T: ReceiptState, R: SolStruct + WithValueAndTimest
         return;
     }
 
-    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().message.timestamp());
+    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().timestamp());
 
     // This one will be the last timestamp in `receipts` after naive truncation
-    let last_timestamp = receipts[limit as usize - 1]
-        .signed_receipt()
-        .message
-        .timestamp();
+    let last_timestamp = receipts[limit as usize - 1].signed_receipt().timestamp();
     // This one is the timestamp that comes just after the one above
-    let after_last_timestamp = receipts[limit as usize]
-        .signed_receipt()
-        .message
-        .timestamp();
+    let after_last_timestamp = receipts[limit as usize].signed_receipt().timestamp();
 
     receipts.truncate(limit as usize);
 
@@ -139,7 +126,6 @@ pub fn safe_truncate_receipts<T: ReceiptState, R: SolStruct + WithValueAndTimest
         // If the last timestamp is the same as the one that came after it, we need to
         // remove all the receipts with the same timestamp as the last one, because
         // otherwise we would leave behind part of the receipts for that timestamp.
-        receipts
-            .retain(|rx_receipt| rx_receipt.signed_receipt().message.timestamp() != last_timestamp);
+        receipts.retain(|rx_receipt| rx_receipt.signed_receipt().timestamp() != last_timestamp);
     }
 }

@@ -21,18 +21,12 @@ pub struct Failed {
     pub error: ReceiptError,
 }
 
-/// AwaitingReserve state represents a receipt that has passed all checks
-/// and is awaiting escrow reservation.
+/// Checked state represents a receipt that has successfully reserved escrow.
 #[derive(Debug, Clone)]
-pub struct AwaitingReserve;
-
-/// Reserved state represents a receipt that has successfully reserved escrow.
-#[derive(Debug, Clone)]
-pub struct Reserved;
+pub struct Checked;
 
 /// Trait for the different states a receipt can be in.
 pub trait ReceiptState {}
 impl ReceiptState for Checking {}
-impl ReceiptState for AwaitingReserve {}
-impl ReceiptState for Reserved {}
+impl ReceiptState for Checked {}
 impl ReceiptState for Failed {}

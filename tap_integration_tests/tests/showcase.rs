@@ -29,7 +29,7 @@ use tap_core::{
     rav::SignedRAV,
     receipt::{
         checks::{CheckList, StatefulTimestampCheck},
-        Receipt,
+        Receipt, SignedReceipt,
     },
     signed_message::{EIP712SignedMessage, MessageId},
     tap_eip712_domain,
@@ -161,7 +161,7 @@ fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
 
 struct ContextFixture {
     context: InMemoryContext,
-    checks: CheckList<Receipt>,
+    checks: CheckList<SignedReceipt>,
 }
 
 #[fixture]
@@ -800,7 +800,7 @@ async fn start_indexer_server(
     mut context: InMemoryContext,
     sender_id: Address,
     available_escrow: u128,
-    required_checks: CheckList<Receipt>,
+    required_checks: CheckList<SignedReceipt>,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,
 ) -> Result<(ServerHandle, SocketAddr)> {

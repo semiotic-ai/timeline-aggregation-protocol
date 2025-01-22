@@ -13,7 +13,9 @@ use std::str::FromStr;
 use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tap_core::{
-    rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
+    rav::{Aggregate, ReceiptAggregateVoucher},
+    receipt::Receipt,
+    signed_message::EIP712SignedMessage,
     tap_eip712_domain,
 };
 
@@ -66,7 +68,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     for log_number_of_receipts in 10..30 {
         let receipts = (0..2 ^ log_number_of_receipts)
-            .map(|_| create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet))
+            .map(|_| {
+                create_and_sign_receipt(&domain_seperator, allocation_id, value, &wallet).into()
+            })
             .collect::<Vec<_>>();
 
         rav_group.bench_function(
@@ -74,7 +78,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             |b| {
                 b.iter(|| {
                     ReceiptAggregateVoucher::aggregate_receipts(
-                        black_box(allocation_id),
                         black_box(&receipts),
                         black_box(None),
                     )
@@ -84,7 +87,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         let signed_rav = EIP712SignedMessage::new(
             &domain_seperator,
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+            ReceiptAggregateVoucher::aggregate_receipts(&receipts, None).unwrap(),
             &wallet,
         )
         .unwrap();

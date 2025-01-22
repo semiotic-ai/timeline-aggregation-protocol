@@ -10,12 +10,10 @@ use std::{
 use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use rstest::*;
 use tap_core::{
-    manager::context::memory::{
-        checks::get_full_list_of_checks, EscrowStorage, InMemoryContext, QueryAppraisals,
-    },
+    manager::context::memory::{checks::get_full_list_of_checks, EscrowStorage, QueryAppraisals},
     receipt::{
         checks::{ReceiptCheck, StatefulTimestampCheck},
-        Context, Receipt, ReceiptWithState,
+        Context, Receipt, ReceiptWithState, SignedReceipt,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -56,10 +54,9 @@ fn domain_separator() -> Eip712Domain {
 }
 
 struct ContextFixture {
-    context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Vec<ReceiptCheck<Receipt>>,
+    checks: Vec<ReceiptCheck<SignedReceipt>>,
     signer: PrivateKeySigner,
 }
 
@@ -71,18 +68,9 @@ fn context(
 ) -> ContextFixture {
     let (signer, sender_ids) = sender_ids;
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-    let rav_storage = Arc::new(RwLock::new(None));
-    let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
     let query_appraisals = Arc::new(RwLock::new(HashMap::new()));
 
     let timestamp_check = Arc::new(StatefulTimestampCheck::new(0));
-    let context = InMemoryContext::new(
-        rav_storage,
-        receipt_storage.clone(),
-        escrow_storage.clone(),
-        timestamp_check.clone(),
-    )
-    .with_sender_address(signer.address());
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
@@ -93,7 +81,6 @@ fn context(
 
     ContextFixture {
         signer,
-        context,
         escrow_storage,
         query_appraisals,
         checks,
@@ -153,7 +140,6 @@ async fn partial_then_finalize_valid_receipt(
 ) {
     let ContextFixture {
         checks,
-        context,
         escrow_storage,
         query_appraisals,
         signer,
@@ -182,17 +168,11 @@ async fn partial_then_finalize_valid_receipt(
 
     let received_receipt = ReceiptWithState::new(signed_receipt);
 
-    let awaiting_escrow_receipt = received_receipt
+    let checked_receipt = received_receipt
         .finalize_receipt_checks(&Context::new(), &checks)
         .await;
-    assert!(awaiting_escrow_receipt.is_ok());
-
-    let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
-    let receipt = awaiting_escrow_receipt
-        .unwrap()
-        .check_and_reserve_escrow(&context, &domain_separator)
-        .await;
-    assert!(receipt.is_ok());
+    assert!(checked_receipt.is_ok());
+    assert!(checked_receipt.unwrap().is_ok());
 }
 
 #[rstest]
@@ -204,7 +184,6 @@ async fn standard_lifetime_valid_receipt(
 ) {
     let ContextFixture {
         checks,
-        context,
         escrow_storage,
         query_appraisals,
         signer,
@@ -234,15 +213,9 @@ async fn standard_lifetime_valid_receipt(
 
     let received_receipt = ReceiptWithState::new(signed_receipt);
 
-    let awaiting_escrow_receipt = received_receipt
+    let checked_receipt = received_receipt
         .finalize_receipt_checks(&Context::new(), &checks)
         .await;
-    assert!(awaiting_escrow_receipt.is_ok());
-
-    let awaiting_escrow_receipt = awaiting_escrow_receipt.unwrap();
-    let receipt = awaiting_escrow_receipt
-        .unwrap()
-        .check_and_reserve_escrow(&context, &domain_separator)
-        .await;
-    assert!(receipt.is_ok());
+    assert!(checked_receipt.is_ok());
+    assert!(checked_receipt.unwrap().is_ok());
 }

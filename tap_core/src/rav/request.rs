@@ -5,7 +5,7 @@ use alloy::sol_types::SolStruct;
 
 use crate::{
     receipt::{
-        state::{Failed, Reserved},
+        state::{Checked, Failed},
         ReceiptWithState,
     },
     signed_message::EIP712SignedMessage,
@@ -16,11 +16,10 @@ use crate::{
 #[derive(Debug)]
 pub struct RAVRequest<T, Rav>
 where
-    T: SolStruct,
     Rav: SolStruct,
 {
     /// List of checked and reserved receipts to aggregate
-    pub valid_receipts: Vec<ReceiptWithState<Reserved, T>>,
+    pub valid_receipts: Vec<ReceiptWithState<Checked, T>>,
     /// Optional previous RAV to aggregate with
     pub previous_rav: Option<EIP712SignedMessage<Rav>>,
     /// List of failed receipt used to log invalid receipts
