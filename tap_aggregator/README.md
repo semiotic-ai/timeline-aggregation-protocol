@@ -2,6 +2,21 @@
 
 A stateless JSON-RPC service that lets clients request an aggregate receipt from a list of individual receipts.
 
+TAP Aggregator is run by [gateway](https://github.com/edgeandnode/gateway/blob/main/README.md)
+operators.
+
+As described in the [gateway README section on TAP](https://github.com/edgeandnode/gateway/blob/main/README.md#tap):
+
+> The `gateway` acts as a TAP sender, where each indexer request is sent with a TAP receipt. The `gateway` operator is expected to run 2 additional services:
+>
+> - `tap-aggregator` (this crate!): public endpoint where indexers can aggregate receipts into RAVs
+> - [tap-escrow-manager](https://github.com/edgeandnode/tap-escrow-manager): maintains escrow balances for the TAP sender. This service requires data exported by the gateway into the "indexer requests" topic to calculate the value of outstanding receipts to each indexer.
+>
+> The `gateway` operator is also expected to manage at least 2 wallets:
+>
+> - sender: requires ETH for transaction gas and GRT to allocate into TAP escrow balances for paying indexers
+> - authorized signer: used by the `gateway` and `tap-aggregator` to sign receipts and RAVs
+
 ## Settings
 
 ```txt
@@ -80,20 +95,20 @@ form:
 }
 ```
 
-| Field         | Type      | Description                                                                                              |
-| ------------- | --------- | -------------------------------------------------------------------------------------------------------- |
-| `data`        | `Object`  | The response data. Method specific, see each method's documentation.                                     |
-| `warnings`    | `Array`   | (Optional) A list of warnings. If the list is empty, no warning field is added to the JSON-RPC response. |
+| Field      | Type     | Description                                                                                              |
+| ---------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `data`     | `Object` | The response data. Method specific, see each method's documentation.                                     |
+| `warnings` | `Array`  | (Optional) A list of warnings. If the list is empty, no warning field is added to the JSON-RPC response. |
 
 WARNING: Always check for warnings!
 
 Warning object format (similar to the standard JSON-RPC error object):
 
-| Field         | Type      | Description                                                                                      |
-| ------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `code`        | `Integer` | A number that indicates the error type that occurred.                                            |
-| `message`     | `String`  | A short description of the error.                                                                |
-| `data`        | `Object`  | (Optional) A primitive or structured value that contains additional information about the error. |
+| Field     | Type      | Description                                                                                      |
+| --------- | --------- | ------------------------------------------------------------------------------------------------ |
+| `code`    | `Integer` | A number that indicates the error type that occurred.                                            |
+| `message` | `String`  | A short description of the error.                                                                |
+| `data`    | `Object`  | (Optional) A primitive or structured value that contains additional information about the error. |
 
 We define these warning codes:
 
