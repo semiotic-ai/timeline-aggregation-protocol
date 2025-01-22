@@ -8,6 +8,11 @@ payment (a Receipt Aggregate Voucher, or RAV). This aggregate payment can then b
 verified on-chain by a payment verifier, reducing the number of transactions and 
 simplifying the payment process.
 
+## Documentation for Individual Components
+
+- [tap_aggregator](tap_aggregator/README.md)
+- [tap_core](tap_core/README.md) - links to this `README` for now.
+
 ## Key Components
 
 - **Sender:** Initiates the payment.
