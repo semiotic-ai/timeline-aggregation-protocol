@@ -9,20 +9,19 @@ description = "Core Timeline Aggregation Protocol library: a fast, efficient and
 
 [dependencies]
 alloy.workspace = true
-serde.workspace = true
-tokio.workspace = true
 anyhow.workspace = true
-rand.workspace = true
-thiserror = "2.0.11"
-async-trait = "0.1.85"
 anymap3 = "1.0.1"
+async-trait = "0.1.85"
+rand.workspace = true
+serde.workspace = true
+thiserror = "2.0.11"
+tokio.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_std"] }
-rstest.workspace = true
 insta.workspace = true
+rstest.workspace = true
 serde_json.workspace = true
-
 
 [features]
 default = ["in_memory"]
