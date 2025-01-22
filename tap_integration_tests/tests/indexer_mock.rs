@@ -8,12 +8,13 @@ use std::sync::{
 use alloy::dyn_abi::Eip712Domain;
 use anyhow::{Error, Result};
 use jsonrpsee::{
-    core::{async_trait, client::ClientT},
+    core::async_trait,
     http_client::{HttpClient, HttpClientBuilder},
     proc_macros::rpc,
     rpc_params,
     server::{ServerBuilder, ServerHandle},
 };
+use jsonrpsee_core::client::ClientT;
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     manager::{
