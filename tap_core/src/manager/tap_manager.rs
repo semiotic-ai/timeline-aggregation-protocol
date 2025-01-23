@@ -3,12 +3,14 @@
 
 use alloy::dyn_abi::Eip712Domain;
 
-use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
+use super::adapters::{
+    RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
+};
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
-        state::{Failed, Reserved},
+        state::{Checked, Failed},
         Context, ReceiptError, ReceiptWithState, SignedReceipt,
     },
     Error,
@@ -42,7 +44,7 @@ impl<E> Manager<E> {
 
 impl<E> Manager<E>
 where
-    E: RAVStore + EscrowHandler,
+    E: RAVStore + SignatureChecker,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -56,7 +58,7 @@ where
         signed_rav: SignedRAV,
     ) -> std::result::Result<(), Error> {
         self.context
-            .check_rav_signature(&signed_rav, &self.domain_separator)
+            .check_signature(&signed_rav, &self.domain_separator)
             .await?;
 
         if signed_rav.message != expected_rav {
@@ -95,7 +97,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + EscrowHandler,
+    E: ReceiptRead + SignatureChecker,
 {
     async fn collect_receipts(
         &self,
@@ -105,7 +107,7 @@ where
         limit: Option<u64>,
     ) -> Result<
         (
-            Vec<ReceiptWithState<Reserved>>,
+            Vec<ReceiptWithState<Checked>>,
             Vec<ReceiptWithState<Failed>>,
         ),
         Error,
@@ -126,9 +128,8 @@ where
                 source_error: anyhow::Error::new(err),
             })?;
 
-        let mut awaiting_reserve_receipts = vec![];
+        let mut checked_receipts = vec![];
         let mut failed_receipts = vec![];
-        let mut reserved_receipts = vec![];
 
         // check for timestamp
         let (checking_receipts, already_failed) =
@@ -146,27 +147,18 @@ where
                 .map_err(|e| Error::ReceiptError(ReceiptError::RetryableCheck(e)))?;
 
             match receipt {
-                Ok(checked) => awaiting_reserve_receipts.push(checked),
-                Err(failed) => failed_receipts.push(failed),
-            }
-        }
-        for checked in awaiting_reserve_receipts {
-            match checked
-                .check_and_reserve_escrow(&self.context, &self.domain_separator)
-                .await
-            {
-                Ok(reserved) => reserved_receipts.push(reserved),
+                Ok(checked) => checked_receipts.push(checked),
                 Err(failed) => failed_receipts.push(failed),
             }
         }
 
-        Ok((reserved_receipts, failed_receipts))
+        Ok((checked_receipts, failed_receipts))
     }
 }
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + RAVRead + EscrowHandler,
+    E: ReceiptRead + RAVRead + SignatureChecker,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
@@ -210,7 +202,7 @@ where
     }
 
     fn generate_expected_rav(
-        receipts: &[ReceiptWithState<Reserved>],
+        receipts: &[ReceiptWithState<Checked>],
         previous_rav: Option<SignedRAV>,
     ) -> Result<ReceiptAggregateVoucher, Error> {
         if receipts.is_empty() {

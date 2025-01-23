@@ -4,7 +4,7 @@
 use crate::{
     rav::{ReceiptAggregateVoucher, SignedRAV},
     receipt::{
-        state::{Failed, Reserved},
+        state::{Checked, Failed},
         ReceiptWithState,
     },
     Error,
@@ -14,7 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct RAVRequest {
     /// List of checked and reserved receipts to aggregate
-    pub valid_receipts: Vec<ReceiptWithState<Reserved>>,
+    pub valid_receipts: Vec<ReceiptWithState<Checked>>,
     /// Optional previous RAV to aggregate with
     pub previous_rav: Option<SignedRAV>,
     /// List of failed receipt used to log invalid receipts

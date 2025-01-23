@@ -241,18 +241,8 @@ impl InMemoryContext {
 }
 
 #[async_trait]
-impl EscrowHandler for InMemoryContext {
+impl SignatureChecker for InMemoryContext {
     type AdapterError = InMemoryError;
-    async fn get_available_escrow(&self, sender_id: Address) -> Result<u128, Self::AdapterError> {
-        self.escrow(sender_id)
-    }
-    async fn subtract_escrow(
-        &self,
-        sender_id: Address,
-        value: u128,
-    ) -> Result<(), Self::AdapterError> {
-        self.reduce_escrow(sender_id, value)
-    }
 
     async fn verify_signer(&self, signer_address: Address) -> Result<bool, Self::AdapterError> {
         Ok(self

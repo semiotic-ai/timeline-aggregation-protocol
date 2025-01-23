@@ -18,7 +18,7 @@ use jsonrpsee_core::client::ClientT;
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     manager::{
-        adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptRead, ReceiptStore},
+        adapters::{RAVRead, RAVStore, ReceiptRead, ReceiptStore, SignatureChecker},
         Manager,
     },
     rav::SignedRAV,
@@ -84,7 +84,7 @@ where
 #[async_trait]
 impl<E> RpcServer for RpcManager<E>
 where
-    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + EscrowHandler + Send + Sync + 'static,
+    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + SignatureChecker + Send + Sync + 'static,
 {
     async fn request(
         &self,
@@ -148,7 +148,7 @@ where
         + ReceiptRead
         + RAVStore
         + RAVRead
-        + EscrowHandler
+        + SignatureChecker
         + Clone
         + Send
         + Sync
@@ -183,7 +183,7 @@ async fn request_rav<E>(
     threshold: usize,
 ) -> Result<()>
 where
-    E: ReceiptRead + RAVRead + RAVStore + EscrowHandler,
+    E: ReceiptRead + RAVRead + RAVStore + SignatureChecker,
 {
     // Create the aggregate_receipts request params
     let rav_request = manager
