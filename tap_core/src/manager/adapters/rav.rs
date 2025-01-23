@@ -13,7 +13,7 @@ use crate::signed_message::EIP712SignedMessage;
 /// For example code see [crate::manager::context::memory::RAVStorage]
 
 #[async_trait]
-pub trait RAVStore<T: SolStruct> {
+pub trait RavStore<T: SolStruct> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from
@@ -36,7 +36,7 @@ pub trait RAVStore<T: SolStruct> {
 /// For example code see [crate::manager::context::memory::RAVStorage]
 
 #[async_trait]
-pub trait RAVRead<T: SolStruct> {
+pub trait RavRead<T: SolStruct> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from

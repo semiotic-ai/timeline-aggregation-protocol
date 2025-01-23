@@ -125,7 +125,7 @@ impl InMemoryContext {
 }
 
 #[async_trait]
-impl RAVStore<ReceiptAggregateVoucher> for InMemoryContext {
+impl RavStore<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
@@ -138,7 +138,7 @@ impl RAVStore<ReceiptAggregateVoucher> for InMemoryContext {
 }
 
 #[async_trait]
-impl RAVRead<ReceiptAggregateVoucher> for InMemoryContext {
+impl RavRead<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
     async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {

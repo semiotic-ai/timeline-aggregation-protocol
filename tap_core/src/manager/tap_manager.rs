@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
 
 use super::adapters::{
-    RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
+    RavRead, RavStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
 };
 use crate::{
     rav::{Aggregate, RavRequest},
@@ -54,7 +54,7 @@ impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav> {
 
 impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
 where
-    E: RAVStore<Rav> + SignatureChecker,
+    E: RavStore<Rav> + SignatureChecker,
     Rav: SolStruct + PartialEq<Rav> + Sync + std::fmt::Debug,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
@@ -92,7 +92,7 @@ where
 
 impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
 where
-    E: RAVRead<Rav>,
+    E: RavRead<Rav>,
     Rav: SolStruct,
 {
     async fn get_previous_rav(&self) -> Result<Option<EIP712SignedMessage<Rav>>, Error> {
@@ -171,7 +171,7 @@ where
 
 impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
 where
-    E: ReceiptRead<Rcpt> + RAVRead<Rav> + SignatureChecker,
+    E: ReceiptRead<Rcpt> + RavRead<Rav> + SignatureChecker,
     Rav: SolStruct + WithValueAndTimestamp + Clone + Aggregate<Rcpt>,
     Rcpt: WithUniqueId + WithValueAndTimestamp + Sync,
 {
@@ -219,7 +219,7 @@ where
 
 impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
 where
-    E: ReceiptDelete + RAVRead<Rav>,
+    E: ReceiptDelete + RavRead<Rav>,
     Rav: SolStruct + WithValueAndTimestamp,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts

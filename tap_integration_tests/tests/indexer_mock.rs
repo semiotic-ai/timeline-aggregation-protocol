@@ -18,7 +18,7 @@ use jsonrpsee_core::client::ClientT;
 use tap_aggregator::jsonrpsee_helpers;
 use tap_core::{
     manager::{
-        adapters::{RAVRead, RAVStore, ReceiptRead, ReceiptStore, SignatureChecker},
+        adapters::{RavRead, RavStore, ReceiptRead, ReceiptStore, SignatureChecker},
         Manager,
     },
     rav::{ReceiptAggregateVoucher, SignedRAV},
@@ -86,8 +86,8 @@ impl<E> RpcServer for RpcManager<E>
 where
     E: ReceiptStore<SignedReceipt>
         + ReceiptRead<SignedReceipt>
-        + RAVStore<ReceiptAggregateVoucher>
-        + RAVRead<ReceiptAggregateVoucher>
+        + RavStore<ReceiptAggregateVoucher>
+        + RavRead<ReceiptAggregateVoucher>
         + SignatureChecker
         + Send
         + Sync
@@ -153,8 +153,8 @@ pub async fn run_server<E>(
 where
     E: ReceiptStore<SignedReceipt>
         + ReceiptRead<SignedReceipt>
-        + RAVStore<ReceiptAggregateVoucher>
-        + RAVRead<ReceiptAggregateVoucher>
+        + RavStore<ReceiptAggregateVoucher>
+        + RavRead<ReceiptAggregateVoucher>
         + SignatureChecker
         + Clone
         + Send
@@ -191,8 +191,8 @@ async fn request_rav<E>(
 ) -> Result<()>
 where
     E: ReceiptRead<SignedReceipt>
-        + RAVRead<ReceiptAggregateVoucher>
-        + RAVStore<ReceiptAggregateVoucher>
+        + RavRead<ReceiptAggregateVoucher>
+        + RavStore<ReceiptAggregateVoucher>
         + SignatureChecker,
 {
     // Create the aggregate_receipts request params
