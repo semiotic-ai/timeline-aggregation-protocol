@@ -17,7 +17,7 @@ use async_trait::async_trait;
 
 use crate::{
     manager::adapters::*,
-    rav::SignedRAV,
+    rav::{ReceiptAggregateVoucher, SignedRAV},
     receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState, SignedReceipt},
     signed_message::MessageId,
 };
@@ -125,7 +125,7 @@ impl InMemoryContext {
 }
 
 #[async_trait]
-impl RAVStore for InMemoryContext {
+impl RAVStore<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
     async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
@@ -138,7 +138,7 @@ impl RAVStore for InMemoryContext {
 }
 
 #[async_trait]
-impl RAVRead for InMemoryContext {
+impl RAVRead<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
     async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {

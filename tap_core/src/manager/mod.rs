@@ -42,6 +42,7 @@
 //!         ReceiptError,
 //!         Context
 //!     },
+//!     rav::ReceiptAggregateVoucher,
 //!     manager::{
 //!         Manager,
 //!         adapters::ReceiptStore
@@ -70,7 +71,7 @@
 //!
 //! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //!
-//! let manager = Manager::new(domain_separator, MyContext, CheckList::empty());
+//! let manager = Manager::<_, _, ReceiptAggregateVoucher>::new(domain_separator, MyContext, CheckList::empty());
 //! manager.verify_and_store_receipt(&Context::new(), receipt).await.unwrap()
 //! # }
 //! ```

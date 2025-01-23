@@ -41,14 +41,27 @@ mod request;
 
 use std::cmp;
 
-use alloy::{primitives::Address, sol};
+use alloy::{primitives::Address, sol, sol_types::SolStruct};
 use serde::{Deserialize, Serialize};
 
-use crate::{receipt::Receipt, signed_message::EIP712SignedMessage, Error};
+use crate::{
+    receipt::{state::Checked, Receipt, ReceiptWithState, SignedReceipt, WithValueAndTimestamp},
+    signed_message::EIP712SignedMessage,
+    Error,
+};
 
 /// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
 pub use request::RavRequest;
+
+pub trait Aggregate<T>: SolStruct {
+    /// Aggregates a batch of validated receipts with optional validated previous RAV,
+    /// returning a new RAV if all provided items are valid or an error if not.
+    fn aggregate_receipts(
+        receipts: &[ReceiptWithState<Checked, T>],
+        previous_rav: Option<EIP712SignedMessage<Self>>,
+    ) -> Result<Self, Error>;
+}
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
@@ -104,5 +117,36 @@ impl ReceiptAggregateVoucher {
             timestampNs: timestamp_max,
             valueAggregate: value_aggregate,
         })
+    }
+}
+
+impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
+    fn aggregate_receipts(
+        receipts: &[ReceiptWithState<Checked, SignedReceipt>],
+        previous_rav: Option<EIP712SignedMessage<Self>>,
+    ) -> Result<Self, Error> {
+        if receipts.is_empty() {
+            return Err(Error::NoValidReceiptsForRavRequest);
+        }
+        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let receipts = receipts
+            .iter()
+            .map(|rx_receipt| rx_receipt.signed_receipt().clone())
+            .collect::<Vec<_>>();
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            receipts.as_slice(),
+            previous_rav,
+        )
+    }
+}
+
+impl WithValueAndTimestamp for ReceiptAggregateVoucher {
+    fn value(&self) -> u128 {
+        self.valueAggregate
+    }
+
+    fn timestamp_ns(&self) -> u64 {
+        self.timestampNs
     }
 }

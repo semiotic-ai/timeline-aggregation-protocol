@@ -128,7 +128,8 @@ async fn manager_verify_and_store_varying_initial_checks(
         signer,
         ..
     } = context;
-    let manager = Manager::new(domain_separator.clone(), context, checks);
+    let manager =
+        Manager::<_, _, ReceiptAggregateVoucher>::new(domain_separator.clone(), context, checks);
 
     let value = 20u128;
     let signed_receipt = EIP712SignedMessage::new(
