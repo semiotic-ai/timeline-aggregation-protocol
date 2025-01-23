@@ -114,7 +114,7 @@ impl From<u128> for Uint128 {
 impl RavRequest {
     pub fn new(
         receipts: Vec<tap_core::receipt::SignedReceipt>,
-        previous_rav: Option<tap_core::rav::SignedRAV>,
+        previous_rav: Option<tap_core::rav::SignedRav>,
     ) -> Self {
         Self {
             receipts: receipts.into_iter().map(Into::into).collect(),
@@ -124,8 +124,8 @@ impl RavRequest {
 }
 
 impl RavResponse {
-    pub fn signed_rav(mut self) -> anyhow::Result<tap_core::rav::SignedRAV> {
-        let signed_rav: tap_core::rav::SignedRAV = self
+    pub fn signed_rav(mut self) -> anyhow::Result<tap_core::rav::SignedRav> {
+        let signed_rav: tap_core::rav::SignedRav = self
             .rav
             .take()
             .ok_or(anyhow!("Couldn't find rav"))?

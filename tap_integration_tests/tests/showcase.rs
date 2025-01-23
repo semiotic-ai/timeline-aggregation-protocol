@@ -26,7 +26,7 @@ use rstest::*;
 use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     manager::context::memory::{checks::get_full_list_of_checks, *},
-    rav::SignedRAV,
+    rav::SignedRav,
     receipt::{
         checks::{CheckList, StatefulTimestampCheck},
         Receipt, SignedReceipt,
@@ -722,7 +722,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
 
     let params = rpc_params!(&aggregate_server_api_version(), &first_batch, None::<()>);
-    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRav> =
         client.request("aggregate_receipts", params).await?;
 
     let params = rpc_params!(
@@ -731,7 +731,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         first_rav_response.data
     );
     let second_rav_response: Result<
-        jsonrpsee_helpers::JsonRpcResponse<SignedRAV>,
+        jsonrpsee_helpers::JsonRpcResponse<SignedRav>,
         jsonrpsee::core::ClientError,
     > = client.request("aggregate_receipts", params).await;
     assert!(
@@ -747,7 +747,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     let second_batch = &requests[receipt_threshold_1 as usize..2 * receipt_threshold_1 as usize];
 
     let params = rpc_params!(&aggregate_server_api_version(), &first_batch, None::<()>);
-    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+    let first_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRav> =
         client.request("aggregate_receipts", params).await?;
 
     let params = rpc_params!(
@@ -755,7 +755,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         &second_batch,
         first_rav_response.data
     );
-    let second_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> =
+    let second_rav_response: jsonrpsee_helpers::JsonRpcResponse<SignedRav> =
         client.request("aggregate_receipts", params).await?;
 
     // Compute the expected aggregate value and check that it matches the latest RAV.

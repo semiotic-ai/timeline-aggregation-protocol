@@ -51,7 +51,7 @@ use crate::{
 };
 
 /// EIP712 signed message for ReceiptAggregateVoucher
-pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
+pub type SignedRav = EIP712SignedMessage<ReceiptAggregateVoucher>;
 pub use request::RavRequest;
 
 pub trait Aggregate<T>: SolStruct {

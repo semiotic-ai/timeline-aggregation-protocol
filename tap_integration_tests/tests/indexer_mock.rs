@@ -21,7 +21,7 @@ use tap_core::{
         adapters::{RavRead, RavStore, ReceiptRead, ReceiptStore, SignatureChecker},
         Manager,
     },
-    rav::{ReceiptAggregateVoucher, SignedRAV},
+    rav::{ReceiptAggregateVoucher, SignedRav},
     receipt::{checks::CheckList, Context, SignedReceipt},
 };
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
@@ -212,7 +212,7 @@ where
     );
 
     // Call the aggregate_receipts method on the other server
-    let remote_rav_result: jsonrpsee_helpers::JsonRpcResponse<SignedRAV> = aggregator_client
+    let remote_rav_result: jsonrpsee_helpers::JsonRpcResponse<SignedRav> = aggregator_client
         .0
         .request("aggregate_receipts", params)
         .await?;

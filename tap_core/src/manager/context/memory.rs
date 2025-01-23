@@ -17,7 +17,7 @@ use async_trait::async_trait;
 
 use crate::{
     manager::adapters::*,
-    rav::{ReceiptAggregateVoucher, SignedRAV},
+    rav::{ReceiptAggregateVoucher, SignedRav},
     receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState, SignedReceipt},
     signed_message::MessageId,
 };
@@ -25,7 +25,7 @@ use crate::{
 pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
 pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
 pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceiptWithState<Checking, SignedReceipt>>>>;
-pub type RAVStorage = Arc<RwLock<Option<SignedRAV>>>;
+pub type RAVStorage = Arc<RwLock<Option<SignedRav>>>;
 
 use thiserror::Error;
 
@@ -128,7 +128,7 @@ impl InMemoryContext {
 impl RavStore<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
-    async fn update_last_rav(&self, rav: SignedRAV) -> Result<(), Self::AdapterError> {
+    async fn update_last_rav(&self, rav: SignedRav) -> Result<(), Self::AdapterError> {
         let mut rav_storage = self.rav_storage.write().unwrap();
         let timestamp = rav.message.timestampNs;
         *rav_storage = Some(rav);
@@ -141,7 +141,7 @@ impl RavStore<ReceiptAggregateVoucher> for InMemoryContext {
 impl RavRead<ReceiptAggregateVoucher> for InMemoryContext {
     type AdapterError = InMemoryError;
 
-    async fn last_rav(&self) -> Result<Option<SignedRAV>, Self::AdapterError> {
+    async fn last_rav(&self) -> Result<Option<SignedRav>, Self::AdapterError> {
         Ok(self.rav_storage.read().unwrap().clone())
     }
 }
