@@ -64,11 +64,11 @@ async fn aggregation_test() {
 
     let rav_request = RavRequest::new(receipts.clone(), None);
     let res = client.aggregate_receipts(rav_request).await.unwrap();
-    let signed_rav: tap_core::rav::SignedRAV = res.into_inner().signed_rav().unwrap();
+    let signed_rav: tap_core::rav::SignedRav = res.into_inner().signed_rav().unwrap();
 
     let sender_aggregator = HttpClientBuilder::default().build(&endpoint).unwrap();
 
-    let previous_rav: Option<tap_core::rav::SignedRAV> = None;
+    let previous_rav: Option<tap_core::rav::SignedRav> = None;
 
     let response: JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = sender_aggregator
         .request(

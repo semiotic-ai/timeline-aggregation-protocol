@@ -16,7 +16,7 @@ use alloy::{
 use rstest::*;
 use tap_core::{
     manager::{
-        adapters::{RAVRead, RAVStore},
+        adapters::{RavRead, RavStore},
         context::memory::InMemoryContext,
     },
     rav::ReceiptAggregateVoucher,
