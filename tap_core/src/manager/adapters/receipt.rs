@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use crate::receipt::{
     state::{Checking, ReceiptState},
-    ReceiptWithState,
+    ReceiptWithState, WithValueAndTimestamp,
 };
 
 /// Stores receipts in the storage.
@@ -16,7 +16,7 @@ use crate::receipt::{
 ///
 /// For example code see [crate::manager::context::memory::ReceiptStorage]
 #[async_trait]
-pub trait ReceiptStore {
+pub trait ReceiptStore<Rcpt> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from the standard library.
@@ -29,7 +29,7 @@ pub trait ReceiptStore {
     /// this process should be captured and returned as an `AdapterError`.
     async fn store_receipt(
         &self,
-        receipt: ReceiptWithState<Checking>,
+        receipt: ReceiptWithState<Checking, Rcpt>,
     ) -> Result<u64, Self::AdapterError>;
 }
 
@@ -62,7 +62,7 @@ pub trait ReceiptDelete {
 ///
 /// For example code see [crate::manager::context::memory::ReceiptStorage]
 #[async_trait]
-pub trait ReceiptRead {
+pub trait ReceiptRead<Rcpt> {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from
@@ -92,15 +92,15 @@ pub trait ReceiptRead {
         &self,
         timestamp_range_ns: R,
         limit: Option<u64>,
-    ) -> Result<Vec<ReceiptWithState<Checking>>, Self::AdapterError>;
+    ) -> Result<Vec<ReceiptWithState<Checking, Rcpt>>, Self::AdapterError>;
 }
 
 /// See [`ReceiptRead::retrieve_receipts_in_timestamp_range()`] for details.
 ///
 /// WARNING: Will sort the receipts by timestamp using
 /// [vec::sort_unstable](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.sort_unstable).
-pub fn safe_truncate_receipts<T: ReceiptState>(
-    receipts: &mut Vec<ReceiptWithState<T>>,
+pub fn safe_truncate_receipts<T: ReceiptState, Rcpt: WithValueAndTimestamp>(
+    receipts: &mut Vec<ReceiptWithState<T, Rcpt>>,
     limit: u64,
 ) {
     if receipts.len() <= limit as usize {
@@ -110,18 +110,12 @@ pub fn safe_truncate_receipts<T: ReceiptState>(
         return;
     }
 
-    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().message.timestamp_ns);
+    receipts.sort_unstable_by_key(|rx_receipt| rx_receipt.signed_receipt().timestamp_ns());
 
     // This one will be the last timestamp in `receipts` after naive truncation
-    let last_timestamp = receipts[limit as usize - 1]
-        .signed_receipt()
-        .message
-        .timestamp_ns;
+    let last_timestamp = receipts[limit as usize - 1].signed_receipt().timestamp_ns();
     // This one is the timestamp that comes just after the one above
-    let after_last_timestamp = receipts[limit as usize]
-        .signed_receipt()
-        .message
-        .timestamp_ns;
+    let after_last_timestamp = receipts[limit as usize].signed_receipt().timestamp_ns();
 
     receipts.truncate(limit as usize);
 
@@ -129,8 +123,6 @@ pub fn safe_truncate_receipts<T: ReceiptState>(
         // If the last timestamp is the same as the one that came after it, we need to
         // remove all the receipts with the same timestamp as the last one, because
         // otherwise we would leave behind part of the receipts for that timestamp.
-        receipts.retain(|rx_receipt| {
-            rx_receipt.signed_receipt().message.timestamp_ns != last_timestamp
-        });
+        receipts.retain(|rx_receipt| rx_receipt.signed_receipt().timestamp_ns() != last_timestamp);
     }
 }

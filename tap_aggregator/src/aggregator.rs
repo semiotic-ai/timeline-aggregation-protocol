@@ -44,7 +44,7 @@ pub fn check_and_aggregate_receipts(
     // Get the allocation id from the first receipt, return error if there are no receipts
     let allocation_id = match receipts.first() {
         Some(receipt) => receipt.message.allocation_id,
-        None => return Err(tap_core::Error::NoValidReceiptsForRAVRequest.into()),
+        None => return Err(tap_core::Error::NoValidReceiptsForRavRequest.into()),
     };
 
     // Check that the receipts all have the same allocation id

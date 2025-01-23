@@ -44,9 +44,9 @@ pub trait Rpc {
 /// threshold is a limit to which receipt_count can increment, after reaching which RAV request is triggered.
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<E> {
-    manager: Arc<Manager<E>>, // Manager object reference counted with an Arc
-    receipt_count: Arc<AtomicU64>, // Thread-safe atomic counter for receipts
-    threshold: u64,           // The count at which a RAV request will be triggered
+    manager: Arc<Manager<E, SignedReceipt>>, // Manager object reference counted with an Arc
+    receipt_count: Arc<AtomicU64>,           // Thread-safe atomic counter for receipts
+    threshold: u64,                          // The count at which a RAV request will be triggered
     aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
 }
 
@@ -60,13 +60,13 @@ where
     pub fn new(
         domain_separator: Eip712Domain,
         context: E,
-        required_checks: CheckList,
+        required_checks: CheckList<SignedReceipt>,
         threshold: u64,
         aggregate_server_address: String,
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Manager::<E>::new(
+            manager: Arc::new(Manager::<E, SignedReceipt>::new(
                 domain_separator,
                 context,
                 required_checks,
@@ -84,7 +84,14 @@ where
 #[async_trait]
 impl<E> RpcServer for RpcManager<E>
 where
-    E: ReceiptStore + ReceiptRead + RAVStore + RAVRead + SignatureChecker + Send + Sync + 'static,
+    E: ReceiptStore<SignedReceipt>
+        + ReceiptRead<SignedReceipt>
+        + RAVStore
+        + RAVRead
+        + SignatureChecker
+        + Send
+        + Sync
+        + 'static,
 {
     async fn request(
         &self,
@@ -135,17 +142,17 @@ where
 
 /// run_server function initializes and starts a JSON-RPC server that handles incoming requests.
 pub async fn run_server<E>(
-    port: u16,                            // Port on which the server will listen
-    domain_separator: Eip712Domain,       // EIP712 domain separator
-    context: E,                           // context instance
-    required_checks: CheckList, // Vector of required checks to be performed on each request
-    threshold: u64,             // The count at which a RAV request will be triggered
-    aggregate_server_address: String, // Address of the aggregator server
-    aggregate_server_api_version: String, // API version of the aggregator server
+    port: u16,                                 // Port on which the server will listen
+    domain_separator: Eip712Domain,            // EIP712 domain separator
+    context: E,                                // context instance
+    required_checks: CheckList<SignedReceipt>, // Vector of required checks to be performed on each request
+    threshold: u64,                            // The count at which a RAV request will be triggered
+    aggregate_server_address: String,          // Address of the aggregator server
+    aggregate_server_api_version: String,      // API version of the aggregator server
 ) -> Result<(ServerHandle, std::net::SocketAddr)>
 where
-    E: ReceiptStore
-        + ReceiptRead
+    E: ReceiptStore<SignedReceipt>
+        + ReceiptRead<SignedReceipt>
         + RAVStore
         + RAVRead
         + SignatureChecker
@@ -177,13 +184,13 @@ where
 
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<E>(
-    manager: &Arc<Manager<E>>,
+    manager: &Arc<Manager<E, SignedReceipt>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
 ) -> Result<()>
 where
-    E: ReceiptRead + RAVRead + RAVStore + SignatureChecker,
+    E: ReceiptRead<SignedReceipt> + RAVRead + RAVStore + SignatureChecker,
 {
     // Create the aggregate_receipts request params
     let rav_request = manager

@@ -33,7 +33,10 @@ use alloy::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::Result;
+use crate::{
+    receipt::{WithUniqueId, WithValueAndTimestamp},
+    Result,
+};
 
 /// EIP712 signed message
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -113,5 +116,29 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
     /// Use this a simple key for testing
     pub fn unique_hash(&self) -> MessageId {
         MessageId(self.message.eip712_hash_struct().into())
+    }
+}
+
+impl<M> WithUniqueId for EIP712SignedMessage<M>
+where
+    M: SolStruct,
+{
+    type Output = SignatureBytes;
+
+    fn unique_id(&self) -> Self::Output {
+        self.signature.get_signature_bytes()
+    }
+}
+
+impl<T> WithValueAndTimestamp for EIP712SignedMessage<T>
+where
+    T: WithValueAndTimestamp + SolStruct,
+{
+    fn value(&self) -> u128 {
+        self.message.value()
+    }
+
+    fn timestamp_ns(&self) -> u64 {
+        self.message.timestamp_ns()
     }
 }

@@ -7,33 +7,38 @@ use super::adapters::{
     RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
 };
 use crate::{
-    rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
+    rav::{RavRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Checked, Failed},
-        Context, ReceiptError, ReceiptWithState, SignedReceipt,
+        Context, ReceiptError, ReceiptWithState, SignedReceipt, WithUniqueId,
+        WithValueAndTimestamp,
     },
     Error,
 };
 
-pub struct Manager<E> {
+pub struct Manager<E, Rcpt> {
     /// Context that implements adapters
     context: E,
 
     /// Checks that must be completed for each receipt before being confirmed or denied for rav request
-    checks: CheckList,
+    checks: CheckList<Rcpt>,
 
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     domain_separator: Eip712Domain,
 }
 
-impl<E> Manager<E> {
+impl<E, Rcpt> Manager<E, Rcpt> {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
     ///
-    pub fn new(domain_separator: Eip712Domain, context: E, checks: impl Into<CheckList>) -> Self {
+    pub fn new(
+        domain_separator: Eip712Domain,
+        context: E,
+        checks: impl Into<CheckList<Rcpt>>,
+    ) -> Self {
         Self {
             context,
             domain_separator,
@@ -42,7 +47,7 @@ impl<E> Manager<E> {
     }
 }
 
-impl<E> Manager<E>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
     E: RAVStore + SignatureChecker,
 {
@@ -79,7 +84,7 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
     E: RAVRead,
 {
@@ -95,9 +100,10 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
-    E: ReceiptRead + SignatureChecker,
+    E: ReceiptRead<Rcpt> + SignatureChecker,
+    Rcpt: WithUniqueId + WithValueAndTimestamp + Sync,
 {
     async fn collect_receipts(
         &self,
@@ -107,8 +113,8 @@ where
         limit: Option<u64>,
     ) -> Result<
         (
-            Vec<ReceiptWithState<Checked>>,
-            Vec<ReceiptWithState<Failed>>,
+            Vec<ReceiptWithState<Checked, Rcpt>>,
+            Vec<ReceiptWithState<Failed, Rcpt>>,
         ),
         Error,
     > {
@@ -156,9 +162,11 @@ where
     }
 }
 
-impl<E> Manager<E>
+// TODO make create_rav_request generic over receipt
+impl<E> Manager<E, SignedReceipt>
 where
-    E: ReceiptRead + RAVRead + SignatureChecker,
+    E: ReceiptRead<SignedReceipt> + RAVRead + SignatureChecker,
+    //Rcpt: WithUniqueId + WithValueAndTimestamp + Sync,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
@@ -180,7 +188,7 @@ where
         ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
-    ) -> Result<RAVRequest, Error> {
+    ) -> Result<RavRequest<SignedReceipt>, Error> {
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
@@ -193,7 +201,7 @@ where
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
 
-        Ok(RAVRequest {
+        Ok(RavRequest {
             valid_receipts,
             previous_rav,
             invalid_receipts,
@@ -202,11 +210,11 @@ where
     }
 
     fn generate_expected_rav(
-        receipts: &[ReceiptWithState<Checked>],
+        receipts: &[ReceiptWithState<Checked, SignedReceipt>],
         previous_rav: Option<SignedRAV>,
     ) -> Result<ReceiptAggregateVoucher, Error> {
         if receipts.is_empty() {
-            return Err(Error::NoValidReceiptsForRAVRequest);
+            return Err(Error::NoValidReceiptsForRavRequest);
         }
         let allocation_id = receipts[0].signed_receipt().message.allocation_id;
         let receipts = receipts
@@ -221,7 +229,7 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
     E: ReceiptDelete + RAVRead,
 {
@@ -251,9 +259,9 @@ where
     }
 }
 
-impl<E> Manager<E>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
-    E: ReceiptStore,
+    E: ReceiptStore<Rcpt>,
 {
     /// Runs `initial_checks` on `signed_receipt` for initial verification,
     /// then stores received receipt.
@@ -266,7 +274,7 @@ where
     pub async fn verify_and_store_receipt(
         &self,
         ctx: &Context,
-        signed_receipt: SignedReceipt,
+        signed_receipt: Rcpt,
     ) -> std::result::Result<(), Error> {
         let mut received_receipt = ReceiptWithState::new(signed_receipt);
 
