@@ -13,14 +13,11 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use alloy::dyn_abi::Eip712Domain;
-
 use super::{checks::CheckError, Context, Receipt, ReceiptError, ReceiptResult, SignedReceipt};
 use crate::{
-    manager::adapters::EscrowHandler,
     receipt::{
         checks::ReceiptCheck,
-        state::{AwaitingReserve, Checking, Failed, ReceiptState, Reserved},
+        state::{Checked, Checking, Failed, ReceiptState},
     },
     signed_message::EIP712SignedMessage,
 };
@@ -48,30 +45,6 @@ where
     pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
     pub(crate) _state: S,
-}
-
-impl ReceiptWithState<AwaitingReserve> {
-    /// Perform the checks implemented by the context and reserve escrow if
-    /// all checks pass
-    ///
-    /// Returns a [`ReceiptWithState<Reserved>`] if successful, otherwise
-    /// returns a [`ReceiptWithState<Failed>`]
-    pub async fn check_and_reserve_escrow<E>(
-        self,
-        context: &E,
-        domain_separator: &Eip712Domain,
-    ) -> ResultReceipt<Reserved>
-    where
-        E: EscrowHandler,
-    {
-        match context
-            .check_and_reserve_escrow(&self, domain_separator)
-            .await
-        {
-            Ok(_) => Ok(self.perform_state_changes(Reserved)),
-            Err(e) => Err(self.perform_state_error(e)),
-        }
-    }
 }
 
 impl ReceiptWithState<Checking> {
@@ -115,14 +88,14 @@ impl ReceiptWithState<Checking> {
         mut self,
         ctx: &Context,
         checks: &[ReceiptCheck],
-    ) -> Result<ResultReceipt<AwaitingReserve>, String> {
+    ) -> Result<ResultReceipt<Checked>, String> {
         let all_checks_passed = self.perform_checks(ctx, checks).await;
         if let Err(ReceiptError::RetryableCheck(e)) = all_checks_passed {
             Err(e.to_string())
         } else if let Err(e) = all_checks_passed {
             Ok(Err(self.perform_state_error(e)))
         } else {
-            let checked = self.perform_state_changes(AwaitingReserve);
+            let checked = self.perform_state_changes(Checked);
             Ok(Ok(checked))
         }
     }
