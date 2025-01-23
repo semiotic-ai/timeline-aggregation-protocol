@@ -13,7 +13,7 @@ use tap_core::{
     manager::context::memory::{checks::get_full_list_of_checks, EscrowStorage, QueryAppraisals},
     receipt::{
         checks::{ReceiptCheck, StatefulTimestampCheck},
-        Context, Receipt, ReceiptWithState,
+        Context, Receipt, ReceiptWithState, SignedReceipt,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -56,7 +56,7 @@ fn domain_separator() -> Eip712Domain {
 struct ContextFixture {
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: Vec<ReceiptCheck>,
+    checks: Vec<ReceiptCheck<SignedReceipt>>,
     signer: PrivateKeySigner,
 }
 

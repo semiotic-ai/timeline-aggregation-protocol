@@ -12,7 +12,9 @@ use rand::thread_rng;
 use rstest::*;
 use tap_core::{
     manager::{adapters::ReceiptStore, context::memory::InMemoryContext},
-    receipt::{checks::StatefulTimestampCheck, state::Checking, Receipt, ReceiptWithState},
+    receipt::{
+        checks::StatefulTimestampCheck, state::Checking, Receipt, ReceiptWithState, SignedReceipt,
+    },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
 };
@@ -159,7 +161,7 @@ fn safe_truncate_receipts_test(
     let wallet = PrivateKeySigner::random();
 
     // Vec of (id, receipt)
-    let mut receipts_orig: Vec<ReceiptWithState<Checking>> = Vec::new();
+    let mut receipts_orig: Vec<ReceiptWithState<Checking, SignedReceipt>> = Vec::new();
 
     for timestamp in input.iter() {
         // The contents of the receipt only need to be unique for this test (so we can check)

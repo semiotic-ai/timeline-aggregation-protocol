@@ -12,6 +12,8 @@ use alloy::{primitives::Address, sol};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
+use super::WithValueAndTimestamp;
+
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -38,6 +40,16 @@ impl Receipt {
             nonce,
             value,
         })
+    }
+}
+
+impl WithValueAndTimestamp for Receipt {
+    fn value(&self) -> u128 {
+        self.value
+    }
+
+    fn timestamp_ns(&self) -> u64 {
+        self.timestamp_ns
     }
 }
 

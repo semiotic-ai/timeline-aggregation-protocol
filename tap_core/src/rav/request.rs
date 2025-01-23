@@ -12,13 +12,13 @@ use crate::{
 
 /// Request to `tap_aggregator` to aggregate receipts into a Signed RAV.
 #[derive(Debug)]
-pub struct RAVRequest {
+pub struct RAVRequest<Rcpt> {
     /// List of checked and reserved receipts to aggregate
-    pub valid_receipts: Vec<ReceiptWithState<Checked>>,
+    pub valid_receipts: Vec<ReceiptWithState<Checked, Rcpt>>,
     /// Optional previous RAV to aggregate with
     pub previous_rav: Option<SignedRAV>,
     /// List of failed receipt used to log invalid receipts
-    pub invalid_receipts: Vec<ReceiptWithState<Failed>>,
+    pub invalid_receipts: Vec<ReceiptWithState<Failed, Rcpt>>,
     /// Expected RAV to be created
     pub expected_rav: Result<ReceiptAggregateVoucher, Error>,
 }

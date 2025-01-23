@@ -51,10 +51,10 @@
 //! struct MyContext;
 //!
 //! #[async_trait]
-//! impl ReceiptStore for MyContext {
+//! impl<T: Send + 'static> ReceiptStore<T> for MyContext {
 //!     type AdapterError = ReceiptError;
 //!
-//!     async fn store_receipt(&self, receipt: ReceiptWithState<Checking>) -> Result<u64, Self::AdapterError> {
+//!     async fn store_receipt(&self, receipt: ReceiptWithState<Checking, T>) -> Result<u64, Self::AdapterError> {
 //!         // ...
 //!         # Ok(0)
 //!     }

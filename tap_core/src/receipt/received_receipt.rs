@@ -13,16 +13,14 @@
 //! This module is useful for managing and tracking the state of received receipts, as well as
 //! their progress through various checks and stages of inclusion in RAV requests and received RAVs.
 
-use super::{checks::CheckError, Context, Receipt, ReceiptError, ReceiptResult, SignedReceipt};
-use crate::{
-    receipt::{
-        checks::ReceiptCheck,
-        state::{Checked, Checking, Failed, ReceiptState},
-    },
-    signed_message::EIP712SignedMessage,
+use super::{checks::CheckError, Context, ReceiptError, ReceiptResult};
+use crate::receipt::{
+    checks::ReceiptCheck,
+    state::{Checked, Checking, Failed, ReceiptState},
 };
 
-pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWithState<Failed>>;
+pub type ResultReceipt<S, Rcpt> =
+    std::result::Result<ReceiptWithState<S, Rcpt>, ReceiptWithState<Failed, Rcpt>>;
 
 /// Typestate pattern for tracking the state of a receipt
 ///
@@ -37,21 +35,21 @@ pub type ResultReceipt<S> = std::result::Result<ReceiptWithState<S>, ReceiptWith
 /// - The [ `Reserved` ] state is used to represent a receipt that has
 ///   successfully reserved escrow.
 #[derive(Debug, Clone)]
-pub struct ReceiptWithState<S>
+pub struct ReceiptWithState<S, Rcpt>
 where
     S: ReceiptState,
 {
     /// An EIP712 signed receipt message
-    pub(crate) signed_receipt: EIP712SignedMessage<Receipt>,
+    pub(crate) receipt: Rcpt,
     /// The current state of the receipt (e.g., received, checking, failed, accepted, etc.)
     pub(crate) _state: S,
 }
 
-impl ReceiptWithState<Checking> {
+impl<Rcpt> ReceiptWithState<Checking, Rcpt> {
     /// Creates a new `ReceiptWithState` in the `Checking` state
-    pub fn new(signed_receipt: SignedReceipt) -> ReceiptWithState<Checking> {
+    pub fn new(receipt: Rcpt) -> ReceiptWithState<Checking, Rcpt> {
         ReceiptWithState {
-            signed_receipt,
+            receipt,
             _state: Checking,
         }
     }
@@ -67,7 +65,7 @@ impl ReceiptWithState<Checking> {
     pub async fn perform_checks(
         &mut self,
         ctx: &Context,
-        checks: &[ReceiptCheck],
+        checks: &[ReceiptCheck<Rcpt>],
     ) -> ReceiptResult<()> {
         for check in checks {
             // return early on an error
@@ -87,8 +85,8 @@ impl ReceiptWithState<Checking> {
     pub async fn finalize_receipt_checks(
         mut self,
         ctx: &Context,
-        checks: &[ReceiptCheck],
-    ) -> Result<ResultReceipt<Checked>, String> {
+        checks: &[ReceiptCheck<Rcpt>],
+    ) -> Result<ResultReceipt<Checked, Rcpt>, String> {
         let all_checks_passed = self.perform_checks(ctx, checks).await;
         if let Err(ReceiptError::RetryableCheck(e)) = all_checks_passed {
             Err(e.to_string())
@@ -101,35 +99,35 @@ impl ReceiptWithState<Checking> {
     }
 }
 
-impl ReceiptWithState<Failed> {
+impl<Rcpt> ReceiptWithState<Failed, Rcpt> {
     pub fn error(self) -> ReceiptError {
         self._state.error
     }
 }
 
-impl<S> ReceiptWithState<S>
+impl<S, Rcpt> ReceiptWithState<S, Rcpt>
 where
     S: ReceiptState,
 {
-    pub(super) fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed> {
+    pub(super) fn perform_state_error(self, error: ReceiptError) -> ReceiptWithState<Failed, Rcpt> {
         ReceiptWithState {
-            signed_receipt: self.signed_receipt,
+            receipt: self.receipt,
             _state: Failed { error },
         }
     }
 
-    fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T>
+    fn perform_state_changes<T>(self, new_state: T) -> ReceiptWithState<T, Rcpt>
     where
         T: ReceiptState,
     {
         ReceiptWithState {
-            signed_receipt: self.signed_receipt,
+            receipt: self.receipt,
             _state: new_state,
         }
     }
 
     /// Returns the signed receipt
-    pub fn signed_receipt(&self) -> &EIP712SignedMessage<Receipt> {
-        &self.signed_receipt
+    pub fn signed_receipt(&self) -> &Rcpt {
+        &self.receipt
     }
 }

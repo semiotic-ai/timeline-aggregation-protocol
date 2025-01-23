@@ -27,7 +27,7 @@ use tap_core::{
     receipt::{
         checks::{Check, CheckError, CheckList, StatefulTimestampCheck},
         state::Checking,
-        Context, Receipt, ReceiptWithState,
+        Context, Receipt, ReceiptWithState, SignedReceipt,
     },
     signed_message::EIP712SignedMessage,
     tap_eip712_domain,
@@ -71,7 +71,7 @@ struct ContextFixture {
     context: InMemoryContext,
     escrow_storage: EscrowStorage,
     query_appraisals: QueryAppraisals,
-    checks: CheckList,
+    checks: CheckList<SignedReceipt>,
     signer: PrivateKeySigner,
 }
 
@@ -546,11 +546,11 @@ async fn test_retryable_checks(
     struct RetryableCheck(Arc<AtomicBool>);
 
     #[async_trait::async_trait]
-    impl Check for RetryableCheck {
+    impl Check<SignedReceipt> for RetryableCheck {
         async fn check(
             &self,
             _: &Context,
-            receipt: &ReceiptWithState<Checking>,
+            receipt: &ReceiptWithState<Checking, SignedReceipt>,
         ) -> Result<(), CheckError> {
             // we want to fail only if nonce is 5 and if is create rav step
             if self.0.load(std::sync::atomic::Ordering::SeqCst)
@@ -573,7 +573,8 @@ async fn test_retryable_checks(
 
     let is_create_rav = Arc::new(AtomicBool::new(false));
 
-    let mut checks: Vec<Arc<dyn Check + Send + Sync>> = checks.iter().cloned().collect();
+    let mut checks: Vec<Arc<dyn Check<SignedReceipt> + Send + Sync>> =
+        checks.iter().cloned().collect();
     checks.push(Arc::new(RetryableCheck(is_create_rav.clone())));
 
     let manager = Manager::new(
