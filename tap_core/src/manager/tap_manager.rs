@@ -3,7 +3,9 @@
 
 use alloy::dyn_abi::Eip712Domain;
 
-use super::adapters::{SignatureChecker, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
+use super::adapters::{
+    RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
+};
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{

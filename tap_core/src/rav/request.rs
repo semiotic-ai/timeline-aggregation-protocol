@@ -4,7 +4,7 @@
 use crate::{
     rav::{ReceiptAggregateVoucher, SignedRAV},
     receipt::{
-        state::{Failed, Checked},
+        state::{Checked, Failed},
         ReceiptWithState,
     },
     Error,
