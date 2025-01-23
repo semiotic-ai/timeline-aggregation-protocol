@@ -3,7 +3,7 @@
 
 use alloy::dyn_abi::Eip712Domain;
 
-use super::adapters::{EscrowHandler, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
+use super::adapters::{SignatureChecker, RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore};
 use crate::{
     rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
@@ -42,7 +42,7 @@ impl<E> Manager<E> {
 
 impl<E> Manager<E>
 where
-    E: RAVStore + EscrowHandler,
+    E: RAVStore + SignatureChecker,
 {
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
@@ -95,7 +95,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + EscrowHandler,
+    E: ReceiptRead + SignatureChecker,
 {
     async fn collect_receipts(
         &self,
@@ -156,7 +156,7 @@ where
 
 impl<E> Manager<E>
 where
-    E: ReceiptRead + RAVRead + EscrowHandler,
+    E: ReceiptRead + RAVRead + SignatureChecker,
 {
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists

@@ -13,7 +13,7 @@ use crate::{signed_message::EIP712SignedMessage, Error};
 /// For example code see [crate::manager::context::memory::EscrowStorage]
 
 #[async_trait]
-pub trait EscrowHandler: Send + Sync {
+pub trait SignatureChecker: Send + Sync {
     /// Defines the user-specified error type.
     ///
     /// This error type should implement the `Error` and `Debug` traits from
