@@ -9,12 +9,12 @@ license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
 
 [workspace.dependencies]
-alloy = { version = "0.8", features = ["full"] }
-serde = { version = "1.0.163", features = ["derive"] }
-rstest = "0.22.0"
-anyhow = { version = "1.0.89" }
-tokio = { version = "1.40.0", features = ["macros", "signal"] }
+alloy = { version = "0.9.2", features = ["full"] }
+serde = { version = "1.0.217", features = ["derive"] }
+rstest = "0.24.0"
+anyhow = { version = "1.0.95" }
+tokio = { version = "1.43.0", features = ["macros", "signal"] }
 rand = "0.8.5"
 jsonrpsee = { version = "0.24.7", features = ["macros", "server"] }
-insta = { version = "1.41.1", features = ["json"] }
-serde_json = { version = "1.0.124", features = ["raw_value"] }
+insta = { version = "1.42.0", features = ["json"] }
+serde_json = { version = "1.0.137", features = ["raw_value"] }
