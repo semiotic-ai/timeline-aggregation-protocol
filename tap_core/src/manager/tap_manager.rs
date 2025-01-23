@@ -7,7 +7,7 @@ use super::adapters::{
     RAVRead, RAVStore, ReceiptDelete, ReceiptRead, ReceiptStore, SignatureChecker,
 };
 use crate::{
-    rav::{RAVRequest, ReceiptAggregateVoucher, SignedRAV},
+    rav::{RavRequest, ReceiptAggregateVoucher, SignedRAV},
     receipt::{
         checks::{CheckBatch, CheckList, TimestampCheck, UniqueCheck},
         state::{Checked, Failed},
@@ -188,7 +188,7 @@ where
         ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
-    ) -> Result<RAVRequest<SignedReceipt>, Error> {
+    ) -> Result<RavRequest<SignedReceipt>, Error> {
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
@@ -201,7 +201,7 @@ where
 
         let expected_rav = Self::generate_expected_rav(&valid_receipts, previous_rav.clone());
 
-        Ok(RAVRequest {
+        Ok(RavRequest {
             valid_receipts,
             previous_rav,
             invalid_receipts,
@@ -214,7 +214,7 @@ where
         previous_rav: Option<SignedRAV>,
     ) -> Result<ReceiptAggregateVoucher, Error> {
         if receipts.is_empty() {
-            return Err(Error::NoValidReceiptsForRAVRequest);
+            return Err(Error::NoValidReceiptsForRavRequest);
         }
         let allocation_id = receipts[0].signed_receipt().message.allocation_id;
         let receipts = receipts

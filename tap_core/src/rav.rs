@@ -48,7 +48,7 @@ use crate::{receipt::Receipt, signed_message::EIP712SignedMessage, Error};
 
 /// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRAV = EIP712SignedMessage<ReceiptAggregateVoucher>;
-pub use request::RAVRequest;
+pub use request::RavRequest;
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA
