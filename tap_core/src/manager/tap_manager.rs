@@ -169,7 +169,6 @@ where
     }
 }
 
-// TODO make create_rav_request generic over receipt
 impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
 where
     E: ReceiptRead<Rcpt> + RAVRead<Rav> + SignatureChecker,
