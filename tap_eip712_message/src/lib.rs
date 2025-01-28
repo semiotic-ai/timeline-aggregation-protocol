@@ -1,9 +1,9 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! # EIP712 message and signature
+//! # EIP712 signed message
 //!
-//! This module contains the `EIP712SignedMessage` struct which is used to sign and verify messages
+//! This crate contains the `EIP712SignedMessage` struct which is used to sign and verify messages
 //! using EIP712 standard.
 //!
 //! # Example
@@ -30,6 +30,7 @@ use alloy::{
 };
 use serde::{Deserialize, Serialize};
 
+/// Errors returned by creation of messages and verify signature
 #[derive(thiserror::Error, Debug)]
 pub enum Eip712Error {
     /// `alloy` wallet error
@@ -50,9 +51,11 @@ pub struct Eip712SignedMessage<M: SolStruct> {
     pub signature: Signature,
 }
 
+/// Signature that can be used in a HashSet
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SignatureBytes([u8; 65]);
 
+/// Extension for Signature to return [SignatureBytes]
 pub trait SignatureBytesExt {
     fn get_signature_bytes(&self) -> SignatureBytes;
 }

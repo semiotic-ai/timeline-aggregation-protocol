@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Aggregation of Receipts
+
 use alloy::sol_types::SolStruct;
 use tap_eip712_message::Eip712SignedMessage;
 

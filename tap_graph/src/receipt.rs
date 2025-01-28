@@ -8,17 +8,19 @@
 //! The payment receiver would verify the received receipt and store it to be
 //! accumulated with other received receipts in the future.
 
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
+
 use alloy::{primitives::Address, sol};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
 
-/// A signed receipt message
+/// A Receipt wrapped in an Eip712SignedMessage
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;
 
 sol! {
-    /// Holds information needed for promise of payment signed with ECDSA
+    /// Receipt struct used to pay for an off-chain service
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct Receipt {
         /// Unique allocation id this receipt belongs to
@@ -32,10 +34,14 @@ sol! {
     }
 }
 
+fn get_current_timestamp_u64_ns() -> Result<u64, SystemTimeError> {
+    Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64)
+}
+
 impl Receipt {
     /// Returns a receipt with provided values
-    pub fn new(allocation_id: Address, value: u128) -> Result<Self, crate::Error> {
-        let timestamp_ns = crate::get_current_timestamp_u64_ns()?;
+    pub fn new(allocation_id: Address, value: u128) -> Result<Self, SystemTimeError> {
+        let timestamp_ns = get_current_timestamp_u64_ns()?;
         let nonce = thread_rng().gen::<u64>();
         Ok(Self {
             allocation_id,

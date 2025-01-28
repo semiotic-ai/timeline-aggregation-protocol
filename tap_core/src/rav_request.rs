@@ -1,6 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+//! Request to Tap Aggregator
+
 use alloy::sol_types::SolStruct;
 use tap_receipt::rav::AggregationError;
 
