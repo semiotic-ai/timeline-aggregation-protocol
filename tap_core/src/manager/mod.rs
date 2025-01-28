@@ -63,12 +63,12 @@
 //! # async fn main() {
 //! # use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 //! # use tap_graph::{Receipt, SignedReceipt, ReceiptAggregateVoucher};
-//! # use tap_core::signed_message::EIP712SignedMessage;
+//! # use tap_core::signed_message::Eip712SignedMessage;
 //! # let domain_separator = Eip712Domain::default();
 //! # let wallet = PrivateKeySigner::random();
 //! # let message = Receipt::new(Address::from([0x11u8; 20]), 100).unwrap();
 //!
-//! let receipt = EIP712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
+//! let receipt = Eip712SignedMessage::new(&domain_separator, message, &wallet).unwrap();
 //!
 //! let manager = Manager::<_, _, ReceiptAggregateVoucher>::new(domain_separator, MyContext, CheckList::empty());
 //! manager.verify_and_store_receipt(&Context::new(), receipt).await.unwrap()
