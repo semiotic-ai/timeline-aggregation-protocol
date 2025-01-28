@@ -28,7 +28,7 @@ use tap_core::{
         state::Checking,
         Context, ReceiptWithState,
     },
-    signed_message::EIP712SignedMessage,
+    signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
@@ -132,7 +132,7 @@ async fn manager_verify_and_store_varying_initial_checks(
         Manager::<_, _, ReceiptAggregateVoucher>::new(domain_separator.clone(), context, checks);
 
     let value = 20u128;
-    let signed_receipt = EIP712SignedMessage::new(
+    let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], value).unwrap(),
         &signer,
@@ -175,7 +175,7 @@ async fn manager_create_rav_request_all_valid_receipts(
     let mut stored_signed_receipts = Vec::new();
     for _ in 0..10 {
         let value = 20u128;
-        let signed_receipt = EIP712SignedMessage::new(
+        let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
             &signer,
@@ -204,7 +204,7 @@ async fn manager_create_rav_request_all_valid_receipts(
     let expected_rav = rav_request.expected_rav.unwrap();
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -235,7 +235,7 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     };
 
     let signed_rav_with_wrong_aggregate =
-        EIP712SignedMessage::new(&domain_separator, rav_wrong_value, &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, rav_wrong_value, &signer).unwrap();
 
     assert!(manager
         .verify_and_store_rav(rav, signed_rav_with_wrong_aggregate)
@@ -270,7 +270,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     let mut expected_accumulated_value = 0;
     for _ in 0..10 {
         let value = 20u128;
-        let signed_receipt = EIP712SignedMessage::new(
+        let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
             &signer,
@@ -304,7 +304,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     assert!(rav_request.previous_rav.is_none());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -313,7 +313,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     stored_signed_receipts.clear();
     for _ in 10..20 {
         let value = 20u128;
-        let signed_receipt = EIP712SignedMessage::new(
+        let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], value).unwrap(),
             &signer,
@@ -348,7 +348,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     assert!(rav_request.previous_rav.is_some());
 
     let signed_rav =
-        EIP712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, expected_rav.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav, signed_rav)
         .await
@@ -386,7 +386,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let value = 20u128;
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
+        let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
 
         let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
@@ -423,7 +423,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     assert!(rav_request_1.previous_rav.is_none());
 
     let signed_rav_1 =
-        EIP712SignedMessage::new(&domain_separator, expected_rav_1.clone(), &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, expected_rav_1.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav_1, signed_rav_1)
         .await
@@ -434,7 +434,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let value = 20u128;
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
+        let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         let query_id = signed_receipt.unique_hash();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
@@ -478,7 +478,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     assert!(rav_request_2.previous_rav.is_some());
 
     let signed_rav_2 =
-        EIP712SignedMessage::new(&domain_separator, expected_rav_2.clone(), &signer).unwrap();
+        Eip712SignedMessage::new(&domain_separator, expected_rav_2.clone(), &signer).unwrap();
     assert!(manager
         .verify_and_store_rav(expected_rav_2, signed_rav_2)
         .await
@@ -516,7 +516,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
             nonce: 1,
             value: 20u128,
         };
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
+        let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         manager
             .verify_and_store_receipt(&Context::new(), signed_receipt)
@@ -597,7 +597,7 @@ async fn test_retryable_checks(
             nonce: i,
             value: 20u128,
         };
-        let signed_receipt = EIP712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
+        let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         manager
             .verify_and_store_receipt(&Context::new(), signed_receipt)

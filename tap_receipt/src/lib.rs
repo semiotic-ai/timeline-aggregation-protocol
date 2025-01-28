@@ -28,7 +28,7 @@ pub mod state;
 use alloy::sol_types::SolStruct;
 pub use error::ReceiptError;
 pub use received_receipt::ReceiptWithState;
-use tap_eip712_message::{EIP712SignedMessage, SignatureBytes, SignatureBytesExt};
+use tap_eip712_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
 
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
@@ -45,7 +45,7 @@ pub trait WithUniqueId {
     fn unique_id(&self) -> Self::Output;
 }
 
-impl<T> WithValueAndTimestamp for EIP712SignedMessage<T>
+impl<T> WithValueAndTimestamp for Eip712SignedMessage<T>
 where
     T: SolStruct + WithValueAndTimestamp,
 {
@@ -58,7 +58,7 @@ where
     }
 }
 
-impl<T> WithUniqueId for EIP712SignedMessage<T>
+impl<T> WithUniqueId for Eip712SignedMessage<T>
 where
     T: SolStruct,
 {

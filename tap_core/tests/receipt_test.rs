@@ -13,7 +13,7 @@ use rstest::*;
 use tap_core::{
     manager::{adapters::ReceiptStore, context::memory::InMemoryContext},
     receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState},
-    signed_message::EIP712SignedMessage,
+    signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, SignedReceipt};
@@ -48,7 +48,7 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
     // Create receipts
     let value = 100u128;
     let received_receipt = ReceiptWithState::new(
-        EIP712SignedMessage::new(
+        Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_id, value).unwrap(),
             &wallet,
@@ -88,7 +88,7 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context:
     let mut received_receipts = Vec::new();
     for value in 50..60 {
         received_receipts.push(ReceiptWithState::new(
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_id, value).unwrap(),
                 &wallet,
@@ -165,7 +165,7 @@ fn safe_truncate_receipts_test(
     for timestamp in input.iter() {
         // The contents of the receipt only need to be unique for this test (so we can check)
         receipts_orig.push(ReceiptWithState::new(
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt {
                     allocation_id: Address::ZERO,

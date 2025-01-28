@@ -14,7 +14,7 @@ use jsonrpsee::{
 use lazy_static::lazy_static;
 use log::info;
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
-use tap_core::signed_message::EIP712SignedMessage;
+use tap_core::signed_message::Eip712SignedMessage;
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
 use tokio::{net::TcpListener, signal, task::JoinHandle};
 use tonic::{codec::CompressionEncoding, service::Routes, Request, Response, Status};
@@ -87,9 +87,9 @@ pub trait Rpc {
     fn aggregate_receipts(
         &self,
         api_version: String,
-        receipts: Vec<EIP712SignedMessage<Receipt>>,
-        previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>>;
+        receipts: Vec<Eip712SignedMessage<Receipt>>,
+        previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
+    ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>>;
 }
 
 #[derive(Clone)]
@@ -134,9 +134,9 @@ fn aggregate_receipts_(
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
     domain_separator: &Eip712Domain,
-    receipts: Vec<EIP712SignedMessage<Receipt>>,
-    previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+    receipts: Vec<Eip712SignedMessage<Receipt>>,
+    previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
+) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>> {
     // Return an error if the API version is not supported.
     let api_version = match parse_api_version(api_version.as_str()) {
         Ok(v) => v,
@@ -230,9 +230,9 @@ impl RpcServer for RpcImpl {
     fn aggregate_receipts(
         &self,
         api_version: String,
-        receipts: Vec<EIP712SignedMessage<Receipt>>,
-        previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
-    ) -> JsonRpcResult<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+        receipts: Vec<Eip712SignedMessage<Receipt>>,
+        previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
+    ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>> {
         // Values for Prometheus metrics
         let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
@@ -391,7 +391,7 @@ mod tests {
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rand::{prelude::*, seq::SliceRandom};
     use rstest::*;
-    use tap_core::{signed_message::EIP712SignedMessage, tap_eip712_domain};
+    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
     use crate::server;
@@ -520,7 +520,7 @@ mod tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
@@ -531,7 +531,7 @@ mod tests {
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
-        let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
+        let res: server::JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>> = client
             .request(
                 "aggregate_receipts",
                 rpc_params!(api_version, &receipts, None::<()>),
@@ -600,7 +600,7 @@ mod tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
@@ -616,7 +616,7 @@ mod tests {
             None,
         )
         .unwrap();
-        let signed_prev_rav = EIP712SignedMessage::new(
+        let signed_prev_rav = Eip712SignedMessage::new(
             &domain_separator,
             prev_rav,
             &all_wallets.choose(&mut rng).unwrap().wallet,
@@ -624,7 +624,7 @@ mod tests {
         .unwrap();
 
         // Create new RAV from last half of receipts and prev_rav through the JSON-RPC server
-        let res: server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = client
+        let res: server::JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>> = client
             .request(
                 "aggregate_receipts",
                 rpc_params!(
@@ -674,7 +674,7 @@ mod tests {
             .unwrap();
 
         // Create receipts
-        let receipts = vec![EIP712SignedMessage::new(
+        let receipts = vec![Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys_main.wallet,
@@ -684,7 +684,7 @@ mod tests {
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
         // Create RAV through the JSON-RPC server.
         let res: Result<
-            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            server::JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::ClientError,
         > = client
             .request(
@@ -768,7 +768,7 @@ mod tests {
         let mut receipts = Vec::new();
         for _ in 1..number_of_receipts_to_exceed_limit {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
                     &keys_main.wallet,
@@ -781,7 +781,7 @@ mod tests {
         // Create RAV through the JSON-RPC server.
         // Test with a number of receipts that stays within request size limit
         let res: Result<
-            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            server::JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::ClientError,
         > = client
             .request(
@@ -798,7 +798,7 @@ mod tests {
         // Create RAV through the JSON-RPC server.
         // Test with all receipts to exceed request size limit
         let res: Result<
-            server::JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+            server::JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>>,
             jsonrpsee::core::ClientError,
         > = client
             .request(

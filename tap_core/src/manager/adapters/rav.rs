@@ -4,7 +4,7 @@
 use alloy::sol_types::SolStruct;
 use async_trait::async_trait;
 
-use crate::signed_message::EIP712SignedMessage;
+use crate::signed_message::Eip712SignedMessage;
 
 /// Stores the latest RAV in the storage.
 ///
@@ -26,7 +26,7 @@ pub trait RavStore<T: SolStruct> {
     /// This method should be implemented to store the most recent validated
     /// `SignedRAV` into your chosen storage system. Any errors that occur
     /// during this process should be captured and returned as an `AdapterError`.
-    async fn update_last_rav(&self, rav: EIP712SignedMessage<T>) -> Result<(), Self::AdapterError>;
+    async fn update_last_rav(&self, rav: Eip712SignedMessage<T>) -> Result<(), Self::AdapterError>;
 }
 
 /// Reads the RAV from storage
@@ -47,5 +47,5 @@ pub trait RavRead<T: SolStruct> {
     /// Retrieves the latest `SignedRAV` from the storage.
     ///
     /// If no `SignedRAV` is available, this method should return `None`.
-    async fn last_rav(&self) -> Result<Option<EIP712SignedMessage<T>>, Self::AdapterError>;
+    async fn last_rav(&self) -> Result<Option<Eip712SignedMessage<T>>, Self::AdapterError>;
 }

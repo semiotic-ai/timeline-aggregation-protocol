@@ -16,7 +16,7 @@ use crate::{
         state::{Checked, Failed},
         Context, ReceiptError, ReceiptWithState, WithUniqueId, WithValueAndTimestamp,
     },
-    signed_message::EIP712SignedMessage,
+    signed_message::Eip712SignedMessage,
     Error,
 };
 
@@ -67,7 +67,7 @@ where
     pub async fn verify_and_store_rav(
         &self,
         expected_rav: Rav,
-        signed_rav: EIP712SignedMessage<Rav>,
+        signed_rav: Eip712SignedMessage<Rav>,
     ) -> std::result::Result<(), Error> {
         self.context
             .check_signature(&signed_rav, &self.domain_separator)
@@ -96,7 +96,7 @@ where
     E: RavRead<Rav>,
     Rav: SolStruct,
 {
-    async fn get_previous_rav(&self) -> Result<Option<EIP712SignedMessage<Rav>>, Error> {
+    async fn get_previous_rav(&self) -> Result<Option<Eip712SignedMessage<Rav>>, Error> {
         let previous_rav = self
             .context
             .last_rav()

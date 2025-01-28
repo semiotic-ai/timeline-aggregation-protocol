@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use anyhow::anyhow;
-use tap_core::signed_message::EIP712SignedMessage;
+use tap_core::signed_message::Eip712SignedMessage;
 
 tonic::include_proto!("tap_aggregator.v1");
 
@@ -51,7 +51,7 @@ impl From<tap_graph::SignedReceipt> for SignedReceipt {
     }
 }
 
-impl TryFrom<SignedRav> for EIP712SignedMessage<tap_graph::ReceiptAggregateVoucher> {
+impl TryFrom<SignedRav> for Eip712SignedMessage<tap_graph::ReceiptAggregateVoucher> {
     type Error = anyhow::Error;
     fn try_from(voucher: SignedRav) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -64,8 +64,8 @@ impl TryFrom<SignedRav> for EIP712SignedMessage<tap_graph::ReceiptAggregateVouch
     }
 }
 
-impl From<EIP712SignedMessage<tap_graph::ReceiptAggregateVoucher>> for SignedRav {
-    fn from(voucher: EIP712SignedMessage<tap_graph::ReceiptAggregateVoucher>) -> Self {
+impl From<Eip712SignedMessage<tap_graph::ReceiptAggregateVoucher>> for SignedRav {
+    fn from(voucher: Eip712SignedMessage<tap_graph::ReceiptAggregateVoucher>) -> Self {
         Self {
             signature: voucher.signature.as_bytes().to_vec(),
             message: Some(voucher.message.into()),

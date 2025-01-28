@@ -9,16 +9,16 @@ use alloy::{
 };
 use anyhow::{bail, Ok, Result};
 use rayon::prelude::*;
-use tap_core::signed_message::{EIP712SignedMessage, SignatureBytes, SignatureBytesExt};
+use tap_core::signed_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
 pub fn check_and_aggregate_receipts(
     domain_separator: &Eip712Domain,
-    receipts: &[EIP712SignedMessage<Receipt>],
-    previous_rav: Option<EIP712SignedMessage<ReceiptAggregateVoucher>>,
+    receipts: &[Eip712SignedMessage<Receipt>],
+    previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
-) -> Result<EIP712SignedMessage<ReceiptAggregateVoucher>> {
+) -> Result<Eip712SignedMessage<ReceiptAggregateVoucher>> {
     check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
@@ -63,11 +63,11 @@ pub fn check_and_aggregate_receipts(
     let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_id, receipts, previous_rav)?;
 
     // Sign the rav and return
-    Ok(EIP712SignedMessage::new(domain_separator, rav, wallet)?)
+    Ok(Eip712SignedMessage::new(domain_separator, rav, wallet)?)
 }
 
 fn check_signature_is_from_one_of_addresses<M: SolStruct>(
-    message: &EIP712SignedMessage<M>,
+    message: &Eip712SignedMessage<M>,
     domain_separator: &Eip712Domain,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<()> {
@@ -81,7 +81,7 @@ fn check_signature_is_from_one_of_addresses<M: SolStruct>(
 }
 
 fn check_allocation_id(
-    receipts: &[EIP712SignedMessage<Receipt>],
+    receipts: &[Eip712SignedMessage<Receipt>],
     allocation_id: Address,
 ) -> Result<()> {
     for receipt in receipts.iter() {
@@ -93,7 +93,7 @@ fn check_allocation_id(
     Ok(())
 }
 
-fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<()> {
+fn check_signatures_unique(receipts: &[Eip712SignedMessage<Receipt>]) -> Result<()> {
     let mut receipt_signatures: hash_set::HashSet<SignatureBytes> = hash_set::HashSet::new();
     for receipt in receipts.iter() {
         let signature = receipt.signature.get_signature_bytes();
@@ -109,8 +109,8 @@ fn check_signatures_unique(receipts: &[EIP712SignedMessage<Receipt>]) -> Result<
 }
 
 fn check_receipt_timestamps(
-    receipts: &[EIP712SignedMessage<Receipt>],
-    previous_rav: Option<&EIP712SignedMessage<ReceiptAggregateVoucher>>,
+    receipts: &[Eip712SignedMessage<Receipt>],
+    previous_rav: Option<&Eip712SignedMessage<ReceiptAggregateVoucher>>,
 ) -> Result<()> {
     if let Some(previous_rav) = &previous_rav {
         for receipt in receipts.iter() {
@@ -134,7 +134,7 @@ mod tests {
 
     use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use rstest::*;
-    use tap_core::{signed_message::EIP712SignedMessage, tap_eip712_domain};
+    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
     use crate::aggregator;
@@ -170,7 +170,7 @@ mod tests {
     ) {
         // Create the same receipt twice (replay attack)
         let mut receipts = Vec::new();
-        let receipt = EIP712SignedMessage::new(
+        let receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys.0,
@@ -192,13 +192,13 @@ mod tests {
     ) {
         // Create 2 different receipts
         let receipts = vec![
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
@@ -223,7 +223,7 @@ mod tests {
         let mut receipts = Vec::new();
         for i in receipt_timestamp_range.clone() {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt {
                         allocation_id: allocation_ids[0],
@@ -238,7 +238,7 @@ mod tests {
         }
 
         // Create rav with max_timestamp below the receipts timestamps
-        let rav = EIP712SignedMessage::new(
+        let rav = Eip712SignedMessage::new(
             &domain_separator,
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
@@ -252,7 +252,7 @@ mod tests {
 
         // Create rav with max_timestamp equal to the lowest receipt timestamp
         // Aggregation should fail
-        let rav = EIP712SignedMessage::new(
+        let rav = Eip712SignedMessage::new(
             &domain_separator,
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
@@ -266,7 +266,7 @@ mod tests {
 
         // Create rav with max_timestamp above highest receipt timestamp
         // Aggregation should fail
-        let rav = EIP712SignedMessage::new(
+        let rav = Eip712SignedMessage::new(
             &domain_separator,
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
@@ -289,19 +289,19 @@ mod tests {
         domain_separator: Eip712Domain,
     ) {
         let receipts = vec![
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[1], 44).unwrap(),
                 &keys.0,
@@ -323,19 +323,19 @@ mod tests {
         domain_separator: Eip712Domain,
     ) {
         let receipts = vec![
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 42).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 43).unwrap(),
                 &keys.0,
             )
             .unwrap(),
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_ids[0], 44).unwrap(),
                 &keys.0,

@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use tap_core::{signed_message::EIP712SignedMessage, tap_eip712_domain};
+use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
 pub fn create_and_sign_receipt(
@@ -20,8 +20,8 @@ pub fn create_and_sign_receipt(
     allocation_id: Address,
     value: u128,
     wallet: &PrivateKeySigner,
-) -> EIP712SignedMessage<Receipt> {
-    EIP712SignedMessage::new(
+) -> Eip712SignedMessage<Receipt> {
+    Eip712SignedMessage::new(
         domain_separator,
         Receipt::new(allocation_id, value).unwrap(),
         wallet,
@@ -80,7 +80,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             },
         );
 
-        let signed_rav = EIP712SignedMessage::new(
+        let signed_rav = Eip712SignedMessage::new(
             &domain_seperator,
             ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
             &wallet,

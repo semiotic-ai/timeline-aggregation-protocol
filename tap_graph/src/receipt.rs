@@ -11,11 +11,11 @@
 use alloy::{primitives::Address, sol};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use tap_eip712_message::EIP712SignedMessage;
+use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
 
 /// A signed receipt message
-pub type SignedReceipt = EIP712SignedMessage<Receipt>;
+pub type SignedReceipt = Eip712SignedMessage<Receipt>;
 
 sol! {
     /// Holds information needed for promise of payment signed with ECDSA

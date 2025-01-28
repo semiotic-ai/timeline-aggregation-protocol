@@ -27,7 +27,7 @@ use tap_aggregator::{jsonrpsee_helpers, server as agg_server};
 use tap_core::{
     manager::context::memory::{checks::get_full_list_of_checks, *},
     receipt::checks::{CheckList, StatefulTimestampCheck},
-    signed_message::{EIP712SignedMessage, MessageId},
+    signed_message::{Eip712SignedMessage, MessageId},
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, SignedRav, SignedReceipt};
@@ -209,7 +209,7 @@ fn requests_1(
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-) -> Vec<EIP712SignedMessage<Receipt>> {
+) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
     generate_requests(
         query_price,
@@ -227,7 +227,7 @@ fn requests_2(
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-) -> Vec<EIP712SignedMessage<Receipt>> {
+) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
     generate_requests(
         query_price,
@@ -246,7 +246,7 @@ fn repeated_timestamp_request(
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
-) -> Vec<EIP712SignedMessage<Receipt>> {
+) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create signed receipts
     let mut requests = generate_requests(
         query_price,
@@ -270,7 +270,7 @@ fn repeated_timestamp_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize] =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
+        Eip712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
     requests
 }
 
@@ -282,7 +282,7 @@ fn repeated_timestamp_incremented_by_one_request(
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
-) -> Vec<EIP712SignedMessage<Receipt>> {
+) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
     let mut requests = generate_requests(
         query_price,
@@ -307,7 +307,7 @@ fn repeated_timestamp_incremented_by_one_request(
 
     // Sign the new receipt and insert it in the second batch
     requests[receipt_threshold_1 as usize] =
-        EIP712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
+        Eip712SignedMessage::new(&domain_separator, repeat_receipt, &keys_sender).unwrap();
 
     requests
 }
@@ -319,7 +319,7 @@ fn wrong_requests(
     num_batches: u64,
     allocation_ids: Vec<Address>,
     domain_separator: Eip712Domain,
-) -> Vec<EIP712SignedMessage<Receipt>> {
+) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
     // Create your Receipt here
     generate_requests(
@@ -491,7 +491,7 @@ async fn test_manager_one_indexer(
         (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
-    requests_1: Vec<EIP712SignedMessage<Receipt>>,
+    requests_1: Vec<Eip712SignedMessage<Receipt>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
@@ -524,8 +524,8 @@ async fn test_manager_two_indexers(
         ),
         Error,
     >,
-    requests_1: Vec<EIP712SignedMessage<Receipt>>,
-    requests_2: Vec<EIP712SignedMessage<Receipt>>,
+    requests_1: Vec<Eip712SignedMessage<Receipt>>,
+    requests_2: Vec<Eip712SignedMessage<Receipt>>,
 ) -> Result<()> {
     let (
         _server_handle_1,
@@ -559,7 +559,7 @@ async fn test_manager_wrong_aggregator_keys(
         (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
-    requests_1: Vec<EIP712SignedMessage<Receipt>>,
+    requests_1: Vec<Eip712SignedMessage<Receipt>>,
     receipt_threshold_1: u64,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
@@ -601,7 +601,7 @@ async fn test_manager_wrong_requestor_keys(
         (ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr),
         Error,
     >,
-    wrong_requests: Vec<EIP712SignedMessage<Receipt>>,
+    wrong_requests: Vec<Eip712SignedMessage<Receipt>>,
 ) -> Result<()> {
     let (_server_handle, socket_addr, _sender_handle, _sender_addr) =
         single_indexer_test_server.await?;
@@ -633,8 +633,8 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
         ),
         Error,
     >,
-    repeated_timestamp_request: Vec<EIP712SignedMessage<Receipt>>,
-    repeated_timestamp_incremented_by_one_request: Vec<EIP712SignedMessage<Receipt>>,
+    repeated_timestamp_request: Vec<Eip712SignedMessage<Receipt>>,
+    repeated_timestamp_incremented_by_one_request: Vec<Eip712SignedMessage<Receipt>>,
     receipt_threshold_1: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // This test checks that tap_core is correctly filtering receipts by timestamp.
@@ -695,8 +695,8 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
-    repeated_timestamp_request: Vec<EIP712SignedMessage<Receipt>>,
-    repeated_timestamp_incremented_by_one_request: Vec<EIP712SignedMessage<Receipt>>,
+    repeated_timestamp_request: Vec<Eip712SignedMessage<Receipt>>,
+    repeated_timestamp_incremented_by_one_request: Vec<Eip712SignedMessage<Receipt>>,
     receipt_threshold_1: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // This test checks that tap_aggregator is correctly rejecting receipts with invalid timestamps
@@ -772,13 +772,13 @@ fn generate_requests(
     sender_key: &PrivateKeySigner,
     allocation_id: Address,
     domain_separator: &Eip712Domain,
-) -> Vec<EIP712SignedMessage<Receipt>> {
-    let mut requests: Vec<EIP712SignedMessage<Receipt>> = Vec::new();
+) -> Vec<Eip712SignedMessage<Receipt>> {
+    let mut requests: Vec<Eip712SignedMessage<Receipt>> = Vec::new();
 
     for _ in 0..num_batches {
         for value in query_price {
             requests.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     domain_separator,
                     Receipt::new(allocation_id, *value).unwrap(),
                     sender_key,

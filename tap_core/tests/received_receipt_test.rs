@@ -15,7 +15,7 @@ use tap_core::{
         checks::{ReceiptCheck, StatefulTimestampCheck},
         Context, ReceiptWithState,
     },
-    signed_message::EIP712SignedMessage,
+    signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, SignedReceipt};
@@ -104,7 +104,7 @@ async fn partial_then_full_check_valid_receipt(
     } = context;
 
     let query_value = 20u128;
-    let signed_receipt = EIP712SignedMessage::new(
+    let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
         &signer,
@@ -148,7 +148,7 @@ async fn partial_then_finalize_valid_receipt(
     } = context;
 
     let query_value = 20u128;
-    let signed_receipt = EIP712SignedMessage::new(
+    let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
         &signer,
@@ -194,7 +194,7 @@ async fn standard_lifetime_valid_receipt(
     } = context;
 
     let query_value = 20u128;
-    let signed_receipt = EIP712SignedMessage::new(
+    let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(allocation_ids[0], query_value).unwrap(),
         &signer,

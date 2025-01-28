@@ -64,7 +64,7 @@ mod tap_tests {
     use rstest::*;
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
-    use crate::{signed_message::EIP712SignedMessage, tap_eip712_domain};
+    use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 
     #[fixture]
     fn keys() -> (PrivateKeySigner, Address) {
@@ -103,7 +103,7 @@ mod tap_tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
@@ -116,7 +116,7 @@ mod tap_tests {
 
         let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
             .unwrap();
-        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
+        let signed_rav = Eip712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
 
@@ -134,7 +134,7 @@ mod tap_tests {
         let mut receipts = Vec::new();
         for value in values {
             receipts.push(
-                EIP712SignedMessage::new(
+                Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &keys.0,
@@ -151,7 +151,7 @@ mod tap_tests {
         )
         .unwrap();
         let signed_prev_rav =
-            EIP712SignedMessage::new(&domain_separator, prev_rav, &keys.0).unwrap();
+            Eip712SignedMessage::new(&domain_separator, prev_rav, &keys.0).unwrap();
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
@@ -160,7 +160,7 @@ mod tap_tests {
             Some(signed_prev_rav),
         )
         .unwrap();
-        let signed_rav = EIP712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
+        let signed_rav = Eip712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
 
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
@@ -172,7 +172,7 @@ mod tap_tests {
         allocation_ids: Vec<Address>,
         domain_separator: Eip712Domain,
     ) {
-        let signed_message = EIP712SignedMessage::new(
+        let signed_message = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys.0,
