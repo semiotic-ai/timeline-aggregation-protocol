@@ -17,3 +17,8 @@ tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
 
 [dev-dependencies]
 rstest.workspace = true
+
+
+[features]
+default = []
+v2 = []

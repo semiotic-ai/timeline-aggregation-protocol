@@ -1,45 +1,14 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-//! # Receipt Aggregate Voucher
-//!
-//! Receipts Aggregate Voucher or RAV is the struct that is sent to the
-//! blockchain to redeem the aggregated receipts. Receipts are aggregated
-//! into a single RAV via a [`RAVRequest`] and then sent to `tap_aggregator`.
-//! The request is verified and signed by the aggregator and the response
-//! is stored on the indexer side.
-//!
-//! Every time you have enough receipts to aggregate, you can send another
-//! RAV request to the aggregator. The aggregator will verify the request and
-//! increment the total amount that has been aggregated.
-//!
-//! Once the allocation is closed or anytime the user doesn't want to serve
-//! anymore(sender considered malicious, not enough in escrow to cover the RAV, etc),
-//! the user can redeem the RAV on the blockchain and get the aggregated amount.
-//!
-//! The system is considered to have minimal trust because you only need to trust
-//! the sender until you receive the RAV. The value of non-aggregated receipts must
-//! be less than the value you are willing to lose if the sender is malicious.
-//!
-//! # How to send a request to the aggregator
-//!
-//! 1. Create a [`RAVRequest`] with the valid receipts and the previous RAV.
-//! 2. Send the request to the aggregator.
-//! 3. The aggregator will verify the request and increment the total amount that
-//!    has been aggregated.
-//! 4. The aggregator will return a [`SignedRAV`].
-//! 5. Store the [`SignedRAV`].
-//! 6. Repeat the process until the allocation is closed.
-//! 7. Redeem the RAV on the blockchain and get the aggregated amount.
-//!
-//! # How to create RAV Requests
-//!
-//! Rav requests should be created using the
-//! [`crate::manager::Manager::create_rav_request`] function.
+//! # Receipt Aggregate Voucher v2
 
 use std::cmp;
 
-use alloy::{primitives::Address, sol};
+use alloy::{
+    primitives::{Address, Bytes},
+    sol,
+};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::{
@@ -48,25 +17,32 @@ use tap_receipt::{
     ReceiptWithState, WithValueAndTimestamp,
 };
 
-use crate::{receipt::Receipt, SignedReceipt};
+use super::{Receipt, SignedReceipt};
 
-/// A Rav wrapped in an Eip712SignedMessage
+/// EIP712 signed message for ReceiptAggregateVoucher
 pub type SignedRav = Eip712SignedMessage<ReceiptAggregateVoucher>;
 
 sol! {
-    /// ReceiptAggregateVoucher struct sent to Arbitrum to redeem payments
+    /// Holds information needed for promise of payment signed with ECDSA
     ///
     /// We use camelCase for field names to match the Ethereum ABI encoding
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct ReceiptAggregateVoucher {
         /// Unique allocation id this RAV belongs to
         address allocationId;
-        /// Unix Epoch timestamp in nanoseconds (Truncated to 64-bits)
-        /// corresponding to max timestamp from receipt batch aggregated
+        // The address of the payer the RAV was issued by
+        address payer;
+        // The address of the data service the RAV was issued to
+        address dataService;
+        // The address of the service provider the RAV was issued to
+        address serviceProvider;
+        // The RAV timestamp, indicating the latest TAP Receipt in the RAV
         uint64 timestampNs;
-        /// Aggregated value from receipt batch and any previous RAV provided
-        /// (truncate to lower bits)
+        // Total amount owed to the service provider since the beginning of the
+        // payer-service provider relationship, including all debt that is already paid for.
         uint128 valueAggregate;
+        // Arbitrary metadata to extend functionality if a data service requires it
+        bytes metadata;
     }
 }
 
@@ -80,6 +56,9 @@ impl ReceiptAggregateVoucher {
     /// value to overflow
     pub fn aggregate_receipts(
         allocation_id: Address,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         receipts: &[Eip712SignedMessage<Receipt>],
         previous_rav: Option<Eip712SignedMessage<Self>>,
     ) -> Result<Self, AggregationError> {
@@ -106,6 +85,10 @@ impl ReceiptAggregateVoucher {
             allocationId: allocation_id,
             timestampNs: timestamp_max,
             valueAggregate: value_aggregate,
+            payer,
+            dataService: data_service,
+            serviceProvider: service_provider,
+            metadata: Bytes::new(),
         })
     }
 }
@@ -119,12 +102,18 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
             return Err(AggregationError::NoValidReceiptsForRavRequest);
         }
         let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let payer = receipts[0].signed_receipt().message.payer;
+        let data_service = receipts[0].signed_receipt().message.data_service;
+        let service_provider = receipts[0].signed_receipt().message.service_provider;
         let receipts = receipts
             .iter()
             .map(|rx_receipt| rx_receipt.signed_receipt().clone())
             .collect::<Vec<_>>();
         ReceiptAggregateVoucher::aggregate_receipts(
             allocation_id,
+            payer,
+            data_service,
+            service_provider,
             receipts.as_slice(),
             previous_rav,
         )
