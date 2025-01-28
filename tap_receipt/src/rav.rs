@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use alloy::sol_types::SolStruct;
-use tap_eip712_message::EIP712SignedMessage;
+use tap_eip712_message::Eip712SignedMessage;
 
 use crate::{state::Checked, ReceiptWithState};
 
@@ -11,7 +11,7 @@ pub trait Aggregate<T>: SolStruct {
     /// returning a new RAV if all provided items are valid or an error if not.
     fn aggregate_receipts(
         receipts: &[ReceiptWithState<Checked, T>],
-        previous_rav: Option<EIP712SignedMessage<Self>>,
+        previous_rav: Option<Eip712SignedMessage<Self>>,
     ) -> Result<Self, AggregationError>;
 }
 

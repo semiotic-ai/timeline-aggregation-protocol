@@ -43,7 +43,7 @@ pub enum Eip712Error {
 
 /// EIP712 signed message
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct EIP712SignedMessage<M: SolStruct> {
+pub struct Eip712SignedMessage<M: SolStruct> {
     /// Message to be signed
     pub message: M,
     /// ECDSA Signature of eip712 hash of message
@@ -74,7 +74,7 @@ impl SignatureBytesExt for Signature {
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct MessageId(pub [u8; 32]);
 
-impl<M: SolStruct> EIP712SignedMessage<M> {
+impl<M: SolStruct> Eip712SignedMessage<M> {
     /// Creates a signed message with signed EIP712 hash of `message` using `signing_wallet`
     ///
     /// # Errors

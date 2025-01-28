@@ -215,7 +215,7 @@ mod tests {
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner, sol,
         sol_types::eip712_domain,
     };
-    use tap_eip712_message::EIP712SignedMessage;
+    use tap_eip712_message::Eip712SignedMessage;
 
     use super::*;
 
@@ -238,7 +238,7 @@ mod tests {
 
     fn create_signed_receipt_with_custom_value(
         value: u128,
-    ) -> ReceiptWithState<Checking, EIP712SignedMessage<MyReceipt>> {
+    ) -> ReceiptWithState<Checking, Eip712SignedMessage<MyReceipt>> {
         let wallet: PrivateKeySigner = PrivateKeySigner::random();
         let eip712_domain_separator: Eip712Domain = eip712_domain! {
             name: "TAP",
@@ -255,7 +255,7 @@ mod tests {
         let timestamp_ns = timestamp as u64;
 
         let value: u128 = value;
-        let receipt = EIP712SignedMessage::new(
+        let receipt = Eip712SignedMessage::new(
             &eip712_domain_separator,
             MyReceipt {
                 timestamp_ns,

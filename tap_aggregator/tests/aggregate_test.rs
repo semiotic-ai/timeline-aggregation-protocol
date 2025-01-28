@@ -10,7 +10,7 @@ use tap_aggregator::{
     jsonrpsee_helpers::JsonRpcResponse,
     server,
 };
-use tap_core::{signed_message::EIP712SignedMessage, tap_eip712_domain};
+use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 use tonic::codec::CompressionEncoding;
 
@@ -51,7 +51,7 @@ async fn aggregation_test() {
     let mut receipts = Vec::new();
     for value in 50..60 {
         receipts.push(
-            EIP712SignedMessage::new(
+            Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(allocation_id, value).unwrap(),
                 &wallet,
@@ -68,7 +68,7 @@ async fn aggregation_test() {
 
     let previous_rav: Option<tap_graph::SignedRav> = None;
 
-    let response: JsonRpcResponse<EIP712SignedMessage<ReceiptAggregateVoucher>> = sender_aggregator
+    let response: JsonRpcResponse<Eip712SignedMessage<ReceiptAggregateVoucher>> = sender_aggregator
         .request(
             "aggregate_receipts",
             rpc_params!(

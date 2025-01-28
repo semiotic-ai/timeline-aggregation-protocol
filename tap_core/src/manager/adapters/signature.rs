@@ -4,7 +4,7 @@
 use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol_types::SolStruct};
 use async_trait::async_trait;
 
-use crate::{signed_message::EIP712SignedMessage, Error};
+use crate::{signed_message::Eip712SignedMessage, Error};
 
 /// Manages the escrow operations
 ///
@@ -27,7 +27,7 @@ pub trait SignatureChecker: Send + Sync {
     /// Checks if the signed message has a sender signature
     async fn check_signature<T: SolStruct + Sync>(
         &self,
-        signed_message: &EIP712SignedMessage<T>,
+        signed_message: &Eip712SignedMessage<T>,
         domain_separator: &Eip712Domain,
     ) -> Result<(), Error> {
         let recovered_address = signed_message.recover_signer(domain_separator)?;
