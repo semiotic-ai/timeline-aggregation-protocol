@@ -15,9 +15,9 @@ rand.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tap_receipt = { path = "../tap_receipt" }
-tap_eip712_message = { path = "../tap_eip712_message" }
-tap_graph = { path = "../tap_graph", optional = true }
+tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
+tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
+tap_graph = { version = "0.1.0", path = "../tap_graph", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_std"] }
