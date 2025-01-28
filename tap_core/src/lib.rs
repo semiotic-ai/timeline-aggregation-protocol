@@ -13,7 +13,7 @@ use thiserror::Error;
 
 mod error;
 pub mod manager;
-pub mod rav;
+pub mod rav_request;
 pub mod receipt;
 pub mod signed_message;
 
@@ -62,11 +62,9 @@ mod tap_tests {
 
     use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use rstest::*;
+    use tap_graph::{Receipt, ReceiptAggregateVoucher};
 
-    use crate::{
-        rav::ReceiptAggregateVoucher, receipt::Receipt, signed_message::EIP712SignedMessage,
-        tap_eip712_domain,
-    };
+    use crate::{signed_message::EIP712SignedMessage, tap_eip712_domain};
 
     #[fixture]
     fn keys() -> (PrivateKeySigner, Address) {
@@ -187,6 +185,6 @@ mod tap_tests {
                 &domain_separator,
                 Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap()
             )
-            .is_err());
+            .unwrap());
     }
 }
