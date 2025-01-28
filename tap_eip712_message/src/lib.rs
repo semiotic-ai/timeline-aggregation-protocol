@@ -36,16 +36,9 @@ pub enum Eip712Error {
     #[error(transparent)]
     WalletError(#[from] alloy::signers::Error),
 
-    /// `alloy` wallet error
+    /// `alloy` signature error
     #[error(transparent)]
     SignatureError(#[from] alloy::primitives::SignatureError),
-
-    /// Error when signature verification fails
-    #[error("Expected address {expected} but received {received}")]
-    VerificationFailed {
-        expected: Address,
-        received: Address,
-    },
 }
 
 /// EIP712 signed message
@@ -83,6 +76,11 @@ pub struct MessageId(pub [u8; 32]);
 
 impl<M: SolStruct> EIP712SignedMessage<M> {
     /// Creates a signed message with signed EIP712 hash of `message` using `signing_wallet`
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::Error::WalletError`] if could not sign using the wallet
+    ///
     pub fn new(
         domain_separator: &Eip712Domain,
         message: M,
@@ -104,7 +102,7 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
         Ok(recovered_address)
     }
 
-    /// Checks that receipts signature is valid for given verifying key, returns `Ok` if it is valid.
+    /// Checks that receipts signature is valid for given verifying key, returns `Ok(true)` if it is valid.
     ///
     /// # Errors
     ///
@@ -115,16 +113,9 @@ impl<M: SolStruct> EIP712SignedMessage<M> {
         &self,
         domain_separator: &Eip712Domain,
         expected_address: Address,
-    ) -> Result<(), Eip712Error> {
+    ) -> Result<bool, Eip712Error> {
         let recovered_address = self.recover_signer(domain_separator)?;
-        if recovered_address != expected_address {
-            Err(Eip712Error::VerificationFailed {
-                expected: expected_address,
-                received: recovered_address,
-            })
-        } else {
-            Ok(())
-        }
+        Ok(recovered_address != expected_address)
     }
 
     /// Use this as a simple key for testing

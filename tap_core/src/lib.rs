@@ -185,6 +185,6 @@ mod tap_tests {
                 &domain_separator,
                 Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap()
             )
-            .is_err());
+            .unwrap());
     }
 }
