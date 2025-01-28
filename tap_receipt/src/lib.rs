@@ -33,13 +33,16 @@ use tap_eip712_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt}
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
 
+/// Extra information for [checks::Check]
 pub type Context = anymap3::Map<dyn std::any::Any + Send + Sync>;
 
+/// Extension that allows TAP Aggregation for any SolStruct receipt
 pub trait WithValueAndTimestamp {
     fn value(&self) -> u128;
     fn timestamp_ns(&self) -> u64;
 }
 
+/// Extension that allows UniqueCheck for any SolStruct receipt
 pub trait WithUniqueId {
     type Output: Eq + std::hash::Hash;
     fn unique_id(&self) -> Self::Output;

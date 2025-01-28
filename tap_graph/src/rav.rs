@@ -50,11 +50,11 @@ use tap_receipt::{
 
 use crate::{receipt::Receipt, SignedReceipt};
 
-/// EIP712 signed message for ReceiptAggregateVoucher
+/// A Rav wrapped in an Eip712SignedMessage
 pub type SignedRav = Eip712SignedMessage<ReceiptAggregateVoucher>;
 
 sol! {
-    /// Holds information needed for promise of payment signed with ECDSA
+    /// ReceiptAggregateVoucher struct sent to Arbitrum to redeem payments
     ///
     /// We use camelCase for field names to match the Ethereum ABI encoding
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
