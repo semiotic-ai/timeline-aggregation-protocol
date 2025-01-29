@@ -6,8 +6,9 @@
 //! These structs are used for communication between The Graph systems.
 //!
 
-mod rav;
-mod receipt;
+mod v1;
 
-pub use rav::{ReceiptAggregateVoucher, SignedRav};
-pub use receipt::{Receipt, SignedReceipt};
+#[cfg(any(test, feature = "v2"))]
+pub mod v2;
+
+pub use v1::{Receipt, ReceiptAggregateVoucher, SignedRav, SignedReceipt};
