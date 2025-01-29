@@ -21,16 +21,13 @@ use tonic::{codec::CompressionEncoding, service::Routes, Request, Response, Stat
 use tower::{layer::util::Identity, make::Shared};
 
 use crate::{
-    aggregator::check_and_aggregate_receipts,
+    aggregator,
     api_versioning::{
         tap_rpc_api_versions_info, TapRpcApiVersion, TapRpcApiVersionsInfo,
         TAP_RPC_API_VERSIONS_DEPRECATED,
     },
     error_codes::{JsonRpcErrorCode, JsonRpcWarningCode},
-    grpc::v1::{
-        tap_aggregator_server::{TapAggregator, TapAggregatorServer},
-        RavRequest, RavResponse,
-    },
+    grpc::{v1, v2},
     jsonrpsee_helpers::{JsonRpcError, JsonRpcResponse, JsonRpcResult, JsonRpcWarning},
 };
 
@@ -154,7 +151,7 @@ fn aggregate_receipts_(
     }
 
     let res = match api_version {
-        TapRpcApiVersion::V0_0 => check_and_aggregate_receipts(
+        TapRpcApiVersion::V0_0 => aggregator::v1::check_and_aggregate_receipts(
             domain_separator,
             &receipts,
             previous_rav,
@@ -175,11 +172,11 @@ fn aggregate_receipts_(
 }
 
 #[tonic::async_trait]
-impl TapAggregator for RpcImpl {
+impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
     async fn aggregate_receipts(
         &self,
-        request: Request<RavRequest>,
-    ) -> Result<Response<RavResponse>, Status> {
+        request: Request<v1::RavRequest>,
+    ) -> Result<Response<v1::RavResponse>, Status> {
         let rav_request = request.into_inner();
         let receipts: Vec<SignedReceipt> = rav_request
             .receipts
@@ -197,7 +194,7 @@ impl TapAggregator for RpcImpl {
         let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
 
-        match check_and_aggregate_receipts(
+        match aggregator::v1::check_and_aggregate_receipts(
             &self.domain_separator,
             receipts.as_slice(),
             previous_rav,
@@ -209,7 +206,55 @@ impl TapAggregator for RpcImpl {
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
 
-                let response = RavResponse {
+                let response = v1::RavResponse {
+                    rav: Some(res.into()),
+                };
+                Ok(Response::new(response))
+            }
+            Err(e) => {
+                AGGREGATION_FAILURE_COUNTER.inc();
+                Err(Status::failed_precondition(e.to_string()))
+            }
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
+    async fn aggregate_receipts(
+        &self,
+        request: Request<v2::RavRequest>,
+    ) -> Result<Response<v2::RavResponse>, Status> {
+        let rav_request = request.into_inner();
+        let receipts: Vec<tap_graph::v2::SignedReceipt> = rav_request
+            .receipts
+            .into_iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()
+            .map_err(|_| Status::invalid_argument("Error while getting list of signed_receipts"))?;
+
+        let previous_rav = rav_request
+            .previous_rav
+            .map(TryFrom::try_from)
+            .transpose()
+            .map_err(|_| Status::invalid_argument("Error while getting previous rav"))?;
+
+        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_count: u64 = receipts.len() as u64;
+
+        match aggregator::v2::check_and_aggregate_receipts(
+            &self.domain_separator,
+            receipts.as_slice(),
+            previous_rav,
+            &self.wallet,
+            &self.accepted_addresses,
+        ) {
+            Ok(res) => {
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
+                AGGREGATION_SUCCESS_COUNTER.inc();
+
+                let response = v2::RavResponse {
                     rav: Some(res.into()),
                 };
                 Ok(Response::new(response))
@@ -357,7 +402,12 @@ async fn shutdown_handler() {
 
 fn create_grpc_service(rpc_impl: RpcImpl) -> Result<Routes> {
     let grpc_service = Routes::new(
-        TapAggregatorServer::new(rpc_impl).accept_compressed(CompressionEncoding::Zstd),
+        v1::tap_aggregator_server::TapAggregatorServer::new(rpc_impl.clone())
+            .accept_compressed(CompressionEncoding::Zstd),
+    )
+    .add_service(
+        v2::tap_aggregator_server::TapAggregatorServer::new(rpc_impl)
+            .accept_compressed(CompressionEncoding::Zstd),
     )
     .prepare();
 
