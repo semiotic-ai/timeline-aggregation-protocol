@@ -1,6 +1,6 @@
 [package]
 name = "tap_aggregator"
-version = "0.4.0"
+version = "0.4.1"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -34,12 +34,12 @@ rayon = "1.10.0"
 serde.workspace = true
 serde_json.workspace = true
 strum = { version = "0.26.3", features = ["derive"] }
-tap_core = { path = "../tap_core", version = "3.0.0" }
+tap_core = { path = "../tap_core", version = "3.0.1" }
 tokio.workspace = true
 tonic = { version = "0.12.3", features = ["transport", "zstd"] }
 tower = { version = "0.5.2", features = ["util", "steer"] }
 tracing-subscriber = "0.3.17"
-tap_graph = { version = "0.1.0", path = "../tap_graph" }
+tap_graph = { version = "0.2.0", path = "../tap_graph" }
 
 [build-dependencies]
 tonic-build = "0.12.3"

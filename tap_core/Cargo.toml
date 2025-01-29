@@ -1,6 +1,6 @@
 [package]
 name = "tap_core"
-version = "3.0.0"
+version = "3.0.1"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -17,7 +17,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
 tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
-tap_graph = { version = "0.1.0", path = "../tap_graph", optional = true }
+tap_graph = { version = "0.2.0", path = "../tap_graph", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_std"] }

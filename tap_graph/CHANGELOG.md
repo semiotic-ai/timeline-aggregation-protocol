@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.1.0...tap_graph-v0.2.0) (2025-01-29)
+
+
+### Features
+
+* add horizon types to tap_graph ([#270](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/270)) ([b8e424e](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/b8e424e2a177fdf6c6a3a936c5f6450e9d6fc504))
+
 ## 0.1.0 (2025-01-28)
 
 
