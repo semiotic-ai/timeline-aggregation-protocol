@@ -27,7 +27,7 @@ use crate::{
         TAP_RPC_API_VERSIONS_DEPRECATED,
     },
     error_codes::{JsonRpcErrorCode, JsonRpcWarningCode},
-    grpc::{
+    grpc::v1::{
         tap_aggregator_server::{TapAggregator, TapAggregatorServer},
         RavRequest, RavResponse,
     },

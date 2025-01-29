@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 syntax = "proto3";
-package tap_aggregator.v1;
+package tap_aggregator.v2;
 
 import "uint128.proto";
 
 message Receipt {
   bytes allocation_id = 1;
-  uint64 timestamp_ns = 2;
-  uint64 nonce = 3;
-  grpc.uint128.Uint128 value = 4;
+  bytes payer = 2;
+  bytes data_service = 3;
+  bytes service_provider = 4;
+  uint64 timestamp_ns = 5;
+  uint64 nonce = 6;
+  grpc.uint128.Uint128 value = 7;
 }
 
 message SignedReceipt {
@@ -20,8 +23,12 @@ message SignedReceipt {
 
 message ReceiptAggregateVoucher {
   bytes allocation_id = 1;
-  uint64 timestamp_ns = 2;
-  grpc.uint128.Uint128 value_aggregate = 3;
+  bytes payer = 2;
+  bytes data_service = 3;
+  bytes service_provider = 4;
+  uint64 timestamp_ns = 5;
+  grpc.uint128.Uint128 value_aggregate = 6;
+  bytes metadata = 7;
 }
 
 message SignedRav {
@@ -41,3 +48,4 @@ message RavResponse {
 service TapAggregator {
   rpc AggregateReceipts(RavRequest) returns (RavResponse);
 }
+
