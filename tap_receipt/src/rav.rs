@@ -26,4 +26,8 @@ pub enum AggregationError {
     /// Error when no valid receipts are found for a RAV request
     #[error("Failed to produce rav request, no valid receipts")]
     NoValidReceiptsForRavRequest,
+
+    /// Other user-defined error
+    #[error(transparent)]
+    Other(anyhow::Error),
 }
