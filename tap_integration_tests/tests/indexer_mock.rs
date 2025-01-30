@@ -44,9 +44,9 @@ pub trait Rpc {
 /// threshold is a limit to which receipt_count can increment, after reaching which RAV request is triggered.
 /// aggregator_client is an HTTP client used for making JSON-RPC requests to another server.
 pub struct RpcManager<E> {
-    manager: Arc<Manager<E, SignedReceipt, ReceiptAggregateVoucher>>, // Manager object reference counted with an Arc
-    receipt_count: Arc<AtomicU64>, // Thread-safe atomic counter for receipts
-    threshold: u64,                // The count at which a RAV request will be triggered
+    manager: Arc<Manager<E, SignedReceipt>>, // Manager object reference counted with an Arc
+    receipt_count: Arc<AtomicU64>,           // Thread-safe atomic counter for receipts
+    threshold: u64,                          // The count at which a RAV request will be triggered
     aggregator_client: (HttpClient, String), // HTTP client for sending requests to the aggregator server
 }
 
@@ -66,7 +66,7 @@ where
         aggregate_server_api_version: String,
     ) -> Result<Self> {
         Ok(Self {
-            manager: Arc::new(Manager::<E, SignedReceipt, ReceiptAggregateVoucher>::new(
+            manager: Arc::new(Manager::<E, SignedReceipt>::new(
                 domain_separator,
                 context,
                 required_checks,
@@ -184,7 +184,7 @@ where
 
 // request_rav function creates a request for aggregate receipts (RAV), sends it to another server and verifies the result.
 async fn request_rav<E>(
-    manager: &Arc<Manager<E, SignedReceipt, ReceiptAggregateVoucher>>,
+    manager: &Arc<Manager<E, SignedReceipt>>,
     time_stamp_buffer: u64, // Buffer for timestamping, see tap_core for details
     aggregator_client: &(HttpClient, String), // HttpClient for making requests to the tap_aggregator server
     threshold: usize,
