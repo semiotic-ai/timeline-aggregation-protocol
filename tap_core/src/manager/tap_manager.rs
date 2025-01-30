@@ -1,8 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::marker::PhantomData;
-
 use alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
 use tap_receipt::rav::Aggregate;
 
@@ -20,7 +18,7 @@ use crate::{
     Error,
 };
 
-pub struct Manager<E, Rcpt, Rav> {
+pub struct Manager<E, Rcpt> {
     /// Context that implements adapters
     context: E,
 
@@ -30,11 +28,9 @@ pub struct Manager<E, Rcpt, Rav> {
     /// Struct responsible for doing checks for receipt. Ownership stays with manager allowing manager
     /// to update configuration ( like minimum timestamp ).
     domain_separator: Eip712Domain,
-
-    _phantom: PhantomData<Rav>,
 }
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav> {
+impl<E, Rcpt> Manager<E, Rcpt> {
     /// Creates new manager with provided `adapters`, any receipts received by this manager
     /// will complete all `required_checks` before being accepted or declined from RAV.
     /// `starting_min_timestamp` will be used as min timestamp until the first RAV request is created.
@@ -48,27 +44,40 @@ impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav> {
             context,
             domain_separator,
             checks: checks.into(),
-            _phantom: PhantomData,
         }
     }
-}
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
-where
-    E: RavStore<Rav> + SignatureChecker,
-    Rav: SolStruct + PartialEq<Rav> + Sync + std::fmt::Debug,
-{
+    async fn get_previous_rav<Rav: SolStruct>(
+        &self,
+    ) -> Result<Option<Eip712SignedMessage<Rav>>, Error>
+    where
+        E: RavRead<Rav>,
+    {
+        let previous_rav = self
+            .context
+            .last_rav()
+            .await
+            .map_err(|err| Error::AdapterError {
+                source_error: anyhow::Error::new(err),
+            })?;
+        Ok(previous_rav)
+    }
+
     /// Verify `signed_rav` matches all values on `expected_rav`, and that `signed_rav` has a valid signer.
     ///
     /// # Errors
     ///
     /// Returns [`Error::AdapterError`] if there are any errors while storing RAV
     ///
-    pub async fn verify_and_store_rav(
+    pub async fn verify_and_store_rav<Rav>(
         &self,
         expected_rav: Rav,
         signed_rav: Eip712SignedMessage<Rav>,
-    ) -> std::result::Result<(), Error> {
+    ) -> std::result::Result<(), Error>
+    where
+        E: RavStore<Rav> + SignatureChecker,
+        Rav: SolStruct + PartialEq<Rav> + Sync + std::fmt::Debug,
+    {
         self.context
             .check_signature(&signed_rav, &self.domain_separator)
             .await?;
@@ -91,27 +100,10 @@ where
     }
 }
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
-    E: RavRead<Rav>,
-    Rav: SolStruct,
-{
-    async fn get_previous_rav(&self) -> Result<Option<Eip712SignedMessage<Rav>>, Error> {
-        let previous_rav = self
-            .context
-            .last_rav()
-            .await
-            .map_err(|err| Error::AdapterError {
-                source_error: anyhow::Error::new(err),
-            })?;
-        Ok(previous_rav)
-    }
-}
-
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
-where
-    E: ReceiptRead<Rcpt> + SignatureChecker,
-    Rcpt: WithUniqueId + WithValueAndTimestamp + Sync,
+    E: ReceiptRead<Rcpt>,
+    Rcpt: WithUniqueId + WithValueAndTimestamp,
 {
     async fn collect_receipts(
         &self,
@@ -168,14 +160,7 @@ where
 
         Ok((checked_receipts, failed_receipts))
     }
-}
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
-where
-    E: ReceiptRead<Rcpt> + RavRead<Rav> + SignatureChecker,
-    Rav: SolStruct + WithValueAndTimestamp + Clone + Aggregate<Rcpt>,
-    Rcpt: WithUniqueId + WithValueAndTimestamp + Sync,
-{
     /// Completes remaining checks on all receipts up to
     /// (current time - `timestamp_buffer_ns`). Returns them in two lists
     /// (valid receipts and invalid receipts) along with the expected RAV that
@@ -191,12 +176,16 @@ where
     /// previous RAV is greater than the min timestamp. Caused by timestamp
     /// buffer being too large, or requests coming too soon.
     ///
-    pub async fn create_rav_request(
+    pub async fn create_rav_request<Rav>(
         &self,
         ctx: &Context,
         timestamp_buffer_ns: u64,
         receipts_limit: Option<u64>,
-    ) -> Result<RavRequest<Rcpt, Rav>, Error> {
+    ) -> Result<RavRequest<Rcpt, Rav>, Error>
+    where
+        E: RavRead<Rav>,
+        Rav: SolStruct + WithValueAndTimestamp + Clone + Aggregate<Rcpt>,
+    {
         let previous_rav = self.get_previous_rav().await?;
         let min_timestamp_ns = previous_rav
             .as_ref()
@@ -218,10 +207,9 @@ where
     }
 }
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
-    E: ReceiptDelete + RavRead<Rav>,
-    Rav: SolStruct + WithValueAndTimestamp,
+    E: ReceiptDelete,
 {
     /// Removes obsolete receipts from storage. Obsolete receipts are receipts
     /// that are older than the last RAV, and therefore already aggregated into the RAV.
@@ -233,7 +221,11 @@ where
     /// Returns [`Error::AdapterError`] if there are any errors while retrieving
     /// last RAV or removing receipts
     ///
-    pub async fn remove_obsolete_receipts(&self) -> Result<(), Error> {
+    pub async fn remove_obsolete_receipts<Rav>(&self) -> Result<(), Error>
+    where
+        E: RavRead<Rav>,
+        Rav: SolStruct + WithValueAndTimestamp,
+    {
         match self.get_previous_rav().await? {
             Some(last_rav) => {
                 self.context
@@ -249,7 +241,7 @@ where
     }
 }
 
-impl<E, Rcpt, Rav> Manager<E, Rcpt, Rav>
+impl<E, Rcpt> Manager<E, Rcpt>
 where
     E: ReceiptStore<Rcpt>,
 {
