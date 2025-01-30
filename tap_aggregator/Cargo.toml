@@ -39,7 +39,7 @@ tokio.workspace = true
 tonic = { version = "0.12.3", features = ["transport", "zstd"] }
 tower = { version = "0.5.2", features = ["util", "steer"] }
 tracing-subscriber = "0.3.17"
-tap_graph = { version = "0.2.0", path = "../tap_graph" }
+tap_graph = { version = "0.2.0", path = "../tap_graph", features = ["v2"] }
 
 [build-dependencies]
 tonic-build = "0.12.3"

@@ -1,0 +1,12 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package grpc.uint128;
+
+message Uint128 {
+  // Highest 64 bits of a 128 bit number.
+  uint64 high = 1;
+  // Lowest 64 bits of a 128 bit number.
+  uint64 low = 2;
+}
