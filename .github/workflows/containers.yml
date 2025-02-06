@@ -57,6 +57,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./
-          push: true
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           tags: ${{ steps.meta.outputs.tags }}
           file: Dockerfile.${{ matrix.target }}
