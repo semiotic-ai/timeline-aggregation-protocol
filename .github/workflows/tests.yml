@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf compiler
-        run: apt-get update && apt-get install protobuf-compiler -y
+        run: apt-get update && apt-get install libsasl2-dev protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf compiler
-        run: apt-get update && apt-get install protobuf-compiler -y
+        run: apt-get update && apt-get install libsasl2-dev protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf compiler
-        run: apt-get update && apt-get install protobuf-compiler -y
+        run: apt-get update && apt-get install libsasl2-dev protobuf-compiler -y
       - uses: actions/cache@v3
         with:
           path: |
