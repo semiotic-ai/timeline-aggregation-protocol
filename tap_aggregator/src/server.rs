@@ -12,7 +12,7 @@ use jsonrpsee::{
     server::{ServerBuilder, ServerHandle, TowerService},
 };
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
 use tap_core::signed_message::Eip712SignedMessage;
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
@@ -94,6 +94,7 @@ struct RpcImpl {
     wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
+    kafka: Option<rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>>,
 }
 
 /// Helper method that checks if the given API version is supported.
@@ -205,6 +206,14 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
                 TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
+                if let Some(kafka) = &self.kafka {
+                    produce_kafka_records(
+                        kafka,
+                        &self.wallet.address(),
+                        &res.message.allocationId,
+                        res.message.valueAggregate,
+                    );
+                }
 
                 let response = v1::RavResponse {
                     rav: Some(res.into()),
@@ -253,6 +262,14 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
                 TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
+                if let Some(kafka) = &self.kafka {
+                    produce_kafka_records(
+                        kafka,
+                        &res.message.payer,
+                        &res.message.allocationId,
+                        res.message.valueAggregate,
+                    );
+                }
 
                 let response = v2::RavResponse {
                     rav: Some(res.into()),
@@ -294,6 +311,14 @@ impl RpcServer for RpcImpl {
                 TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
+                if let Some(kafka) = &self.kafka {
+                    produce_kafka_records(
+                        kafka,
+                        &self.wallet.address(),
+                        &res.data.message.allocationId,
+                        res.data.message.valueAggregate,
+                    );
+                }
                 Ok(res)
             }
             Err(e) => {
@@ -304,6 +329,7 @@ impl RpcServer for RpcImpl {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_server(
     port: u16,
     wallet: PrivateKeySigner,
@@ -312,12 +338,14 @@ pub async fn run_server(
     max_request_body_size: u32,
     max_response_body_size: u32,
     max_concurrent_connections: u32,
+    kafka: Option<rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>>,
 ) -> Result<(JoinHandle<()>, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
     let rpc_impl = RpcImpl {
         wallet,
         accepted_addresses,
         domain_separator,
+        kafka,
     };
     let (json_rpc_service, _) = create_json_rpc_service(
         rpc_impl.clone(),
@@ -432,6 +460,25 @@ fn create_json_rpc_service(
     Ok((handle, server_handle))
 }
 
+fn produce_kafka_records(
+    kafka: &rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>,
+    sender: &Address,
+    allocation: &Address,
+    aggregated_value: u128,
+) {
+    let topic = "gateway_ravs";
+    let key = format!("{sender:?}:{allocation:?}");
+    let payload = aggregated_value.to_string();
+    let result = kafka.send(
+        rdkafka::producer::BaseRecord::to(topic)
+            .key(&key)
+            .payload(&payload),
+    );
+    if let Err((err, _)) = result {
+        error!("error producing to {topic}: {err}");
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod tests {
@@ -508,6 +555,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            None,
         )
         .await
         .unwrap();
@@ -557,6 +605,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            None,
         )
         .await
         .unwrap();
@@ -637,6 +686,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            None,
         )
         .await
         .unwrap();
@@ -714,6 +764,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            None,
         )
         .await
         .unwrap();
@@ -805,6 +856,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            None,
         )
         .await
         .unwrap();
