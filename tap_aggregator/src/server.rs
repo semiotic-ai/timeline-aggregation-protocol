@@ -78,6 +78,11 @@ pub trait Rpc {
     #[method(name = "api_versions")]
     fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo>;
 
+    /// Returns the EIP-712 domain separator information used by this server.
+    /// The client is able to verify the signatures of the receipts and receipt aggregate vouchers.
+    #[method(name = "eip712domain_info")]
+    fn eip712_domain_info(&self) -> JsonRpcResult<Eip712Domain>;
+
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
     #[method(name = "aggregate_receipts")]
@@ -287,6 +292,10 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
 impl RpcServer for RpcImpl {
     fn api_versions(&self) -> JsonRpcResult<TapRpcApiVersionsInfo> {
         Ok(JsonRpcResponse::ok(tap_rpc_api_versions_info()))
+    }
+
+    fn eip712_domain_info(&self) -> JsonRpcResult<Eip712Domain> {
+        Ok(JsonRpcResponse::ok(self.domain_separator.clone()))
     }
 
     fn aggregate_receipts(

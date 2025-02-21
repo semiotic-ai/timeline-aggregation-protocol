@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 alloy.workspace = true
+alloy-sol-types ={ version = "0.8.21", features = ["eip712-serde"]}
 anyhow.workspace = true
 axum = { version = "0.7.5", features = [
     "http1",
