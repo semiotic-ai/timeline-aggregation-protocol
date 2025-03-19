@@ -7,11 +7,11 @@ repository.workspace = true
 description = "The Graph TAP receipt structs"
 
 [dependencies]
-alloy.workspace = true
-serde.workspace = true
 rand.workspace = true
+serde.workspace = true
 tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
 tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
+thegraph-core.workspace = true
 
 
 [dev-dependencies]

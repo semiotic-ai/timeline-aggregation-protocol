@@ -7,9 +7,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use anyhow::anyhow;
 use rstest::*;
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+};
 
 fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
     Ok(SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64)

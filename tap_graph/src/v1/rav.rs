@@ -39,7 +39,6 @@
 
 use std::cmp;
 
-use alloy::{primitives::Address, sol};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::{
@@ -47,6 +46,7 @@ use tap_receipt::{
     state::Checked,
     ReceiptWithState, WithValueAndTimestamp,
 };
+use thegraph_core::alloy::{primitives::Address, sol};
 
 use super::{Receipt, SignedReceipt};
 

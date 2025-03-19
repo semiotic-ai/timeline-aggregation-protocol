@@ -8,21 +8,22 @@ readme = "README.md"
 description = "Core Timeline Aggregation Protocol library: a fast, efficient and trustless unidirectional micro-payments system."
 
 [dependencies]
-alloy.workspace = true
 anyhow.workspace = true
 async-trait = "0.1.85"
 rand.workspace = true
-thiserror.workspace = true
-tokio.workspace = true
-tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
 tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
 tap_graph = { version = "0.2.0", path = "../tap_graph", optional = true }
+tap_receipt = { version = "0.1.0", path = "../tap_receipt" }
+thegraph-core.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["async_std"] }
 insta.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
+thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 
 [features]
 default = ["in_memory"]

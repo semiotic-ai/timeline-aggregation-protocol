@@ -141,9 +141,9 @@ pub mod v1 {
 }
 
 pub mod v2 {
-    use alloy::primitives::Bytes;
     use anyhow::anyhow;
     use tap_core::signed_message::Eip712SignedMessage;
+    use thegraph_core::alloy::primitives::Bytes;
 
     tonic::include_proto!("tap_aggregator.v2");
 

@@ -6,7 +6,7 @@
 
 use std::result::Result as StdResult;
 
-use alloy::primitives::Address;
+use thegraph_core::alloy::primitives::Address;
 use thiserror::Error as ThisError;
 
 use crate::receipt::ReceiptError;
@@ -22,7 +22,7 @@ pub enum Error {
     InvalidSystemTime { source_error_message: String },
     /// `alloy` wallet error
     #[error(transparent)]
-    WalletError(#[from] alloy::signers::Error),
+    WalletError(#[from] thegraph_core::alloy::signers::Error),
 
     /// `alloy` wallet error
     #[error(transparent)]

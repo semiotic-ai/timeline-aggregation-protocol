@@ -3,7 +3,6 @@
 
 use std::{collections::HashSet, str::FromStr};
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use anyhow::Result;
 use axum::{error_handling::HandleError, routing::post_service, BoxError, Router};
 use hyper::StatusCode;
@@ -16,6 +15,9 @@ use log::{error, info};
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
 use tap_core::signed_message::Eip712SignedMessage;
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+};
 use tokio::{net::TcpListener, signal, task::JoinHandle};
 use tonic::{codec::CompressionEncoding, service::Routes, Request, Response, Status};
 use tower::{layer::util::Identity, make::Shared};
@@ -493,12 +495,14 @@ fn produce_kafka_records(
 mod tests {
     use std::{collections::HashSet, str::FromStr};
 
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rand::{prelude::*, seq::SliceRandom};
     use rstest::*;
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
+    use thegraph_core::alloy::{
+        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    };
 
     use crate::server;
 

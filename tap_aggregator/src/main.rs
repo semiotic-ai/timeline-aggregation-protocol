@@ -5,12 +5,14 @@
 
 use std::{collections::HashSet, str::FromStr};
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use anyhow::Result;
 use clap::Parser;
 use log::{debug, info};
 use tap_aggregator::{metrics, server};
 use tap_core::tap_eip712_domain;
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -141,7 +143,7 @@ async fn main() -> Result<()> {
 }
 
 fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
-    // Transfrom the args into the types expected by Eip712Domain::new().
+    // Transform the args into the types expected by Eip712Domain::new().
 
     // Transform optional strings into optional Cow<str>.
     // Transform optional strings into optional U256.

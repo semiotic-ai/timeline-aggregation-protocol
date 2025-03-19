@@ -7,7 +7,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use rstest::*;
 use tap_core::{
     manager::context::memory::{checks::get_full_list_of_checks, EscrowStorage, QueryAppraisals},
@@ -19,6 +18,9 @@ use tap_core::{
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, SignedReceipt};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+};
 
 #[fixture]
 fn signer() -> PrivateKeySigner {

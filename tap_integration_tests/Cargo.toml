@@ -13,15 +13,15 @@ tap_aggregator = { path = "../tap_aggregator" }
 tap_core = { path = "../tap_core", version = "3.0.1" }
 rand.workspace = true
 anyhow.workspace = true
+thegraph-core.workspace = true
 tokio.workspace = true
-alloy.workspace = true
 jsonrpsee = { workspace = true, features = ["jsonrpsee-http-client"] }
 jsonrpsee-core = "0.24.7"
 tap_graph = { path = "../tap_graph" }
 
 [dev-dependencies]
 rstest.workspace = true
-alloy = { workspace = true, features = ["signer-mnemonic"] }
+thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 
 [[test]]
 name = "integration_tests"

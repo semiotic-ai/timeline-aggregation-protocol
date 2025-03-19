@@ -7,8 +7,8 @@ repository.workspace = true
 description = "EIP712 singed messages used by TAP"
 
 [dependencies]
-alloy.workspace = true
 serde.workspace = true
+thegraph-core.workspace = true
 thiserror.workspace = true
 
 

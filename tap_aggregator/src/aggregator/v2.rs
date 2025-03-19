@@ -3,14 +3,14 @@
 
 use std::collections::{hash_set, HashSet};
 
-use alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
-    sol_types::SolStruct,
-};
 use anyhow::{bail, Ok, Result};
 use rayon::prelude::*;
 use tap_core::signed_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    sol_types::SolStruct,
+};
 
 pub fn check_and_aggregate_receipts(
     domain_separator: &Eip712Domain,
@@ -185,14 +185,14 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use alloy::{
+    use rstest::*;
+    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+    use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+    use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
         primitives::{address, Address, Bytes},
         signers::local::PrivateKeySigner,
     };
-    use rstest::*;
-    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
-    use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 
     #[fixture]
     fn keys() -> (PrivateKeySigner, Address) {

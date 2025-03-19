@@ -1,8 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy::primitives::Address;
 use serde::{Deserialize, Serialize};
+use thegraph_core::alloy::primitives::Address;
 
 /// Error type for receipts
 #[derive(thiserror::Error, Debug, Clone, Serialize, Deserialize)]

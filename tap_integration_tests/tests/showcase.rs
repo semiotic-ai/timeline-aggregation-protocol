@@ -12,11 +12,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy::{
-    dyn_abi::Eip712Domain,
-    primitives::Address,
-    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
-};
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::client::ClientT, http_client::HttpClientBuilder, rpc_params, server::ServerHandle,
@@ -31,6 +26,11 @@ use tap_core::{
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, SignedRav, SignedReceipt};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::Address,
+    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+};
 use tokio::task::JoinHandle;
 
 use crate::indexer_mock;

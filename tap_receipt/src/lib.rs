@@ -25,10 +25,10 @@ pub mod rav;
 mod received_receipt;
 pub mod state;
 
-use alloy::sol_types::SolStruct;
 pub use error::ReceiptError;
 pub use received_receipt::ReceiptWithState;
 use tap_eip712_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
+use thegraph_core::alloy::sol_types::SolStruct;
 
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;

@@ -8,7 +8,7 @@
 //!
 //! # Example
 //! ```rust
-//! # use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+//! # use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 //! # let domain_separator = Eip712Domain::default();
 //! use tap_eip712_message::Eip712SignedMessage;
 //! # let wallet = PrivateKeySigner::random();
@@ -22,24 +22,24 @@
 //! ```
 //!
 
-use alloy::{
+use serde::{Deserialize, Serialize};
+use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
     primitives::{Address, PrimitiveSignature as Signature},
     signers::{local::PrivateKeySigner, SignerSync},
     sol_types::SolStruct,
 };
-use serde::{Deserialize, Serialize};
 
 /// Errors returned by creation of messages and verify signature
 #[derive(thiserror::Error, Debug)]
 pub enum Eip712Error {
     /// `alloy` wallet error
     #[error(transparent)]
-    WalletError(#[from] alloy::signers::Error),
+    WalletError(#[from] thegraph_core::alloy::signers::Error),
 
     /// `alloy` signature error
     #[error(transparent)]
-    SignatureError(#[from] alloy::primitives::SignatureError),
+    SignatureError(#[from] thegraph_core::alloy::primitives::SignatureError),
 }
 
 /// EIP712 signed message

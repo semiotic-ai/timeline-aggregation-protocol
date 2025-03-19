@@ -1,8 +1,8 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, sol_types::SolStruct};
 use async_trait::async_trait;
+use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address, sol_types::SolStruct};
 
 use crate::{signed_message::Eip712SignedMessage, Error};
 

@@ -12,9 +12,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use alloy::primitives::Address;
 use async_trait::async_trait;
 use tap_graph::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
+use thegraph_core::alloy::primitives::Address;
 
 use crate::{
     manager::adapters::*,
@@ -258,8 +258,8 @@ pub mod checks {
         sync::{Arc, RwLock},
     };
 
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address};
     use tap_graph::SignedReceipt;
+    use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address};
 
     use crate::{
         receipt::{

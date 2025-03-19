@@ -211,11 +211,11 @@ where
 mod tests {
     use std::time::{Duration, SystemTime};
 
-    use alloy::{
+    use tap_eip712_message::Eip712SignedMessage;
+    use thegraph_core::alloy::{
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner, sol,
         sol_types::eip712_domain,
     };
-    use tap_eip712_message::Eip712SignedMessage;
 
     use super::*;
 

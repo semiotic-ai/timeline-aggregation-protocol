@@ -10,10 +10,12 @@
 
 use std::str::FromStr;
 
-use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+};
 
 pub fn create_and_sign_receipt(
     domain_separator: &Eip712Domain,

@@ -16,7 +16,6 @@ license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
 
 [workspace.dependencies]
-alloy = { version = "0.11.0", features = ["full"] }
 serde = { version = "1.0.217", features = ["derive"] }
 rstest = "0.24.0"
 anyhow = { version = "1.0.95" }
@@ -25,4 +24,5 @@ rand = "0.8.5"
 jsonrpsee = { version = "0.24.7", features = ["macros", "server"] }
 insta = { version = "1.42.0", features = ["json"] }
 serde_json = { version = "1.0.137", features = ["raw_value"] }
+thegraph-core = "0.12.0"
 thiserror = "2.0.11"

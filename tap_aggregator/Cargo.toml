@@ -12,8 +12,6 @@ name = "tap_aggregator"
 path = "src/main.rs"
 
 [dependencies]
-alloy.workspace = true
-alloy-sol-types ={ version = "0.8.21", features = ["eip712-serde"]}
 anyhow.workspace = true
 axum = { version = "0.7.5", features = [
     "http1",
@@ -36,6 +34,7 @@ serde.workspace = true
 serde_json.workspace = true
 strum = { version = "0.26.3", features = ["derive"] }
 tap_core = { path = "../tap_core", version = "3.0.1" }
+thegraph-core = { workspace = true, features = ["alloy-eip712"] }
 tokio.workspace = true
 tonic = { version = "0.12.3", features = ["transport", "zstd"] }
 tower = { version = "0.5.2", features = ["util", "steer"] }
