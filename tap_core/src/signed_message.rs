@@ -8,7 +8,7 @@
 //!
 //! # Example
 //! ```rust
-//! # use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
+//! # use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 //! # use tap_graph::{Receipt};
 //! # let domain_separator = Eip712Domain::default();
 //! use tap_core::signed_message::Eip712SignedMessage;

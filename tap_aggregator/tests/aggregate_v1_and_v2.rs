@@ -3,10 +3,6 @@
 
 use std::collections::HashSet;
 
-use alloy::{
-    primitives::{address, Address},
-    signers::local::PrivateKeySigner,
-};
 use tap_aggregator::{
     grpc::{
         v1::{tap_aggregator_client::TapAggregatorClient as ClientV1, RavRequest as ReqV1},
@@ -16,6 +12,10 @@ use tap_aggregator::{
 };
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{v2::Receipt as ReceiptV2, Receipt as ReceiptV1};
+use thegraph_core::alloy::{
+    primitives::{address, Address},
+    signers::local::PrivateKeySigner,
+};
 use tonic::codec::CompressionEncoding;
 
 #[tokio::test]

@@ -3,7 +3,6 @@
 
 use std::{collections::HashSet, str::FromStr};
 
-use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
 use tap_aggregator::{
     grpc::v1::{tap_aggregator_client::TapAggregatorClient, RavRequest},
@@ -12,6 +11,7 @@ use tap_aggregator::{
 };
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
+use thegraph_core::alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use tonic::codec::CompressionEncoding;
 
 #[tokio::test]

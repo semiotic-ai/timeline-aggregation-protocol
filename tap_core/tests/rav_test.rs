@@ -7,12 +7,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[allow(deprecated)]
-use alloy::primitives::{Address, PrimitiveSignature, Signature};
-use alloy::{
-    dyn_abi::Eip712Domain,
-    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
-};
 use rstest::*;
 use tap_core::{
     manager::{
@@ -24,6 +18,12 @@ use tap_core::{
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
+#[allow(deprecated)]
+use thegraph_core::alloy::primitives::{Address, PrimitiveSignature, Signature};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain,
+    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
+};
 
 #[fixture]
 fn domain_separator() -> Eip712Domain {

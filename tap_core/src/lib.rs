@@ -8,7 +8,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use alloy::{dyn_abi::Eip712Domain, sol_types::eip712_domain};
+use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address, sol_types::eip712_domain};
 use thiserror::Error;
 
 mod error;
@@ -44,10 +44,7 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
 /// - `version`: "1"
 /// - `chain_id`: The chain ID of the chain where the domain separator is deployed.
 /// - `verifying_contract`: The address of the contract that is verifying the signature.
-pub fn tap_eip712_domain(
-    chain_id: u64,
-    verifying_contract_address: alloy::primitives::Address,
-) -> Eip712Domain {
+pub fn tap_eip712_domain(chain_id: u64, verifying_contract_address: Address) -> Eip712Domain {
     eip712_domain! {
         name: "TAP",
         version: "1",
@@ -60,9 +57,11 @@ pub fn tap_eip712_domain(
 mod tap_tests {
     use std::str::FromStr;
 
-    use alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
     use rstest::*;
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
+    use thegraph_core::alloy::{
+        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    };
 
     use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 

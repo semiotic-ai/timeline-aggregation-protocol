@@ -3,8 +3,8 @@
 
 //! Request to Tap Aggregator
 
-use alloy::sol_types::SolStruct;
 use tap_receipt::rav::AggregationError;
+use thegraph_core::alloy::sol_types::SolStruct;
 
 use crate::{
     receipt::{

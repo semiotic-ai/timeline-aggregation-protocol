@@ -5,7 +5,6 @@ use std::sync::{
     Arc,
 };
 
-use alloy::dyn_abi::Eip712Domain;
 use anyhow::{Error, Result};
 use jsonrpsee::{
     core::async_trait,
@@ -24,6 +23,7 @@ use tap_core::{
     receipt::{checks::CheckList, Context},
 };
 use tap_graph::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
+use thegraph_core::alloy::dyn_abi::Eip712Domain;
 /// Rpc trait represents a JSON-RPC server that has a single async method `request`.
 /// This method is designed to handle incoming JSON-RPC requests.
 #[rpc(server)]

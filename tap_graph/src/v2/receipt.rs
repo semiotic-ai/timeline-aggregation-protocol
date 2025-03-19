@@ -5,11 +5,11 @@
 
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
-use alloy::{primitives::Address, sol};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
+use thegraph_core::alloy::{primitives::Address, sol};
 
 /// A signed receipt message
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;
@@ -77,8 +77,8 @@ impl WithValueAndTimestamp for Receipt {
 mod receipt_unit_test {
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    use alloy::primitives::address;
     use rstest::*;
+    use thegraph_core::alloy::primitives::address;
 
     use super::*;
 

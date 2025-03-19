@@ -3,8 +3,8 @@
 
 //! Aggregation of Receipts
 
-use alloy::sol_types::SolStruct;
 use tap_eip712_message::Eip712SignedMessage;
+use thegraph_core::alloy::sol_types::SolStruct;
 
 use crate::{state::Checked, ReceiptWithState};
 

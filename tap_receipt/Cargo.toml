@@ -7,13 +7,13 @@ repository.workspace = true
 description = "TAP Receipt states and checks"
 
 [dependencies]
-alloy.workspace = true
 anyhow.workspace = true
 anymap3 = "1.0.1"
-thiserror.workspace = true
-serde.workspace = true
 async-trait = "0.1.85"
+serde.workspace = true
 tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
+thegraph-core.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
