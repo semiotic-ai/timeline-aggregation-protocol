@@ -25,6 +25,27 @@
     * tap_core bumped from 3.0.0 to 3.0.1
     * tap_graph bumped from 0.1.0 to 0.2.0
 
+## [0.5.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.4.1...tap_aggregator-v0.5.0) (2025-03-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* aggregate v2 receipts into v2 rav ([#274](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/274))
+
+### Features
+
+* aggregate v2 receipts into v2 rav ([#274](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/274)) ([df70b82](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/df70b82f9c1b39698817c164e177aca1a5c0df84))
+* aggregator: add kafka producer support ([de27ec2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/de27ec218f2d4f282a85e1f587a36bda40bb64fc))
+* eip712domain_info API Endpoint ([5f0bcce](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/5f0bcce9d77b0e25c31032eb820e4fc4ab467cc6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 3.0.1 to 4.0.0
+    * tap_graph bumped from 0.2.0 to 0.2.1
+
 ## [0.4.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.3.3...tap_aggregator-v0.4.0) (2025-01-28)
 
 
