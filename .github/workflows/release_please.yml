@@ -11,13 +11,10 @@ on:
           published, it will do nothing.
         required: false
         default: false
-
 permissions:
   contents: write
   pull-requests: write
-
 name: release-please
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
@@ -36,7 +33,6 @@ jobs:
         with:
           command: manifest
           token: ${{ steps.generate_token.outputs.token }}
-
   publish-crates:
     runs-on: ubuntu-latest
     # run only if release-please had released a new version
@@ -46,8 +42,8 @@ jobs:
     if: needs.release-please.outputs.releases_created == 'true' || github.event.inputs.force_publish == 'true'
     steps:
       - uses: actions/checkout@v3
-      - name: Install protobuf compiler
-        run: apt-get update && apt-get install protobuf-compiler -y
+      - name: Install system dependencies
+        run: apt-get update && apt-get install -y protobuf-compiler libsasl2-dev
       - uses: actions/cache@v3
         with:
           path: |
