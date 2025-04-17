@@ -16,12 +16,38 @@ license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
 
 [workspace.dependencies]
-serde = { version = "1.0.217", features = ["derive"] }
-rstest = "0.24.0"
 anyhow = { version = "1.0.95" }
-tokio = { version = "1.43.0", features = ["macros", "signal"] }
-rand = "0.8.5"
+anymap3 = "1.0.1"
+async-trait = "0.1.85"
+axum = { version = "0.7.5", features = [
+    "http1",
+    "json",
+    "matched-path",
+    "original-uri",
+    "query",
+    "tokio",
+], default-features = false }
+clap = { version = "4.5.15", features = ["derive", "env"] }
+criterion = { version = "0.5.1", features = ["async_std"] }
+futures-util = "0.3.28"
+hyper = { version = "1", features = ["full"] }
 jsonrpsee = { version = "0.24.7", features = ["macros", "server"] }
+jsonrpsee-core = "0.24.7"
+lazy_static = "1.4.0"
+log = "0.4.19"
+prometheus = "0.13.3"
+prost = "0.13.3"
+rayon = "1.10.0"
+rdkafka = { version = "0.37.0", features = ["tokio", "sasl"] }
+serde = { version = "1.0.217", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
+rstest = "0.24.0"
+tap_graph = { version = "0.2.1", path = "../tap_graph", features = ["v2"] }
+tokio = { version = "1.43.0", features = ["macros", "signal"] }
+tonic = { version = "0.12.3", features = ["transport", "zstd"] }
+tower = { version = "0.5.2", features = ["util", "steer"] }
+tracing-subscriber = "0.3.17"
+rand = "0.8.5"
 insta = { version = "1.42.0", features = ["json"] }
 serde_json = { version = "1.0.137", features = ["raw_value"] }
 thegraph-core = "0.12.0"

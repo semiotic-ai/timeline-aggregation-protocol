@@ -16,7 +16,7 @@ anyhow.workspace = true
 thegraph-core.workspace = true
 tokio.workspace = true
 jsonrpsee = { workspace = true, features = ["jsonrpsee-http-client"] }
-jsonrpsee-core = "0.24.7"
+jsonrpsee-core.workspace = true
 tap_graph = { path = "../tap_graph" }
 
 [dev-dependencies]
