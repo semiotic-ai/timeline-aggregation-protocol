@@ -496,7 +496,6 @@ mod tests {
     use std::{collections::HashSet, str::FromStr};
 
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
-    use rand::{prelude::*, seq::SliceRandom};
     use rstest::*;
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
@@ -600,6 +599,8 @@ mod tests {
         #[values(0, 1, 2)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
+
+        use rand::{rngs::StdRng, seq::IndexedRandom, SeedableRng};
         let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
         let keys_0 = keys();
@@ -681,6 +682,8 @@ mod tests {
         #[values(0, 1, 2, 3, 4)] random_seed: u64,
     ) {
         // The keys that will be used to sign the new RAVs
+
+        use rand::{rngs::StdRng, seq::IndexedRandom, SeedableRng};
         let keys_main = keys();
         // Extra keys to test the server's ability to accept multiple signers as input
         let keys_0 = keys();
