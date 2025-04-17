@@ -7,7 +7,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use rand::{seq::SliceRandom, thread_rng};
 use rstest::*;
 use tap_core::{
     manager::{adapters::ReceiptStore, context::memory::InMemoryContext},
@@ -159,6 +158,8 @@ fn safe_truncate_receipts_test(
     #[case] limit: u64,
     #[case] expected: Vec<u64>,
 ) {
+    use rand::{seq::SliceRandom, thread_rng};
+
     let wallet = PrivateKeySigner::random();
 
     // Vec of (id, receipt)

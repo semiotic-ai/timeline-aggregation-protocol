@@ -25,7 +25,7 @@
 use serde::{Deserialize, Serialize};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{Address, PrimitiveSignature as Signature},
+    primitives::{Address, Signature},
     signers::{local::PrivateKeySigner, SignerSync},
     sol_types::SolStruct,
 };
