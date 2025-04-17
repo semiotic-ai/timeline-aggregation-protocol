@@ -39,7 +39,7 @@ jobs:
     # run only if release-please had released a new version
     needs: release-please
     container:
-      image: rust:1.83-bookworm
+      image: rust:1.86-bookworm
     if: needs.release-please.outputs.releases_created == 'true' || github.event.inputs.force_publish == 'true'
     steps:
       - uses: actions/checkout@v3
