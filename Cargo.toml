@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "tap_core",
     "tap_aggregator",
-    "tap_integration_tests",
-    "tap_graph",
+    "tap_core",
     "tap_eip712_message",
+    "tap_graph",
+    "tap_integration_tests",
     "tap_receipt",
 ]
 
@@ -38,6 +38,7 @@ lazy_static = "1.5.0"
 log = "0.4.27"
 prometheus = "0.14.0"
 prost = "0.13.5"
+rand = "0.9.1"
 rayon = "1.10.0"
 rdkafka = { version = "0.37.0", features = ["tokio", "sasl"] }
 serde = { version = "1.0.219", features = ["derive"] }
@@ -51,4 +52,3 @@ tokio = { version = "1.44.2", features = ["macros", "signal"] }
 tonic = { version = "0.12.3", features = ["transport", "zstd"] }
 tower = { version = "0.5.2", features = ["util", "steer"] }
 tracing-subscriber = "0.3.19"
-rand = "0.9.1"
