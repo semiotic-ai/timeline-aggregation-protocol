@@ -33,6 +33,7 @@ jobs:
         with:
           command: manifest
           token: ${{ steps.generate_token.outputs.token }}
+          release-type: rust
   publish-crates:
     runs-on: ubuntu-latest
     # run only if release-please had released a new version
