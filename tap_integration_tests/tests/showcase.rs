@@ -133,7 +133,7 @@ fn query_price() -> &'static [u128] {
     let mut v = Vec::new();
 
     for _ in 0..num_queries() {
-        v.push(rng.gen::<u128>() % 100);
+        v.push(rng.random::<u128>() % 100);
     }
     Box::leak(v.into_boxed_slice())
 }

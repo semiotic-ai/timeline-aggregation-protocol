@@ -5,7 +5,7 @@
 
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
@@ -50,7 +50,7 @@ impl Receipt {
         value: u128,
     ) -> Result<Self, SystemTimeError> {
         let timestamp_ns = get_current_timestamp_u64_ns()?;
-        let nonce = thread_rng().gen::<u64>();
+        let nonce = rng().random::<u64>();
         Ok(Self {
             allocation_id,
             payer,
