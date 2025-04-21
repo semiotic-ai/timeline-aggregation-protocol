@@ -13,39 +13,31 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-axum = { version = "0.7.5", features = [
-    "http1",
-    "json",
-    "matched-path",
-    "original-uri",
-    "query",
-    "tokio",
-], default-features = false }
-clap = { version = "4.5.15", features = ["derive", "env"] }
-futures-util = "0.3.28"
-hyper = { version = "1", features = ["full"] }
-jsonrpsee = { workspace = true, features = ["server", "macros"] }
-lazy_static = "1.4.0"
-log = "0.4.19"
-prometheus = "0.13.3"
-prost = "0.13.3"
-rayon = "1.10.0"
+axum.workspace = true
+clap.workspace = true
+futures-util.workspace = true
+hyper.workspace = true
+jsonrpsee.workspace = true
+lazy_static.workspace = true
+log.workspace = true
+prometheus.workspace = true
+prost.workspace = true
+rayon.workspace = true
+rdkafka.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-strum = { version = "0.26.3", features = ["derive"] }
+strum.workspace = true
 tap_core = { path = "../tap_core", version = "4.0.0" }
+tap_graph = { version = "0.2.1", path = "../tap_graph", features = ["v2"] }
 thegraph-core = { workspace = true, features = ["alloy-eip712"] }
 tokio.workspace = true
-tonic = { version = "0.12.3", features = ["transport", "zstd"] }
-tower = { version = "0.5.2", features = ["util", "steer"] }
-tracing-subscriber = "0.3.17"
-tap_graph = { version = "0.2.1", path = "../tap_graph", features = ["v2"] }
-rdkafka = { version = "0.37.0", features = ["tokio", "sasl"] }
+tonic.workspace = true
+tower.workspace = true
+tracing-subscriber.workspace = true
 
 [build-dependencies]
 tonic-build = "0.12.3"
 
 [dev-dependencies]
-jsonrpsee = { workspace = true, features = ["http-client", "jsonrpsee-core"] }
 rand.workspace = true
 rstest.workspace = true

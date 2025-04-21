@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use rstest::*;
 use tap_core::{
     manager::{adapters::ReceiptStore, context::memory::InMemoryContext},
@@ -184,7 +184,7 @@ fn safe_truncate_receipts_test(
     let mut receipts_truncated = receipts_orig;
 
     // shuffle the input receipts
-    receipts_truncated.shuffle(&mut thread_rng());
+    receipts_truncated.shuffle(&mut rng());
 
     tap_core::manager::adapters::safe_truncate_receipts(&mut receipts_truncated, limit);
 

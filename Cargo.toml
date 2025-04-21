@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "tap_core",
     "tap_aggregator",
-    "tap_integration_tests",
-    "tap_graph",
+    "tap_core",
     "tap_eip712_message",
+    "tap_graph",
+    "tap_integration_tests",
     "tap_receipt",
 ]
 
@@ -16,13 +16,39 @@ license = "Apache-2.0"
 repository = "https://github.com/semiotic-ai/timeline-aggregation-protocol"
 
 [workspace.dependencies]
-serde = { version = "1.0.217", features = ["derive"] }
-rstest = "0.24.0"
-anyhow = { version = "1.0.95" }
-tokio = { version = "1.43.0", features = ["macros", "signal"] }
-rand = "0.8.5"
-jsonrpsee = { version = "0.24.7", features = ["macros", "server"] }
-insta = { version = "1.42.0", features = ["json"] }
-serde_json = { version = "1.0.137", features = ["raw_value"] }
+anyhow = { version = "1.0.98" }
+anymap3 = "1.0.1"
+async-trait = "0.1.88"
+axum = { version = "0.7.5", features = [
+    "http1",
+    "json",
+    "matched-path",
+    "original-uri",
+    "query",
+    "tokio",
+], default-features = false }
+clap = { version = "4.5.36", features = ["derive", "env"] }
+criterion = { version = "0.5.1", features = ["async_std"] }
+futures-util = "0.3.31"
+hyper = { version = "1.6.0", features = ["full"] }
+insta = { version = "1.42.2", features = ["json"] }
+jsonrpsee = { version = "0.24.9", features = ["macros", "server"] }
+jsonrpsee-core = "0.24.9"
+lazy_static = "1.5.0"
+log = "0.4.27"
+prometheus = "0.14.0"
+prost = "0.13.5"
+rand = "0.9.1"
+rayon = "1.10.0"
+rdkafka = { version = "0.37.0", features = ["tokio", "sasl"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = { version = "1.0.140", features = ["raw_value"] }
+strum = { version = "0.27.1", features = ["derive"] }
+rstest = "0.25.0"
+tap_graph = { version = "0.2.1", path = "../tap_graph", features = ["v2"] }
 thegraph-core = "0.12.0"
-thiserror = "2.0.11"
+thiserror = "2.0.12"
+tokio = { version = "1.44.2", features = ["macros", "signal"] }
+tonic = { version = "0.12.3", features = ["transport", "zstd"] }
+tower = { version = "0.5.2", features = ["util", "steer"] }
+tracing-subscriber = "0.3.19"

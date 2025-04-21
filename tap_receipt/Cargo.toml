@@ -8,8 +8,8 @@ description = "TAP Receipt states and checks"
 
 [dependencies]
 anyhow.workspace = true
-anymap3 = "1.0.1"
-async-trait = "0.1.85"
+anymap3.workspace = true
+async-trait.workspace = true
 serde.workspace = true
 tap_eip712_message = { version = "0.1.0", path = "../tap_eip712_message" }
 thegraph-core.workspace = true

@@ -11,13 +11,14 @@ publish = false
 [dependencies]
 tap_aggregator = { path = "../tap_aggregator" }
 tap_core = { path = "../tap_core", version = "4.0.0" }
-rand.workspace = true
+tap_graph = { path = "../tap_graph" }
+
 anyhow.workspace = true
+jsonrpsee = { workspace = true, features = ["jsonrpsee-http-client"] }
+jsonrpsee-core.workspace = true
+rand.workspace = true
 thegraph-core.workspace = true
 tokio.workspace = true
-jsonrpsee = { workspace = true, features = ["jsonrpsee-http-client"] }
-jsonrpsee-core = "0.24.7"
-tap_graph = { path = "../tap_graph" }
 
 [dev-dependencies]
 rstest.workspace = true
