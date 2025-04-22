@@ -4,6 +4,21 @@
   * dependencies
     * tap_receipt bumped from 0.1.0 to 1.0.0
 
+## [0.3.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.2.1...tap_graph-v0.3.0) (2025-04-22)
+
+
+### Features
+
+* bump for release ([#287](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/287)) ([3ba2620](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3ba262076754e504d45e421ac3b46f4a517a774f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_eip712_message bumped from 0.1.0 to 0.2.0
+    * tap_receipt bumped from 1.0.0 to 1.1.0
+
 ## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.1.0...tap_graph-v0.2.0) (2025-01-29)
 
 

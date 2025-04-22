@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.1.0...tap_eip712_message-v0.2.0) (2025-04-22)
+
+
+### Features
+
+* bump for release ([#287](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/287)) ([3ba2620](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3ba262076754e504d45e421ac3b46f4a517a774f))
+
 ## 0.1.0 (2025-01-28)
 
 
