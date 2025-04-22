@@ -19,7 +19,7 @@ use tap_core::{
 };
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 #[allow(deprecated)]
-use thegraph_core::alloy::primitives::{Address, PrimitiveSignature, Signature};
+use thegraph_core::alloy::primitives::{Address, Signature};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
     signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
@@ -85,7 +85,7 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
       "yParity": "0x1"
     }"#;
 
-    serde_json::from_str::<PrimitiveSignature>(raw_sig).unwrap();
+    serde_json::from_str::<Signature>(raw_sig).unwrap();
     #[allow(deprecated)]
     serde_json::from_str::<Signature>(raw_sig).unwrap();
 }
