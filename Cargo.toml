@@ -27,7 +27,7 @@ axum = { version = "0.8.3", features = [
     "query",
     "tokio",
 ], default-features = false }
-clap = { version = "4.5.36", features = ["derive", "env"] }
+clap = { version = "4.5.37", features = ["derive", "env"] }
 criterion = { version = "0.5.1", features = ["async_std"] }
 futures-util = "0.3.31"
 hyper = { version = "1.6.0", features = ["full"] }
