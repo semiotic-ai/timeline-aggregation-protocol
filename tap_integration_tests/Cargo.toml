@@ -1,6 +1,6 @@
 [package]
 name = "tap_integration_tests"
-version = "0.1.15"
+version = "0.1.16"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 tap_aggregator = { path = "../tap_aggregator" }
-tap_core = { path = "../tap_core", version = "4.0.0" }
+tap_core = { path = "../tap_core", version = "4.1.0" }
 tap_graph = { path = "../tap_graph" }
 
 anyhow.workspace = true
