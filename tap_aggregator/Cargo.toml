@@ -36,7 +36,7 @@ tower.workspace = true
 tracing-subscriber.workspace = true
 
 [build-dependencies]
-tonic-build = "0.12.3"
+tonic-build = "0.13.0"
 
 [dev-dependencies]
 rand.workspace = true
