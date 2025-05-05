@@ -105,22 +105,6 @@ impl<M: SolStruct> Eip712SignedMessage<M> {
         Ok(recovered_address)
     }
 
-    /// Checks that receipts signature is valid for given verifying key, returns `Ok(true)` if it is valid.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::Error::SignatureError`] if the recovered address from the
-    /// signature is not equal to `expected_address`
-    ///
-    pub fn verify(
-        &self,
-        domain_separator: &Eip712Domain,
-        expected_address: Address,
-    ) -> Result<bool, Eip712Error> {
-        let recovered_address = self.recover_signer(domain_separator)?;
-        Ok(recovered_address != expected_address)
-    }
-
     /// Use this as a simple key for testing
     pub fn unique_hash(&self) -> MessageId {
         MessageId(self.message.eip712_hash_struct().into())

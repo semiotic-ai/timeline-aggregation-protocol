@@ -163,27 +163,4 @@ mod tap_tests {
 
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
-
-    #[rstest]
-    #[test]
-    fn verify_signature(
-        keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
-        domain_separator: Eip712Domain,
-    ) {
-        let signed_message = Eip712SignedMessage::new(
-            &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
-            &keys.0,
-        )
-        .unwrap();
-
-        assert!(signed_message.verify(&domain_separator, keys.1).is_ok());
-        assert!(signed_message
-            .verify(
-                &domain_separator,
-                Address::from_str("0x76f4eeD9fE41262669D0250b2A97db79712aD855").unwrap()
-            )
-            .unwrap());
-    }
 }
