@@ -28,7 +28,3 @@ thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 [features]
 default = ["in_memory"]
 in_memory = ["dep:tap_graph"]
-
-[[bench]]
-name = 'timeline_aggretion_protocol_benchmark'
-harness = false
