@@ -136,7 +136,9 @@ mod tests {
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+        dyn_abi::Eip712Domain,
+        primitives::{Address, U256},
+        signers::{local::PrivateKeySigner, Signature},
     };
 
     use super::*;
@@ -161,6 +163,67 @@ mod tests {
     #[fixture]
     fn domain_separator() -> Eip712Domain {
         tap_eip712_domain(1, Address::from([0x11u8; 20]))
+    }
+
+    #[rstest]
+    #[test]
+    #[should_panic]
+    fn test_signature_malleability_vulnerability(
+        keys: (PrivateKeySigner, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
+        // Create a test receipt
+        let receipt = Eip712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 42).unwrap(),
+            &keys.0,
+        )
+        .unwrap();
+
+        // Get the original signature components
+        let r = receipt.signature.r();
+        let s = receipt.signature.s();
+        let v = receipt.signature.v();
+
+        // Create a malleated signature by changing the s value and flipping v
+        // Get the Secp256k1 curve order
+        let n = U256::from_str_radix(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+            16,
+        )
+        .unwrap();
+        let s_malleated = n - s;
+        let v_malleated = !v; // Flip the parity bit
+
+        // Create a new signature with the malleated components
+        let signature_malleated = Signature::new(r, s_malleated, v_malleated);
+
+        // Create a new signed message with the malleated signature but same message
+        let receipt_malleated = Eip712SignedMessage {
+            message: receipt.message.clone(),
+            signature: signature_malleated,
+        };
+
+        // Verify that both signatures recover to the same signer
+        let original_signer = receipt.recover_signer(&domain_separator).unwrap();
+        let malleated_signer = receipt_malleated.recover_signer(&domain_separator).unwrap();
+
+        assert_eq!(
+            original_signer, malleated_signer,
+            "Both signatures should recover to the same signer"
+        );
+
+        // Try to check if signatures are unique using the current implementation
+        let receipts = vec![receipt, receipt_malleated];
+
+        // This should return an error because the signatures are different
+        // but the messages are the same, which if allowed would present a security vulnerability
+        let result = check_signatures_unique(&receipts);
+
+        // The result should be an error because the malleated signature is not treated as unique
+        // and is detected as a duplicate
+        assert!(result.is_err());
     }
 
     #[rstest]
