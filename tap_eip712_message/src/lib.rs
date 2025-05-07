@@ -110,3 +110,114 @@ impl<M: SolStruct> Eip712SignedMessage<M> {
         MessageId(self.message.eip712_hash_struct().into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use thegraph_core::alloy::{
+        primitives::{Address, Signature, U256},
+        signers::local::PrivateKeySigner,
+        sol_types::eip712_domain,
+    };
+
+    #[test]
+    fn test_signature_malleability_resistance() {
+        // Create a domain separator for testing
+        let domain_separator = eip712_domain! {
+            name: "TAP",
+            version: "1",
+            chain_id: 1,
+            verifying_contract: Address:: from([0x11u8; 20]),
+        };
+
+        let test_value = 100u128;
+        let test_address = Address::from([0x11u8; 20]);
+        let message = msg::Receipt::new(test_address, test_value).unwrap();
+
+        // Create a new Ethereum signer
+        let signer = PrivateKeySigner::random();
+
+        // Create signed message using the original signature
+        let signed_message =
+            Eip712SignedMessage::new(&domain_separator, message.clone(), &signer).unwrap();
+
+        // Get the original signature components
+        let r = signed_message.signature.r();
+        let s = signed_message.signature.s();
+        let v = signed_message.signature.v();
+
+        // Create a malleated signature by changing the s value
+        // Get the Secp256k1 curve order
+        let n = U256::from_str_radix(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+            16,
+        )
+        .unwrap();
+        let s_malleated = n - s;
+        let v_malleated = !v; // Flip the parity bit
+
+        // Create a new signature with the malleated components
+        let signature_malleated = Signature::new(r, s_malleated, v_malleated);
+
+        // Create a new signed message with the malleated signature
+        let signed_message_malleated = Eip712SignedMessage {
+            message: message.clone(),
+            signature: signature_malleated,
+        };
+
+        // Verify both signatures recover to the same signer
+        let signer_address = signer.address();
+        let recovered_address = signed_message.recover_signer(&domain_separator).unwrap();
+        let recovered_address_malleated = signed_message_malleated
+            .recover_signer(&domain_separator)
+            .unwrap();
+
+        assert_eq!(
+            recovered_address, signer_address,
+            "Original signature should recover to the correct address"
+        );
+        assert_eq!(
+            recovered_address_malleated, signer_address,
+            "Malleated signature should recover to the same address"
+        );
+
+        // Verify that the raw signatures are different
+        assert_ne!(
+            signed_message.signature.as_bytes(),
+            signed_message_malleated.signature.as_bytes(),
+            "Raw signature bytes should be different"
+        );
+
+        // WITHOUT our fix, these would generate different IDs:
+        let raw_sig_id_1 = signed_message.signature.get_signature_bytes();
+        let raw_sig_id_2 = signed_message_malleated.signature.get_signature_bytes();
+        assert_ne!(
+            raw_sig_id_1, raw_sig_id_2,
+            "Using only raw signatures would fail to detect duplicates"
+        );
+
+        // WITH our fix, these should generate the same unique ID:
+        let unique_id_1 = signed_message.unique_hash(&domain_separator).unwrap();
+        let unique_id_2 = signed_message_malleated
+            .unique_hash(&domain_separator)
+            .unwrap();
+
+        assert_eq!(
+            unique_id_1, unique_id_2,
+            "Our fix should generate the same ID for both original and malleated signatures"
+        );
+
+        // Bonus: Verify that different messages generate different IDs
+        let different_message = msg::Receipt::new(test_address, test_value + 1).unwrap();
+        let different_signed_message =
+            Eip712SignedMessage::new(&domain_separator, different_message, &signer).unwrap();
+        let different_unique_id = different_signed_message
+            .unique_hash(&domain_separator)
+            .unwrap();
+
+        assert_ne!(
+            unique_id_1, different_unique_id,
+            "Different messages should generate different unique IDs"
+        );
+    }
+}
