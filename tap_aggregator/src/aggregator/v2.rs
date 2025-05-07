@@ -1,11 +1,11 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{hash_set, HashSet};
+use std::collections::HashSet;
 
 use anyhow::{bail, Ok, Result};
 use rayon::prelude::*;
-use tap_core::signed_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
+use tap_core::{receipt::WithUniqueId, signed_message::Eip712SignedMessage};
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
@@ -19,7 +19,7 @@ pub fn check_and_aggregate_receipts(
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<Eip712SignedMessage<ReceiptAggregateVoucher>> {
-    check_signatures_unique(receipts)?;
+    check_signatures_unique(domain_separator, receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
     receipts.par_iter().try_for_each(|receipt| {
@@ -148,14 +148,17 @@ fn check_allocation_id(
     Ok(())
 }
 
-fn check_signatures_unique(receipts: &[Eip712SignedMessage<Receipt>]) -> Result<()> {
-    let mut receipt_signatures: hash_set::HashSet<SignatureBytes> = hash_set::HashSet::new();
+fn check_signatures_unique(
+    domain_separator: &Eip712Domain,
+    receipts: &[Eip712SignedMessage<Receipt>],
+) -> Result<()> {
+    let mut receipt_signatures = HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.signature.get_signature_bytes();
+        let signature = receipt.unique_id(domain_separator)?;
         if !receipt_signatures.insert(signature) {
             return Err(tap_core::Error::DuplicateReceiptSignature(format!(
                 "{:?}",
-                receipt.signature
+                receipt.unique_id(domain_separator)?
             ))
             .into());
         }
@@ -251,7 +254,7 @@ mod tests {
         receipts.push(receipt.clone());
         receipts.push(receipt);
 
-        let res = super::check_signatures_unique(&receipts);
+        let res = super::check_signatures_unique(&domain_separator, &receipts);
         assert!(res.is_err());
     }
 
@@ -281,13 +284,13 @@ mod tests {
             .unwrap(),
         ];
 
-        let res = super::check_signatures_unique(&receipts);
+        let res = super::check_signatures_unique(&domain_separator, &receipts);
         assert!(res.is_ok());
     }
 
     #[rstest]
     #[test]
-    /// Test that a receipt with a timestamp greater then the rav timestamp passes
+    /// Test that a receipt with a timestamp greater than the rav timestamp passes
     fn check_receipt_timestamps(
         keys: (PrivateKeySigner, Address),
         allocation_id: Address,
