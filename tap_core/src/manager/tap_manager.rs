@@ -138,12 +138,13 @@ where
         let mut failed_receipts = vec![];
 
         // check for timestamp
-        let (checking_receipts, already_failed) =
-            TimestampCheck(min_timestamp_ns).check_batch(checking_receipts);
+        let (checking_receipts, already_failed) = TimestampCheck(min_timestamp_ns)
+            .check_batch(&self.domain_separator, checking_receipts)?;
         failed_receipts.extend(already_failed);
 
         // check for uniqueness
-        let (checking_receipts, already_failed) = UniqueCheck.check_batch(checking_receipts);
+        let (checking_receipts, already_failed) =
+            UniqueCheck.check_batch(&self.domain_separator, checking_receipts)?;
         failed_receipts.extend(already_failed);
 
         for receipt in checking_receipts.into_iter() {

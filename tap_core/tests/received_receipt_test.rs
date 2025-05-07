@@ -113,7 +113,7 @@ async fn partial_then_full_check_valid_receipt(
     )
     .unwrap();
 
-    let query_id = signed_receipt.unique_hash();
+    let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
 
     // add escrow for sender
     escrow_storage
@@ -156,7 +156,7 @@ async fn partial_then_finalize_valid_receipt(
         &signer,
     )
     .unwrap();
-    let query_id = signed_receipt.unique_hash();
+    let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
 
     // add escrow for sender
     escrow_storage
@@ -203,7 +203,7 @@ async fn standard_lifetime_valid_receipt(
     )
     .unwrap();
 
-    let query_id = signed_receipt.unique_hash();
+    let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
 
     // add escrow for sender
     escrow_storage

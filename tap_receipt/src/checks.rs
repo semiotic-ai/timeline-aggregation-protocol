@@ -36,6 +36,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use tap_eip712_message::Eip712Error;
+use thegraph_core::alloy::dyn_abi::Eip712Domain;
+
 use super::{
     state::{Checking, Failed},
     Context, ReceiptError, ReceiptWithState, WithUniqueId, WithValueAndTimestamp,
@@ -94,8 +97,9 @@ type CheckBatchResponse<Rcpt> = (
 pub trait CheckBatch<Rcpt> {
     fn check_batch(
         &self,
+        domain_separator: &Eip712Domain,
         receipts: Vec<ReceiptWithState<Checking, Rcpt>>,
-    ) -> CheckBatchResponse<Rcpt>;
+    ) -> Result<CheckBatchResponse<Rcpt>, Eip712Error>;
 }
 
 /// Provides a built-in check to verify that the timestamp of a receipt
@@ -153,11 +157,9 @@ where
 {
     fn check_batch(
         &self,
+        _domain_separator: &Eip712Domain,
         receipts: Vec<ReceiptWithState<Checking, Rcpt>>,
-    ) -> (
-        Vec<ReceiptWithState<Checking, Rcpt>>,
-        Vec<ReceiptWithState<Failed, Rcpt>>,
-    ) {
+    ) -> Result<CheckBatchResponse<Rcpt>, Eip712Error> {
         let (mut checking, mut failed) = (vec![], vec![]);
         for receipt in receipts.into_iter() {
             let receipt_timestamp_ns = receipt.signed_receipt().timestamp_ns();
@@ -171,7 +173,7 @@ where
                 }));
             }
         }
-        (checking, failed)
+        Ok((checking, failed))
     }
 }
 
@@ -187,23 +189,21 @@ where
 {
     fn check_batch(
         &self,
+        domain_separator: &Eip712Domain,
         receipts: Vec<ReceiptWithState<Checking, Rcpt>>,
-    ) -> (
-        Vec<ReceiptWithState<Checking, Rcpt>>,
-        Vec<ReceiptWithState<Failed, Rcpt>>,
-    ) {
+    ) -> Result<CheckBatchResponse<Rcpt>, Eip712Error> {
         let mut signatures = HashSet::new();
         let (mut checking, mut failed) = (vec![], vec![]);
 
         for received_receipt in receipts.into_iter() {
-            let unique_id = received_receipt.receipt.unique_id();
+            let unique_id = received_receipt.receipt.unique_id(domain_separator)?;
             if signatures.insert(unique_id) {
                 checking.push(received_receipt);
             } else {
                 failed.push(received_receipt.perform_state_error(ReceiptError::NonUniqueReceipt));
             }
         }
-        (checking, failed)
+        Ok((checking, failed))
     }
 }
 
@@ -236,16 +236,20 @@ mod tests {
         }
     }
 
-    fn create_signed_receipt_with_custom_value(
-        value: u128,
-    ) -> ReceiptWithState<Checking, Eip712SignedMessage<MyReceipt>> {
-        let wallet: PrivateKeySigner = PrivateKeySigner::random();
-        let eip712_domain_separator: Eip712Domain = eip712_domain! {
+    fn create_test_domain_separator() -> Eip712Domain {
+        eip712_domain! {
             name: "TAP",
             version: "1",
             chain_id: 1,
             verifying_contract: Address:: from([0x11u8; 20]),
-        };
+        }
+    }
+
+    fn create_signed_receipt_with_custom_value(
+        value: u128,
+    ) -> ReceiptWithState<Checking, Eip712SignedMessage<MyReceipt>> {
+        let wallet: PrivateKeySigner = PrivateKeySigner::random();
+        let eip712_domain_separator = create_test_domain_separator();
 
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -273,7 +277,10 @@ mod tests {
         let signed_receipt_2 = create_signed_receipt_with_custom_value(15);
         let signed_receipt_copy = signed_receipt.clone();
         let receipts_batch = vec![signed_receipt, signed_receipt_2, signed_receipt_copy];
-        let (valid_receipts, invalid_receipts) = UniqueCheck.check_batch(receipts_batch);
+        let domain_separator = create_test_domain_separator();
+        let (valid_receipts, invalid_receipts) = UniqueCheck
+            .check_batch(&domain_separator, receipts_batch)
+            .unwrap();
         assert_eq!(valid_receipts.len(), 2);
         assert_eq!(invalid_receipts.len(), 1);
     }
@@ -282,10 +289,14 @@ mod tests {
     async fn test_receipt_timestamp_check() {
         let signed_receipt = create_signed_receipt_with_custom_value(10);
         let signed_receipt_2 = create_signed_receipt_with_custom_value(15);
+
+        let domain_separator = create_test_domain_separator();
+
         let receipts_batch = vec![signed_receipt.clone(), signed_receipt_2];
         let min_time_stamp = signed_receipt.receipt.message.timestamp_ns + 1;
-        let (valid_receipts, invalid_receipts) =
-            TimestampCheck(min_time_stamp).check_batch(receipts_batch);
+        let (valid_receipts, invalid_receipts) = TimestampCheck(min_time_stamp)
+            .check_batch(&domain_separator, receipts_batch)
+            .unwrap();
         assert_eq!(valid_receipts.len(), 1);
         assert_eq!(invalid_receipts.len(), 1);
     }
