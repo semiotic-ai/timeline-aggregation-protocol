@@ -139,7 +139,7 @@ async fn manager_verify_and_store_varying_initial_checks(
         &signer,
     )
     .unwrap();
-    let query_id = signed_receipt.unique_hash();
+    let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
     query_appraisals.write().unwrap().insert(query_id, value);
     escrow_storage
         .write()
@@ -182,7 +182,7 @@ async fn manager_create_rav_request_all_valid_receipts(
             &signer,
         )
         .unwrap();
-        let query_id = signed_receipt.unique_hash();
+        let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
@@ -277,7 +277,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
             &signer,
         )
         .unwrap();
-        let query_id = signed_receipt.unique_hash();
+        let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
@@ -321,7 +321,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         )
         .unwrap();
 
-        let query_id = signed_receipt.unique_hash();
+        let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
@@ -389,7 +389,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
 
-        let query_id = signed_receipt.unique_hash();
+        let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager
@@ -436,7 +436,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
         let mut receipt = Receipt::new(allocation_ids[0], value).unwrap();
         receipt.timestamp_ns = starting_min_timestamp + query_id + 1;
         let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &signer).unwrap();
-        let query_id = signed_receipt.unique_hash();
+        let query_id = signed_receipt.unique_hash(&domain_separator).unwrap();
         stored_signed_receipts.push(signed_receipt.clone());
         query_appraisals.write().unwrap().insert(query_id, value);
         assert!(manager

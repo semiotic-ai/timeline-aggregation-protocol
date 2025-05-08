@@ -1,11 +1,11 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{hash_set, HashSet};
+use std::collections::HashSet;
 
 use anyhow::{bail, Ok, Result};
 use rayon::prelude::*;
-use tap_core::signed_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
+use tap_core::{receipt::WithUniqueId, signed_message::Eip712SignedMessage};
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
@@ -19,7 +19,7 @@ pub fn check_and_aggregate_receipts(
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<Eip712SignedMessage<ReceiptAggregateVoucher>> {
-    check_signatures_unique(receipts)?;
+    check_signatures_unique(domain_separator, receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
     receipts.par_iter().try_for_each(|receipt| {
@@ -93,14 +93,17 @@ fn check_allocation_id(
     Ok(())
 }
 
-fn check_signatures_unique(receipts: &[Eip712SignedMessage<Receipt>]) -> Result<()> {
-    let mut receipt_signatures: hash_set::HashSet<SignatureBytes> = hash_set::HashSet::new();
+fn check_signatures_unique(
+    domain_separator: &Eip712Domain,
+    receipts: &[Eip712SignedMessage<Receipt>],
+) -> Result<()> {
+    let mut receipt_signatures = HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.signature.get_signature_bytes();
+        let signature = receipt.unique_id(domain_separator)?;
         if !receipt_signatures.insert(signature) {
             return Err(tap_core::Error::DuplicateReceiptSignature(format!(
                 "{:?}",
-                receipt.signature
+                receipt.unique_id(domain_separator)?
             ))
             .into());
         }
@@ -136,7 +139,9 @@ mod tests {
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+        dyn_abi::Eip712Domain,
+        primitives::{Address, U256},
+        signers::{local::PrivateKeySigner, Signature},
     };
 
     use super::*;
@@ -165,6 +170,66 @@ mod tests {
 
     #[rstest]
     #[test]
+    fn test_signature_malleability_vulnerability(
+        keys: (PrivateKeySigner, Address),
+        allocation_ids: Vec<Address>,
+        domain_separator: Eip712Domain,
+    ) {
+        // Create a test receipt
+        let receipt = Eip712SignedMessage::new(
+            &domain_separator,
+            Receipt::new(allocation_ids[0], 42).unwrap(),
+            &keys.0,
+        )
+        .unwrap();
+
+        // Get the original signature components
+        let r = receipt.signature.r();
+        let s = receipt.signature.s();
+        let v = receipt.signature.v();
+
+        // Create a malleated signature by changing the s value and flipping v
+        // Get the Secp256k1 curve order
+        let n = U256::from_str_radix(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+            16,
+        )
+        .unwrap();
+        let s_malleated = n - s;
+        let v_malleated = !v; // Flip the parity bit
+
+        // Create a new signature with the malleated components
+        let signature_malleated = Signature::new(r, s_malleated, v_malleated);
+
+        // Create a new signed message with the malleated signature but same message
+        let receipt_malleated = Eip712SignedMessage {
+            message: receipt.message.clone(),
+            signature: signature_malleated,
+        };
+
+        // Verify that both signatures recover to the same signer
+        let original_signer = receipt.recover_signer(&domain_separator).unwrap();
+        let malleated_signer = receipt_malleated.recover_signer(&domain_separator).unwrap();
+
+        assert_eq!(
+            original_signer, malleated_signer,
+            "Both signatures should recover to the same signer"
+        );
+
+        // Try to check if signatures are unique using the current implementation
+        let receipts = vec![receipt, receipt_malleated];
+
+        // This should return an error because the signatures are different
+        // but the messages are the same, which if allowed would present a security vulnerability
+        let result = check_signatures_unique(&domain_separator, &receipts);
+
+        // The result should be an error because the malleated signature is not treated as unique
+        // and is detected as a duplicate
+        assert!(result.is_err());
+    }
+
+    #[rstest]
+    #[test]
     fn check_signatures_unique_fail(
         keys: (PrivateKeySigner, Address),
         allocation_ids: Vec<Address>,
@@ -181,7 +246,7 @@ mod tests {
         receipts.push(receipt.clone());
         receipts.push(receipt);
 
-        let res = check_signatures_unique(&receipts);
+        let res = check_signatures_unique(&domain_separator, &receipts);
         assert!(res.is_err());
     }
 
@@ -208,7 +273,7 @@ mod tests {
             .unwrap(),
         ];
 
-        let res = check_signatures_unique(&receipts);
+        let res = check_signatures_unique(&domain_separator, &receipts);
         assert!(res.is_ok());
     }
 
