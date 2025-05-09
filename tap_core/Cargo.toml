@@ -1,6 +1,6 @@
 [package]
 name = "tap_core"
-version = "4.1.0"
+version = "4.1.1"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -11,9 +11,9 @@ description = "Core Timeline Aggregation Protocol library: a fast, efficient and
 anyhow.workspace = true
 async-trait.workspace = true
 rand.workspace = true
-tap_eip712_message = { version = "0.2.0", path = "../tap_eip712_message" }
-tap_graph = { version = "0.3.0", path = "../tap_graph", optional = true }
-tap_receipt = { version = "1.1.0", path = "../tap_receipt" }
+tap_eip712_message = { version = "0.2.1", path = "../tap_eip712_message" }
+tap_graph = { version = "0.3.1", path = "../tap_graph", optional = true }
+tap_receipt = { version = "1.1.1", path = "../tap_receipt" }
 thegraph-core.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

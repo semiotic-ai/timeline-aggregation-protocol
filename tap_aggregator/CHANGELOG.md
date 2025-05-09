@@ -25,6 +25,21 @@
     * tap_core bumped from 3.0.0 to 3.0.1
     * tap_graph bumped from 0.1.0 to 0.2.0
 
+## [0.5.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.1...tap_aggregator-v0.5.2) (2025-05-09)
+
+
+### Bug Fixes
+
+* **receipt:** update check for unique receipts in v1 and v2 ([cc8e00f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/cc8e00f005dc8640f8db0ab230d9f3f5fd19a69c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_core bumped from 4.1.0 to 4.1.1
+    * tap_graph bumped from 0.3.0 to 0.3.1
+
 ## [0.5.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.0...tap_aggregator-v0.5.1) (2025-04-22)
 
 

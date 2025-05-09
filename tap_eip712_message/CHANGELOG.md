@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.2.0...tap_eip712_message-v0.2.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* **eip712:** enhance receipt uniqueness verification ([0f5bb43](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0f5bb43e49d286441a239f882f658c570a0ed468))
+
 ## [0.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.1.0...tap_eip712_message-v0.2.0) (2025-04-22)
 
 

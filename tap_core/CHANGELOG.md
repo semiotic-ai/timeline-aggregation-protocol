@@ -4,6 +4,22 @@
   * dependencies
     * tap_graph bumped from 0.1.0 to 0.2.0
 
+## [4.1.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v4.1.0...tap_core-v4.1.1) (2025-05-09)
+
+
+### Bug Fixes
+
+* **eip712:** enhance receipt uniqueness verification ([0f5bb43](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0f5bb43e49d286441a239f882f658c570a0ed468))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * tap_eip712_message bumped from 0.2.0 to 0.2.1
+    * tap_graph bumped from 0.3.0 to 0.3.1
+    * tap_receipt bumped from 1.1.0 to 1.1.1
+
 ## [4.1.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v4.0.0...tap_core-v4.1.0) (2025-04-22)
 
 
