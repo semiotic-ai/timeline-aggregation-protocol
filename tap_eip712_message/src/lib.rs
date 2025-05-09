@@ -25,7 +25,7 @@
 use serde::{Deserialize, Serialize};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{keccak256, Address, Signature},
+    primitives::{Address, Signature},
     signers::{local::PrivateKeySigner, SignerSync},
     sol_types::SolStruct,
 };
@@ -105,21 +105,8 @@ impl<M: SolStruct> Eip712SignedMessage<M> {
         Ok(recovered_address)
     }
 
-    /// Generate a uniqueness identifier using both the message content and the recovered signer
-    pub fn unique_hash(&self, domain_separator: &Eip712Domain) -> Result<MessageId, Eip712Error> {
-        // Get the hash of just the message content
-        let message_hash = self.message.eip712_hash_struct();
-
-        // Recover the signer address
-        let signer = self.recover_signer(domain_separator)?;
-
-        // Create a new hash combining both the message hash and the signer address
-        let mut input = Vec::with_capacity(32 + 20); // 32 bytes for hash, 20 bytes for address
-        input.extend_from_slice(&message_hash.0);
-        input.extend_from_slice(signer.as_ref());
-
-        let combined_hash = keccak256(&input);
-
-        Ok(MessageId(*combined_hash))
+    /// Use this as a simple key for testing
+    pub fn unique_hash(&self) -> MessageId {
+        MessageId(self.message.eip712_hash_struct().into())
     }
 }
