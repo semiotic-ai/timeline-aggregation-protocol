@@ -19,7 +19,7 @@ pub fn check_and_aggregate_receipts(
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
 ) -> Result<Eip712SignedMessage<ReceiptAggregateVoucher>> {
-    check_signatures_unique(domain_separator, receipts)?;
+    check_signatures_unique(receipts)?;
 
     // Check that the receipts are signed by an accepted signer address
     receipts.par_iter().try_for_each(|receipt| {
@@ -93,17 +93,14 @@ fn check_allocation_id(
     Ok(())
 }
 
-fn check_signatures_unique(
-    domain_separator: &Eip712Domain,
-    receipts: &[Eip712SignedMessage<Receipt>],
-) -> Result<()> {
+fn check_signatures_unique(receipts: &[Eip712SignedMessage<Receipt>]) -> Result<()> {
     let mut receipt_signatures = HashSet::new();
     for receipt in receipts.iter() {
-        let signature = receipt.unique_id(domain_separator)?;
+        let signature = receipt.unique_id();
         if !receipt_signatures.insert(signature) {
             return Err(tap_core::Error::DuplicateReceiptSignature(format!(
                 "{:?}",
-                receipt.unique_id(domain_separator)?
+                receipt.unique_id()
             ))
             .into());
         }
@@ -221,7 +218,7 @@ mod tests {
 
         // This should return an error because the signatures are different
         // but the messages are the same, which if allowed would present a security vulnerability
-        let result = check_signatures_unique(&domain_separator, &receipts);
+        let result = check_signatures_unique(&receipts);
 
         // The result should be an error because the malleated signature is not treated as unique
         // and is detected as a duplicate
@@ -246,7 +243,7 @@ mod tests {
         receipts.push(receipt.clone());
         receipts.push(receipt);
 
-        let res = check_signatures_unique(&domain_separator, &receipts);
+        let res = check_signatures_unique(&receipts);
         assert!(res.is_err());
     }
 
@@ -273,7 +270,7 @@ mod tests {
             .unwrap(),
         ];
 
-        let res = check_signatures_unique(&domain_separator, &receipts);
+        let res = check_signatures_unique(&receipts);
         assert!(res.is_ok());
     }
 

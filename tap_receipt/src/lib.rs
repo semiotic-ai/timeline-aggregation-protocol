@@ -27,8 +27,8 @@ pub mod state;
 
 pub use error::ReceiptError;
 pub use received_receipt::ReceiptWithState;
-use tap_eip712_message::{Eip712Error, Eip712SignedMessage, MessageId};
-use thegraph_core::alloy::{dyn_abi::Eip712Domain, sol_types::SolStruct};
+use tap_eip712_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
+use thegraph_core::alloy::sol_types::SolStruct;
 
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
@@ -45,7 +45,7 @@ pub trait WithValueAndTimestamp {
 /// Extension that allows UniqueCheck for any SolStruct receipt
 pub trait WithUniqueId {
     type Output: Eq + std::hash::Hash;
-    fn unique_id(&self, domain_separator: &Eip712Domain) -> Result<Self::Output, Eip712Error>;
+    fn unique_id(&self) -> Self::Output;
 }
 
 impl<T> WithValueAndTimestamp for Eip712SignedMessage<T>
@@ -65,9 +65,9 @@ impl<T> WithUniqueId for Eip712SignedMessage<T>
 where
     T: SolStruct,
 {
-    type Output = MessageId;
+    type Output = SignatureBytes;
 
-    fn unique_id(&self, domain_separator: &Eip712Domain) -> Result<Self::Output, Eip712Error> {
-        self.unique_hash(domain_separator)
+    fn unique_id(&self) -> Self::Output {
+        self.signature.normalized_s().get_signature_bytes()
     }
 }
