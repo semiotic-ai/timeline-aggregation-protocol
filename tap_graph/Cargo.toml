@@ -9,8 +9,8 @@ description = "The Graph TAP receipt structs"
 [dependencies]
 rand.workspace = true
 serde.workspace = true
-tap_eip712_message = { version = "0.2.1", path = "../tap_eip712_message" }
-tap_receipt = { version = "1.1.1", path = "../tap_receipt" }
+tap_eip712_message.workspace = true
+tap_receipt.workspace = true
 thegraph-core.workspace = true
 
 
