@@ -11,7 +11,7 @@ use jsonrpsee::{
     http_client::{HttpClient, HttpClientBuilder},
     proc_macros::rpc,
     rpc_params,
-    server::{ServerBuilder, ServerHandle},
+    server::{ServerBuilder, ServerConfig, ServerHandle},
 };
 use jsonrpsee_core::client::ClientT;
 use tap_aggregator::jsonrpsee_helpers;
@@ -163,8 +163,9 @@ where
 {
     // Setting up the JSON RPC server
     println!("Starting server...");
+    let server_config = ServerConfig::builder().http_only().build();
     let server = ServerBuilder::new()
-        .http_only()
+        .set_config(server_config)
         .build(format!("127.0.0.1:{}", port))
         .await?;
     let addr = server.local_addr()?;
