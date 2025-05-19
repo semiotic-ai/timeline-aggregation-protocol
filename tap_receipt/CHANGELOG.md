@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_receipt-v1.1.1...tap_receipt-v1.1.2) (2025-05-19)
+
+
+### Bug Fixes
+
+* better organize dependencies ([6d7f470](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/6d7f4700a58721db839330a23d082c68c6aec2a4))
+
 ## [1.1.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_receipt-v1.1.0...tap_receipt-v1.1.1) (2025-05-09)
 
 
