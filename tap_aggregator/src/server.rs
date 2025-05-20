@@ -8,7 +8,7 @@ use axum::{error_handling::HandleError, routing::post_service, BoxError, Router}
 use hyper::StatusCode;
 use jsonrpsee::{
     proc_macros::rpc,
-    server::{ServerBuilder, ServerHandle, TowerService},
+    server::{ServerBuilder, ServerConfig, ServerHandle, TowerService},
 };
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -459,12 +459,14 @@ fn create_json_rpc_service(
     max_response_body_size: u32,
     max_concurrent_connections: u32,
 ) -> Result<(TowerService<Identity, Identity>, ServerHandle)> {
-    let service_builder = ServerBuilder::new()
+    let config = ServerConfig::builder()
         .max_request_body_size(max_request_body_size)
         .max_response_body_size(max_response_body_size)
         .max_connections(max_concurrent_connections)
         .http_only()
-        .to_service_builder();
+        .build();
+
+    let service_builder = ServerBuilder::new().set_config(config).to_service_builder();
     use jsonrpsee::server::stop_channel;
     let (stop_handle, server_handle) = stop_channel();
     let handle = service_builder.build(rpc_impl.into_rpc(), stop_handle);

@@ -23,7 +23,6 @@ criterion.workspace = true
 insta.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 
 [features]
 default = ["in_memory"]
