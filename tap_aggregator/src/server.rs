@@ -378,8 +378,14 @@ pub async fn run_server(
 
     let grpc_service = create_grpc_service(rpc_impl)?;
 
+    let grpc_router = Router::new()
+        .layer(tower::limit::ConcurrencyLimitLayer::new(
+            max_concurrent_connections as usize,
+        ))
+        .merge(grpc_service.into_axum_router());
+
     let service = tower::steer::Steer::new(
-        [json_rpc_router, grpc_service.into_axum_router()],
+        [json_rpc_router, grpc_router],
         |req: &hyper::Request<_>, _services: &[_]| {
             if req
                 .headers()
