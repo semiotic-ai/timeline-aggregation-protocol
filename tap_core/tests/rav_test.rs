@@ -18,10 +18,9 @@ use tap_core::{
     tap_eip712_domain,
 };
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
-#[allow(deprecated)]
-use thegraph_core::alloy::primitives::{Address, Signature};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
+    primitives::{Address, Signature},
     signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
 };
 
@@ -86,8 +85,6 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
     }"#;
 
     serde_json::from_str::<Signature>(raw_sig).unwrap();
-    #[allow(deprecated)]
-    serde_json::from_str::<Signature>(raw_sig).unwrap();
 }
 
 #[rstest]
@@ -119,7 +116,7 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
 
     context.update_last_rav(signed_rav.clone()).await.unwrap();
 
-    // Retreive rav
+    // Retrieve rav
     let retrieved_rav = context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 
@@ -148,7 +145,7 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
     // Update the last rav
     context.update_last_rav(signed_rav.clone()).await.unwrap();
 
-    // Retreive rav
+    // Retrieve rav
     let retrieved_rav = context.last_rav().await;
     assert!(retrieved_rav.unwrap().unwrap() == signed_rav);
 }

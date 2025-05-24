@@ -14,7 +14,7 @@ rand.workspace = true
 tap_eip712_message.workspace = true
 tap_graph = { workspace = true, optional = true }
 tap_receipt.workspace = true
-thegraph-core.workspace = true
+thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 thiserror.workspace = true
 tokio.workspace = true
 
