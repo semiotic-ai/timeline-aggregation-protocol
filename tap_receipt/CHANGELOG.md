@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_receipt-v1.1.2...tap_receipt-v1.1.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* **eip712-message:** canonicalize to low-S before returning bytes ([1586b0f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1586b0f2f2b8d3ec146c58475442a8f9e0067a35))
+
 ## [1.1.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_receipt-v1.1.1...tap_receipt-v1.1.2) (2025-05-19)
 
 

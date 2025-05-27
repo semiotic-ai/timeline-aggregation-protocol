@@ -25,6 +25,8 @@
     * tap_core bumped from 3.0.0 to 3.0.1
     * tap_graph bumped from 0.1.0 to 0.2.0
 
+
+
 ## [0.5.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.3...tap_aggregator-v0.5.4) (2025-05-21)
 
 

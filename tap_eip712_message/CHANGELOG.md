@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.2.1...tap_eip712_message-v0.2.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* **eip712-message:** canonicalize to low-S before returning bytes ([1586b0f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1586b0f2f2b8d3ec146c58475442a8f9e0067a35))
+
 ## [0.2.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.2.0...tap_eip712_message-v0.2.1) (2025-05-09)
 
 
