@@ -62,7 +62,9 @@ pub trait SignatureBytesExt {
 
 impl SignatureBytesExt for Signature {
     fn get_signature_bytes(&self) -> SignatureBytes {
-        SignatureBytes(self.as_bytes())
+        // Canonicalize to low-S form before returning bytes
+        let canonical = self.normalized_s();
+        SignatureBytes(canonical.as_bytes())
     }
 }
 
