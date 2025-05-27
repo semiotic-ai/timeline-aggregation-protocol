@@ -9,6 +9,8 @@
     * tap_eip712_message bumped from 0.2.0 to 0.2.1
     * tap_receipt bumped from 1.1.0 to 1.1.1
 
+
+
 ## [0.3.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.3.1...tap_graph-v0.3.2) (2025-05-19)
 
 
