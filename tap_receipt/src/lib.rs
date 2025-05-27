@@ -68,6 +68,6 @@ where
     type Output = SignatureBytes;
 
     fn unique_id(&self) -> Self::Output {
-        self.signature.normalized_s().get_signature_bytes()
+        self.signature.get_signature_bytes()
     }
 }
