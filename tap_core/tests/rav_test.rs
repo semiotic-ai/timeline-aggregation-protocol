@@ -17,13 +17,10 @@ use tap_core::{
     signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, ReceiptAggregateVoucher};
+use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 #[allow(deprecated)]
 use thegraph_core::alloy::primitives::{Address, Signature};
-use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain,
-    signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
-};
+use thegraph_core::alloy::{dyn_abi::Eip712Domain, signers::local::PrivateKeySigner};
 
 #[fixture]
 fn domain_separator() -> Eip712Domain {
@@ -48,30 +45,36 @@ fn context() -> InMemoryContext {
 #[rstest]
 fn check_for_rav_serialization(domain_separator: Eip712Domain) {
     let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
-    let wallet = MnemonicBuilder::<English>::default()
-        .phrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
-        .build()
-        .unwrap();
+    let wallet = PrivateKeySigner::from_slice(&[1u8; 32]).unwrap();
     let mut receipts = Vec::new();
+
     for value in 50..60 {
-        receipts.push(
-            Eip712SignedMessage::new(
-                &domain_separator,
-                Receipt {
-                    allocation_id,
-                    value,
-                    nonce: value as u64,
-                    timestamp_ns: value as u64,
-                },
-                &wallet,
-            )
-            .unwrap(),
-        );
+        let mut receipt = Receipt::new(
+            allocation_id,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            value,
+        )
+        .unwrap();
+
+        receipt.timestamp_ns = 1000000000 + value as u64;
+        receipt.nonce = value as u64;
+
+        receipts.push(Eip712SignedMessage::new(&domain_separator, receipt, &wallet).unwrap());
     }
 
     let signed_rav = Eip712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            &receipts,
+            None,
+        )
+        .unwrap(),
         &wallet,
     )
     .unwrap();
@@ -103,7 +106,14 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_id, value).unwrap(),
+                Receipt::new(
+                    allocation_id,
+                    Address::ZERO,
+                    Address::ZERO,
+                    Address::ZERO,
+                    value,
+                )
+                .unwrap(),
                 &wallet,
             )
             .unwrap(),
@@ -112,7 +122,15 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
 
     let signed_rav = Eip712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            &receipts,
+            None,
+        )
+        .unwrap(),
         &wallet,
     )
     .unwrap();
@@ -131,7 +149,14 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_id, value).unwrap(),
+                Receipt::new(
+                    allocation_id,
+                    Address::ZERO,
+                    Address::ZERO,
+                    Address::ZERO,
+                    value,
+                )
+                .unwrap(),
                 &wallet,
             )
             .unwrap(),
@@ -140,7 +165,15 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
 
     let signed_rav = Eip712SignedMessage::new(
         &domain_separator,
-        ReceiptAggregateVoucher::aggregate_receipts(allocation_id, &receipts, None).unwrap(),
+        ReceiptAggregateVoucher::aggregate_receipts(
+            allocation_id,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            &receipts,
+            None,
+        )
+        .unwrap(),
         &wallet,
     )
     .unwrap();

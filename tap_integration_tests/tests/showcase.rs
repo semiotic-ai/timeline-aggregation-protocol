@@ -25,7 +25,7 @@ use tap_core::{
     signed_message::{Eip712SignedMessage, MessageId},
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, SignedRav, SignedReceipt};
+use tap_graph::v2::{Receipt, SignedRav, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
     primitives::Address,
@@ -116,6 +116,21 @@ fn sender_ids() -> Vec<Address> {
         Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
         keys_sender().address(),
     ]
+}
+
+#[fixture]
+fn payer() -> Address {
+    Address::from_str("0xabababababababababababababababababababab").unwrap()
+}
+
+#[fixture]
+fn data_service() -> Address {
+    Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap()
+}
+
+#[fixture]
+fn service_provider() -> Address {
+    Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap()
 }
 
 // Domain separator is used to sign receipts/RAVs according to EIP-712
@@ -217,6 +232,9 @@ fn requests_1(
         &keys_sender,
         allocation_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
@@ -235,6 +253,9 @@ fn requests_2(
         &keys_sender,
         allocation_ids[1],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
@@ -254,6 +275,9 @@ fn repeated_timestamp_request(
         &keys_sender,
         allocation_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     );
 
     // Create a new receipt with the timestamp equal to the latest receipt in the first RAV request batch
@@ -266,6 +290,9 @@ fn repeated_timestamp_request(
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
     };
 
     // Sign the new receipt and insert it in the second batch
@@ -290,6 +317,9 @@ fn repeated_timestamp_incremented_by_one_request(
         &keys_sender,
         allocation_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     );
 
     // Create a new receipt with the timestamp equal to the latest receipt timestamp+1 in the first RAV request batch
@@ -303,6 +333,9 @@ fn repeated_timestamp_incremented_by_one_request(
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
     };
 
     // Sign the new receipt and insert it in the second batch
@@ -321,13 +354,15 @@ fn wrong_requests(
     domain_separator: Eip712Domain,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
-    // Create your Receipt here
     generate_requests(
         query_price,
         num_batches,
         &wrong_keys_sender,
         allocation_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
@@ -673,7 +708,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
         counter += 1;
     }
 
-    server_handle_1.stop()?;
+    server_handle_1.stop().unwrap();
 
     // Here the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
     // No errors are expected.
@@ -772,6 +807,9 @@ fn generate_requests(
     sender_key: &PrivateKeySigner,
     allocation_id: Address,
     domain_separator: &Eip712Domain,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
     let mut requests: Vec<Eip712SignedMessage<Receipt>> = Vec::new();
 
@@ -780,7 +818,8 @@ fn generate_requests(
             requests.push(
                 Eip712SignedMessage::new(
                     domain_separator,
-                    Receipt::new(allocation_id, *value).unwrap(),
+                    Receipt::new(allocation_id, payer, data_service, service_provider, *value)
+                        .unwrap(),
                     sender_key,
                 )
                 .unwrap(),

@@ -14,7 +14,7 @@ use tap_core::{
     signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, SignedReceipt};
+use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
 };
@@ -51,7 +51,14 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
     let received_receipt = ReceiptWithState::new(
         Eip712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_id, value).unwrap(),
+            Receipt::new(
+                allocation_id,
+                Address::ZERO,
+                Address::ZERO,
+                Address::ZERO,
+                value,
+            )
+            .unwrap(),
             &wallet,
         )
         .unwrap(),
@@ -91,7 +98,14 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context:
         received_receipts.push(ReceiptWithState::new(
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_id, value).unwrap(),
+                Receipt::new(
+                    allocation_id,
+                    Address::ZERO,
+                    Address::ZERO,
+                    Address::ZERO,
+                    value,
+                )
+                .unwrap(),
                 &wallet,
             )
             .unwrap(),
@@ -175,6 +189,9 @@ fn safe_truncate_receipts_test(
                     timestamp_ns: *timestamp,
                     nonce: 0,
                     value: 0,
+                    payer: Address::ZERO,
+                    data_service: Address::ZERO,
+                    service_provider: Address::ZERO,
                 },
                 &wallet,
             )

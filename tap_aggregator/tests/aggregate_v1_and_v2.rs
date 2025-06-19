@@ -72,6 +72,9 @@ async fn aggregation_test() {
     let rav_request = ReqV1::new(receipts.clone(), None);
     let res = client.aggregate_receipts(rav_request).await;
 
+    if res.is_err() {
+        println!("V1 gRPC Error: {:?}", res.as_ref().err());
+    }
     assert!(res.is_ok());
 
     let mut client = ClientV2::connect(endpoint.clone())

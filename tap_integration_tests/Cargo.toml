@@ -24,6 +24,10 @@ tokio.workspace = true
 rstest.workspace = true
 thegraph-core = { workspace = true, features = ["alloy-signer-mnemonic"] }
 
+[features]
+default = []
+v2 = []
+
 [[test]]
 name = "integration_tests"
 path = "tests/lib.rs"

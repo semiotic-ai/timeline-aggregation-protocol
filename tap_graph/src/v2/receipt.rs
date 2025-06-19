@@ -67,8 +67,8 @@ impl Receipt {
 }
 
 impl WithValueAndTimestamp for Receipt {
-    fn value(&self) -> u128 {
-        self.value
+    fn value(&self) -> U256 {
+        U256::from(self.value)
     }
 
     fn timestamp_ns(&self) -> u64 {

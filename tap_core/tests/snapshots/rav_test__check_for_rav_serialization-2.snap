@@ -1,17 +1,20 @@
 ---
 source: tap_core/tests/rav_test.rs
 expression: signed_rav
-snapshot_kind: text
 ---
 {
   "message": {
     "allocationId": "0xabababababababababababababababababababab",
-    "timestampNs": 59,
-    "valueAggregate": 545
+    "payer": "0x0000000000000000000000000000000000000000",
+    "dataService": "0x0000000000000000000000000000000000000000",
+    "serviceProvider": "0x0000000000000000000000000000000000000000",
+    "timestampNs": 1000000059,
+    "valueAggregate": 545,
+    "metadata": "0x"
   },
   "signature": {
-    "r": "0x11d760201bac73d4e772d0999a1f9b5f6b8d8979d94ee29b7cb2659d23f2a551",
-    "s": "0x1036a994ff414de83f24601ab7cc22e0ece134d2199e0b675d94bd8cf7015226",
+    "r": "0x120e7ef0a86d08ad3f7d1c30ebc3fb8525a65b9563ca1bc54cf0e745b71a7f56",
+    "s": "0x1289b1e4982711120aafcb69f20d2678ce9b9e3fa409c2964c84bf8bb598d876",
     "yParity": "0x0",
     "v": "0x0"
   }

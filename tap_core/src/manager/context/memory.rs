@@ -13,6 +13,9 @@ use std::{
 };
 
 use async_trait::async_trait;
+#[cfg(feature = "v2")]
+use tap_graph::v2::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
+#[cfg(not(feature = "v2"))]
 use tap_graph::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
 use thegraph_core::alloy::primitives::Address;
 
@@ -258,7 +261,7 @@ pub mod checks {
         sync::{Arc, RwLock},
     };
 
-    use tap_graph::SignedReceipt;
+    use tap_graph::v2::SignedReceipt;
     use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address};
 
     use crate::{

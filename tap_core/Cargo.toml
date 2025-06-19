@@ -25,5 +25,6 @@ rstest.workspace = true
 serde_json.workspace = true
 
 [features]
-default = ["in_memory"]
+default = ["in_memory", "v2"]
 in_memory = ["dep:tap_graph"]
+v2 = []

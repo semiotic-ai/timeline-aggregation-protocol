@@ -14,7 +14,10 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
-use thegraph_core::alloy::{primitives::Address, sol};
+use thegraph_core::alloy::{
+    primitives::{Address, U256},
+    sol,
+};
 
 /// A Receipt wrapped in an Eip712SignedMessage
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;
@@ -53,8 +56,8 @@ impl Receipt {
 }
 
 impl WithValueAndTimestamp for Receipt {
-    fn value(&self) -> u128 {
-        self.value
+    fn value(&self) -> U256 {
+        U256::from(self.value)
     }
 
     fn timestamp_ns(&self) -> u64 {

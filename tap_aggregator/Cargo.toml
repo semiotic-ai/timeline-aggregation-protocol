@@ -41,3 +41,8 @@ tonic-build.workspace = true
 [dev-dependencies]
 rand.workspace = true
 rstest.workspace = true
+jsonrpsee = { workspace = true, features = ["http-client"] }
+
+[features]
+default = ["v2"]
+v2 = []

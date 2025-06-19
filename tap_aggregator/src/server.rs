@@ -14,6 +14,9 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use prometheus::{register_counter, register_int_counter, Counter, IntCounter};
 use tap_core::signed_message::Eip712SignedMessage;
+#[cfg(feature = "v2")]
+use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+#[cfg(not(feature = "v2"))]
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
@@ -159,13 +162,28 @@ fn aggregate_receipts_(
     }
 
     let res = match api_version {
-        TapRpcApiVersion::V0_0 => aggregator::v1::check_and_aggregate_receipts(
-            domain_separator,
-            &receipts,
-            previous_rav,
-            wallet,
-            accepted_addresses,
-        ),
+        TapRpcApiVersion::V0_0 => {
+            #[cfg(feature = "v2")]
+            {
+                aggregator::v2::check_and_aggregate_receipts(
+                    domain_separator,
+                    &receipts,
+                    previous_rav,
+                    wallet,
+                    accepted_addresses,
+                )
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                aggregator::v1::check_and_aggregate_receipts(
+                    domain_separator,
+                    &receipts,
+                    previous_rav,
+                    wallet,
+                    accepted_addresses,
+                )
+            }
+        }
     };
 
     // Handle aggregation error
@@ -186,7 +204,8 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
         request: Request<v1::RavRequest>,
     ) -> Result<Response<v1::RavResponse>, Status> {
         let rav_request = request.into_inner();
-        let receipts: Vec<SignedReceipt> = rav_request
+
+        let receipts: Vec<tap_graph::SignedReceipt> = rav_request
             .receipts
             .into_iter()
             .map(TryFrom::try_from)
@@ -506,6 +525,9 @@ mod tests {
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+    #[cfg(feature = "v2")]
+    use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+    #[cfg(not(feature = "v2"))]
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
@@ -533,6 +555,21 @@ mod tests {
             Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
             Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
         ]
+    }
+
+    #[fixture]
+    fn payer() -> Address {
+        Address::from_str("0xabababababababababababababababababababab").unwrap()
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap()
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap()
     }
 
     #[fixture]
@@ -602,6 +639,9 @@ mod tests {
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
         #[values(0, 1, 2)] random_seed: u64,
@@ -643,6 +683,16 @@ mod tests {
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
+                    #[cfg(feature = "v2")]
+                    Receipt::new(
+                        allocation_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
+                        value,
+                    )
+                    .unwrap(),
+                    #[cfg(not(feature = "v2"))]
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
@@ -662,9 +712,25 @@ mod tests {
 
         let remote_rav = res.data;
 
-        let local_rav =
-            ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-                .unwrap();
+        let local_rav = {
+            #[cfg(feature = "v2")]
+            {
+                ReceiptAggregateVoucher::aggregate_receipts(
+                    allocation_ids[0],
+                    payer,
+                    data_service,
+                    service_provider,
+                    &receipts,
+                    None,
+                )
+                .unwrap()
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
+                    .unwrap()
+            }
+        };
 
         assert!(remote_rav.message.allocationId == local_rav.allocationId);
         assert!(remote_rav.message.timestampNs == local_rav.timestampNs);
@@ -685,6 +751,9 @@ mod tests {
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
         #[values(0, 1, 2, 3, 4)] random_seed: u64,
@@ -726,6 +795,16 @@ mod tests {
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
+                    #[cfg(feature = "v2")]
+                    Receipt::new(
+                        allocation_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
+                        value,
+                    )
+                    .unwrap(),
+                    #[cfg(not(feature = "v2"))]
                     Receipt::new(allocation_ids[0], value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
@@ -734,12 +813,29 @@ mod tests {
         }
 
         // Create previous RAV from first half of receipts locally
-        let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
-            &receipts[0..receipts.len() / 2],
-            None,
-        )
-        .unwrap();
+        let prev_rav = {
+            #[cfg(feature = "v2")]
+            {
+                ReceiptAggregateVoucher::aggregate_receipts(
+                    allocation_ids[0],
+                    payer,
+                    data_service,
+                    service_provider,
+                    &receipts[0..receipts.len() / 2],
+                    None,
+                )
+                .unwrap()
+            }
+            #[cfg(not(feature = "v2"))]
+            {
+                ReceiptAggregateVoucher::aggregate_receipts(
+                    allocation_ids[0],
+                    &receipts[0..receipts.len() / 2],
+                    None,
+                )
+                .unwrap()
+            }
+        };
         let signed_prev_rav = Eip712SignedMessage::new(
             &domain_separator,
             prev_rav,
@@ -775,6 +871,9 @@ mod tests {
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
     ) {
         // The keys that will be used to sign the new RAVs
         let keys_main = keys();
@@ -801,6 +900,9 @@ mod tests {
         // Create receipts
         let receipts = vec![Eip712SignedMessage::new(
             &domain_separator,
+            #[cfg(feature = "v2")]
+            Receipt::new(allocation_ids[0], payer, data_service, service_provider, 42).unwrap(),
+            #[cfg(not(feature = "v2"))]
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys_main.wallet,
         )
@@ -857,6 +959,9 @@ mod tests {
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[values("0.0")] api_version: &str,
     ) {
         // The keys that will be used to sign the new RAVs
@@ -869,6 +974,10 @@ mod tests {
         // Number of receipts that is just above the number that would fit within the
         // request size limit. This value is hard-coded here because it supports the
         // maximum number of receipts per aggregate value we wrote in the spec / docs.
+        // Reduced for v2 receipts which are larger due to additional fields
+        #[cfg(feature = "v2")]
+        let number_of_receipts_to_exceed_limit = 200;
+        #[cfg(not(feature = "v2"))]
         let number_of_receipts_to_exceed_limit = 300;
 
         // Start the JSON-RPC server.
@@ -896,6 +1005,16 @@ mod tests {
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
+                    #[cfg(feature = "v2")]
+                    Receipt::new(
+                        allocation_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
+                        u128::MAX / 1000,
+                    )
+                    .unwrap(),
+                    #[cfg(not(feature = "v2"))]
                     Receipt::new(allocation_ids[0], u128::MAX / 1000).unwrap(),
                     &keys_main.wallet,
                 )

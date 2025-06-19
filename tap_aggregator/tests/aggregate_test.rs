@@ -10,6 +10,9 @@ use tap_aggregator::{
     server,
 };
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+#[cfg(feature = "v2")]
+use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+#[cfg(not(feature = "v2"))]
 use tap_graph::{Receipt, ReceiptAggregateVoucher};
 use thegraph_core::alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use tonic::codec::CompressionEncoding;
@@ -47,23 +50,44 @@ async fn aggregation_test() {
         .send_compressed(CompressionEncoding::Zstd);
 
     let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let payer = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let data_service = Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap();
+    let service_provider = Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap();
 
-    // Create receipts
-    let mut receipts = Vec::new();
-    for value in 50..60 {
-        receipts.push(
-            Eip712SignedMessage::new(
-                &domain_separator,
-                Receipt::new(allocation_id, value).unwrap(),
-                &wallet,
-            )
-            .unwrap(),
-        );
+    // Use a fixed timestamp to ensure both v1 and v2 receipts have the same timestamps
+    let fixed_timestamp = 1700000000000000000u64; // Fixed timestamp in nanoseconds
+
+    // Create v1 receipts for gRPC v1 compatibility
+    let mut v1_receipts = Vec::new();
+    for (i, value) in (50..60).enumerate() {
+        let mut receipt = tap_graph::Receipt::new(allocation_id, value).unwrap();
+        receipt.timestamp_ns = fixed_timestamp + i as u64; // Ensure increasing timestamps
+        v1_receipts.push(Eip712SignedMessage::new(&domain_separator, receipt, &wallet).unwrap());
     }
 
-    let rav_request = RavRequest::new(receipts.clone(), None);
+    let rav_request = RavRequest::new(v1_receipts, None);
     let res = client.aggregate_receipts(rav_request).await.unwrap();
     let signed_rav: tap_graph::SignedRav = res.into_inner().signed_rav().unwrap();
+
+    // Create v2 receipts for JSON-RPC API with the same timestamps
+    let mut v2_receipts = Vec::new();
+    for (i, value) in (50..60).enumerate() {
+        #[cfg(feature = "v2")]
+        {
+            let mut receipt =
+                Receipt::new(allocation_id, payer, data_service, service_provider, value).unwrap();
+            receipt.timestamp_ns = fixed_timestamp + i as u64; // Same timestamps as v1
+            v2_receipts
+                .push(Eip712SignedMessage::new(&domain_separator, receipt, &wallet).unwrap());
+        }
+        #[cfg(not(feature = "v2"))]
+        {
+            let mut receipt = Receipt::new(allocation_id, value).unwrap();
+            receipt.timestamp_ns = fixed_timestamp + i as u64;
+            v2_receipts
+                .push(Eip712SignedMessage::new(&domain_separator, receipt, &wallet).unwrap());
+        }
+    }
 
     let sender_aggregator = HttpClientBuilder::default().build(&endpoint).unwrap();
 
@@ -74,13 +98,22 @@ async fn aggregation_test() {
             "aggregate_receipts",
             rpc_params!(
                 "0.0", // TODO: Set the version in a smarter place.
-                receipts,
+                v2_receipts,
                 previous_rav
             ),
         )
         .await
         .unwrap();
     let response = response.data;
-    assert_eq!(signed_rav, response);
+    // Compare the core fields since the types might differ between v1 and v2
+    assert_eq!(
+        signed_rav.message.allocationId,
+        response.message.allocationId
+    );
+    assert_eq!(signed_rav.message.timestampNs, response.message.timestampNs);
+    assert_eq!(
+        signed_rav.message.valueAggregate,
+        response.message.valueAggregate
+    );
     join_handle.abort();
 }

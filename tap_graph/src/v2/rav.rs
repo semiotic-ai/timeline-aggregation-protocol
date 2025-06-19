@@ -121,8 +121,8 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
 }
 
 impl WithValueAndTimestamp for ReceiptAggregateVoucher {
-    fn value(&self) -> u128 {
-        self.valueAggregate
+    fn value(&self) -> U256 {
+        U256::from(self.valueAggregate)
     }
 
     fn timestamp_ns(&self) -> u64 {

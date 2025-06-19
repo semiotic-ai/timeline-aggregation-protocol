@@ -17,7 +17,7 @@ use tap_core::{
     signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, SignedReceipt};
+use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
 };
@@ -108,7 +108,14 @@ async fn partial_then_full_check_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            allocation_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
@@ -152,7 +159,14 @@ async fn partial_then_finalize_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            allocation_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
@@ -198,7 +212,14 @@ async fn standard_lifetime_valid_receipt(
     let query_value = 20u128;
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            allocation_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
