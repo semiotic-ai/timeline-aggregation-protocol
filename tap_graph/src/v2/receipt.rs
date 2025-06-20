@@ -9,7 +9,7 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
-use thegraph_core::alloy::{primitives::Address, sol};
+use thegraph_core::alloy::{primitives::{Address, FixedBytes}, sol};
 
 /// A signed receipt message
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;
@@ -18,8 +18,8 @@ sol! {
     /// Holds information needed for promise of payment signed with ECDSA
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct Receipt {
-        /// Unique allocation id this receipt belongs to
-        address allocation_id;
+        /// Unique collection id this receipt belongs to
+        bytes32 collection_id;
 
         // The address of the payer the RAV was issued by
         address payer;
@@ -43,7 +43,7 @@ fn get_current_timestamp_u64_ns() -> Result<u64, SystemTimeError> {
 impl Receipt {
     /// Returns a receipt with provided values
     pub fn new(
-        allocation_id: Address,
+        collection_id: FixedBytes<32>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -52,7 +52,7 @@ impl Receipt {
         let timestamp_ns = get_current_timestamp_u64_ns()?;
         let nonce = rng().random::<u64>();
         Ok(Self {
-            allocation_id,
+            collection_id,
             payer,
             data_service,
             service_provider,
@@ -79,12 +79,13 @@ mod receipt_unit_test {
 
     use rstest::*;
     use thegraph_core::alloy::primitives::address;
+    use thegraph_core::alloy::primitives::fixed_bytes;
 
     use super::*;
 
     #[fixture]
-    fn allocation_id() -> Address {
-        address!("1234567890abcdef1234567890abcdef12345678")
+    fn collection_id() -> FixedBytes<32> {
+        fixed_bytes!("deaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead")
     }
 
     #[fixture]
@@ -109,18 +110,18 @@ mod receipt_unit_test {
 
     #[fixture]
     fn receipt(
-        allocation_id: Address,
+        collection_id: FixedBytes<32>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
         value: u128,
     ) -> Receipt {
-        Receipt::new(allocation_id, payer, data_service, service_provider, value).unwrap()
+        Receipt::new(collection_id, payer, data_service, service_provider, value).unwrap()
     }
 
     #[rstest]
-    fn test_new_receipt(allocation_id: Address, value: u128, receipt: Receipt) {
-        assert_eq!(receipt.allocation_id, allocation_id);
+    fn test_new_receipt(collection_id: FixedBytes<32>, value: u128, receipt: Receipt) {
+        assert_eq!(receipt.collection_id, collection_id);
         assert_eq!(receipt.value, value);
 
         // Check that the timestamp is within a reasonable range

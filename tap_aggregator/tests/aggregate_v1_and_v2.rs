@@ -13,7 +13,7 @@ use tap_aggregator::{
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{v2::Receipt as ReceiptV2, Receipt as ReceiptV1};
 use thegraph_core::alloy::{
-    primitives::{address, Address},
+    primitives::{address, Address, FixedBytes},
     signers::local::PrivateKeySigner,
 };
 use tonic::codec::CompressionEncoding;
@@ -51,6 +51,10 @@ async fn aggregation_test() {
         .send_compressed(CompressionEncoding::Zstd);
 
     let allocation_id = address!("abababababababababababababababababababab");
+    let mut padded = [0u8; 32];
+    padded[12..].copy_from_slice(allocation_id.as_slice());
+
+    let collection_id = FixedBytes::<32>::from(padded);
 
     // Create receipts
     let mut receipts = Vec::new();
@@ -85,7 +89,7 @@ async fn aggregation_test() {
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                ReceiptV2::new(allocation_id, payer, data_service, service_provider, value)
+                ReceiptV2::new(collection_id, payer, data_service, service_provider, value)
                     .unwrap(),
                 &wallet,
             )

@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, fmt::Debug, str::FromStr};
 
 use anyhow::Result;
 use axum::{error_handling::HandleError, routing::post_service, BoxError, Router};
@@ -273,7 +273,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
                     produce_kafka_records(
                         kafka,
                         &res.message.payer,
-                        &res.message.allocationId,
+                        &res.message.collectionId,
                         res.message.valueAggregate,
                     );
                 }
@@ -479,14 +479,14 @@ fn create_json_rpc_service(
     Ok((handle, server_handle))
 }
 
-fn produce_kafka_records(
+fn produce_kafka_records<K: Debug>(
     kafka: &rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>,
     sender: &Address,
-    allocation: &Address,
+    key_fragment: &K,
     aggregated_value: u128,
 ) {
     let topic = "gateway_ravs";
-    let key = format!("{sender:?}:{allocation:?}");
+    let key = format!("{sender:?}:{key_fragment:?}");
     let payload = aggregated_value.to_string();
     let result = kafka.send(
         rdkafka::producer::BaseRecord::to(topic)
