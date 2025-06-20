@@ -19,7 +19,7 @@ jobs:
           toolchain: nightly
           components: rustfmt
           cache: false
-      - run: cargo +nightly fmt --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     name: cargo clippy
