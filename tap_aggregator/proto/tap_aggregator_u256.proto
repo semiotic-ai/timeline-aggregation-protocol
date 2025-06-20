@@ -1,0 +1,43 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package tap_aggregator.v1_u256;
+
+import "uint256.proto";
+
+message Receipt {
+  bytes allocation_id = 1;
+  uint64 timestamp_ns = 2;
+  uint64 nonce = 3;
+  grpc.uint256.Uint256 value = 4;
+}
+
+message SignedReceipt {
+  Receipt message = 1;
+  bytes signature = 2;
+}
+
+message ReceiptAggregateVoucher {
+  bytes allocation_id = 1;
+  uint64 timestamp_ns = 2;
+  grpc.uint256.Uint256 value_aggregate = 3;
+}
+
+message SignedRav {
+  ReceiptAggregateVoucher message = 1;
+  bytes signature = 2;
+}
+
+message RavRequest {
+  repeated SignedReceipt receipts = 1;
+  optional SignedRav previous_rav = 2;
+}
+
+message RavResponse {
+  SignedRav rav = 1;
+}
+
+service TapAggregator {
+  rpc AggregateReceipts(RavRequest) returns (RavResponse);
+}

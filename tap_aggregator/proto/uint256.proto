@@ -1,0 +1,16 @@
+// Copyright 2023-, Semiotic AI, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+package grpc.uint256;
+
+message Uint256 {
+  // Bits 192-255 of a 256 bit number.
+  uint64 word3 = 1;
+  // Bits 128-191 of a 256 bit number.
+  uint64 word2 = 2;
+  // Bits 64-127 of a 256 bit number.
+  uint64 word1 = 3;
+  // Bits 0-63 of a 256 bit number.
+  uint64 word0 = 4;
+}
