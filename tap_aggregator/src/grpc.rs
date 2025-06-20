@@ -450,7 +450,7 @@ pub mod v2_u256 {
         type Error = anyhow::Error;
         fn try_from(receipt: self::Receipt) -> Result<Self, Self::Error> {
             Ok(Self {
-                allocation_id: receipt.allocation_id.as_slice().try_into()?,
+                collection_id: receipt.collection_id.as_slice().try_into()?,
                 timestamp_ns: receipt.timestamp_ns,
                 value: receipt.value.ok_or(anyhow!("Missing value"))?.into(),
                 nonce: receipt.nonce,
@@ -477,7 +477,7 @@ pub mod v2_u256 {
     impl From<tap_graph::v2::Receipt> for self::Receipt {
         fn from(value: tap_graph::v2::Receipt) -> Self {
             Self {
-                allocation_id: value.allocation_id.as_slice().to_vec(),
+                collection_id: value.collection_id.as_slice().to_vec(),
                 timestamp_ns: value.timestamp_ns,
                 nonce: value.nonce,
                 value: Some(U256::from(value.value).into()),
@@ -523,7 +523,7 @@ pub mod v2_u256 {
         type Error = anyhow::Error;
         fn try_from(voucher: self::ReceiptAggregateVoucher) -> Result<Self, Self::Error> {
             Ok(Self {
-                allocationId: voucher.allocation_id.as_slice().try_into()?,
+                collectionId: voucher.collection_id.as_slice().try_into()?,
                 timestampNs: voucher.timestamp_ns,
                 valueAggregate: voucher
                     .value_aggregate
@@ -540,7 +540,7 @@ pub mod v2_u256 {
     impl From<tap_graph::v2::ReceiptAggregateVoucher> for self::ReceiptAggregateVoucher {
         fn from(voucher: tap_graph::v2::ReceiptAggregateVoucher) -> Self {
             Self {
-                allocation_id: voucher.allocationId.to_vec(),
+                collection_id: voucher.collectionId.to_vec(),
                 timestamp_ns: voucher.timestampNs,
                 value_aggregate: Some(U256::from(voucher.valueAggregate).into()),
                 payer: voucher.payer.to_vec(),

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
 use thegraph_core::alloy::{
-    primitives::{Address, FixedBytes},
+    primitives::{Address, FixedBytes, U256},
     sol,
 };
 
@@ -81,7 +81,7 @@ mod receipt_unit_test {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use rstest::*;
-    use thegraph_core::alloy::primitives::{address, fixed_bytes};
+    use thegraph_core::alloy::primitives::{address, fixed_bytes, U256};
 
     use super::*;
 

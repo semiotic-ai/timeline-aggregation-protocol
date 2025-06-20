@@ -21,7 +21,7 @@ use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 use thegraph_core::alloy::primitives::{Address, Signature};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{address, U256},
+    primitives::{fixed_bytes, U256},
     signers::local::PrivateKeySigner,
 };
 
@@ -47,7 +47,8 @@ fn context() -> InMemoryContext {
 
 #[rstest]
 fn check_for_rav_serialization(domain_separator: Eip712Domain) {
-    let allocation_id = address!("0xabababababababababababababababababababab");
+    let allocation_id =
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab");
     let wallet = PrivateKeySigner::from_slice(&[1u8; 32]).unwrap();
     let mut receipts = Vec::new();
 
@@ -101,7 +102,8 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
 async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = address!("0xabababababababababababababababababababab");
+    let allocation_id =
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab");
 
     // Create receipts
     let mut receipts = Vec::new();

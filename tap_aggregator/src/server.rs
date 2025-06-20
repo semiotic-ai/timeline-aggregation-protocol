@@ -347,7 +347,7 @@ impl RpcServer for RpcImpl {
                     produce_kafka_records(
                         kafka,
                         &self.wallet.address(),
-                        &res.data.message.allocationId,
+                        &res.data.message.collectionId,
                         res.data.message.valueAggregate,
                     );
                 }
@@ -504,7 +504,7 @@ fn produce_kafka_records<K: Debug>(
     kafka: &rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>,
     sender: &Address,
     key_fragment: &K,
-    aggregated_value: u128,
+    aggregated_value: U256,
 ) {
     let topic = "gateway_ravs";
     let key = format!("{sender:?}:{key_fragment:?}");
@@ -554,12 +554,25 @@ mod tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
+    fn collection_ids() -> Vec<thegraph_core::alloy::primitives::FixedBytes<32>> {
+        use thegraph_core::alloy::primitives::FixedBytes;
         vec![
-            address!("0xabababababababababababababababababababab"),
-            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
-            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
-            address!("0x1234567890abcdef1234567890abcdef12345678"),
+            FixedBytes::from([0xab; 32]),
+            FixedBytes::from([
+                0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad,
+                0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad, 0xde, 0xad,
+                0xde, 0xad, 0xde, 0xad,
+            ]),
+            FixedBytes::from([
+                0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef,
+                0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef, 0xbe, 0xef,
+                0xbe, 0xef, 0xbe, 0xef,
+            ]),
+            FixedBytes::from([
+                0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab,
+                0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78,
+                0x90, 0xab, 0xcd, 0xef,
+            ]),
         ]
     }
 
@@ -644,7 +657,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<thegraph_core::alloy::primitives::FixedBytes<32>>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -691,7 +704,7 @@ mod tests {
                     &domain_separator,
                     #[cfg(feature = "v2")]
                     Receipt::new(
-                        allocation_ids[0],
+                        collection_ids[0],
                         payer,
                         data_service,
                         service_provider,
@@ -722,7 +735,7 @@ mod tests {
             #[cfg(feature = "v2")]
             {
                 ReceiptAggregateVoucher::aggregate_receipts(
-                    allocation_ids[0],
+                    collection_ids[0],
                     payer,
                     data_service,
                     service_provider,
@@ -733,12 +746,12 @@ mod tests {
             }
             #[cfg(not(feature = "v2"))]
             {
-                ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
+                ReceiptAggregateVoucher::aggregate_receipts(collection_ids[0], &receipts, None)
                     .unwrap()
             }
         };
 
-        assert!(remote_rav.message.allocationId == local_rav.allocationId);
+        assert!(remote_rav.message.collectionId == local_rav.collectionId);
         assert!(remote_rav.message.timestampNs == local_rav.timestampNs);
         assert!(remote_rav.message.valueAggregate == local_rav.valueAggregate);
 
@@ -756,7 +769,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<thegraph_core::alloy::primitives::FixedBytes<32>>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -803,7 +816,7 @@ mod tests {
                     &domain_separator,
                     #[cfg(feature = "v2")]
                     Receipt::new(
-                        allocation_ids[0],
+                        collection_ids[0],
                         payer,
                         data_service,
                         service_provider,
@@ -811,7 +824,7 @@ mod tests {
                     )
                     .unwrap(),
                     #[cfg(not(feature = "v2"))]
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(collection_ids[0], value).unwrap(),
                     &all_wallets.choose(&mut rng).unwrap().wallet,
                 )
                 .unwrap(),
@@ -823,7 +836,7 @@ mod tests {
             #[cfg(feature = "v2")]
             {
                 ReceiptAggregateVoucher::aggregate_receipts(
-                    allocation_ids[0],
+                    collection_ids[0],
                     payer,
                     data_service,
                     service_provider,
@@ -835,7 +848,7 @@ mod tests {
             #[cfg(not(feature = "v2"))]
             {
                 ReceiptAggregateVoucher::aggregate_receipts(
-                    allocation_ids[0],
+                    collection_ids[0],
                     &receipts[0..receipts.len() / 2],
                     None,
                 )
@@ -876,7 +889,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<thegraph_core::alloy::primitives::FixedBytes<32>>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -908,7 +921,7 @@ mod tests {
             &domain_separator,
             #[cfg(feature = "v2")]
             Receipt::new(
-                allocation_ids[0],
+                collection_ids[0],
                 payer,
                 data_service,
                 service_provider,
@@ -916,7 +929,7 @@ mod tests {
             )
             .unwrap(),
             #[cfg(not(feature = "v2"))]
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(collection_ids[0], 42).unwrap(),
             &keys_main.wallet,
         )
         .unwrap()];
@@ -971,7 +984,7 @@ mod tests {
         domain_separator: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<thegraph_core::alloy::primitives::FixedBytes<32>>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -1020,7 +1033,7 @@ mod tests {
                     &domain_separator,
                     #[cfg(feature = "v2")]
                     Receipt::new(
-                        allocation_ids[0],
+                        collection_ids[0],
                         payer,
                         data_service,
                         service_provider,

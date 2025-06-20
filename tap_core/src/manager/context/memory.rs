@@ -264,7 +264,7 @@ pub mod checks {
     use tap_graph::v2::SignedReceipt;
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
-        primitives::{Address, U256},
+        primitives::{Address, FixedBytes, U256},
     };
 
     use crate::{
@@ -279,13 +279,13 @@ pub mod checks {
     pub fn get_full_list_of_checks(
         domain_separator: Eip712Domain,
         valid_signers: HashSet<Address>,
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+        collection_ids: Arc<RwLock<HashSet<FixedBytes<32>>>>,
         _query_appraisals: Arc<RwLock<HashMap<MessageId, U256>>>,
     ) -> Vec<ReceiptCheck<SignedReceipt>> {
         vec![
             // Arc::new(UniqueCheck ),
             // Arc::new(ValueCheck { query_appraisals }),
-            Arc::new(AllocationIdCheck { allocation_ids }),
+            Arc::new(CollectionIdCheck { collection_ids }),
             Arc::new(SignatureCheck {
                 domain_separator,
                 valid_signers,
@@ -293,29 +293,29 @@ pub mod checks {
         ]
     }
 
-    struct AllocationIdCheck {
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+    struct CollectionIdCheck {
+        collection_ids: Arc<RwLock<HashSet<FixedBytes<32>>>>,
     }
 
     #[async_trait::async_trait]
-    impl Check<SignedReceipt> for AllocationIdCheck {
+    impl Check<SignedReceipt> for CollectionIdCheck {
         async fn check(
             &self,
             _: &Context,
             receipt: &ReceiptWithState<Checking, SignedReceipt>,
         ) -> CheckResult {
-            let received_allocation_id = receipt.signed_receipt().message.allocation_id;
+            let received_collection_id = receipt.signed_receipt().message.collection_id;
             if self
-                .allocation_ids
+                .collection_ids
                 .read()
                 .unwrap()
-                .contains(&received_allocation_id)
+                .contains(&received_collection_id)
             {
                 Ok(())
             } else {
                 Err(CheckError::Failed(
-                    ReceiptError::InvalidAllocationID {
-                        received_allocation_id,
+                    ReceiptError::InvalidCollectionID {
+                        received_collection_id,
                     }
                     .into(),
                 ))

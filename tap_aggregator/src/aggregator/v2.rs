@@ -192,7 +192,7 @@ mod tests {
     use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
-        primitives::{address, fixed_bytes, Address, Bytes, FixedBytes},
+        primitives::{address, fixed_bytes, Address, Bytes, FixedBytes, U256},
         signers::local::PrivateKeySigner,
     };
 
@@ -246,7 +246,14 @@ mod tests {
         let mut receipts = Vec::new();
         let receipt = Eip712SignedMessage::new(
             &domain_separator,
-            Receipt::new(collection_id, payer, data_service, service_provider, 42).unwrap(),
+            Receipt::new(
+                collection_id,
+                payer,
+                data_service,
+                service_provider,
+                U256::from(42),
+            )
+            .unwrap(),
             &keys.0,
         )
         .unwrap();
@@ -271,13 +278,27 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 42).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(42),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 42).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(42),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
@@ -390,13 +411,27 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 42).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(42),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 43).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(43),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
@@ -407,7 +442,7 @@ mod tests {
                     payer,
                     data_service,
                     service_provider,
-                    44,
+                    U256::from(44),
                 )
                 .unwrap(),
                 &keys.0,
@@ -440,19 +475,40 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 42).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(42),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 43).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(43),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(collection_id, payer, data_service, service_provider, 44).unwrap(),
+                Receipt::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(44),
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),

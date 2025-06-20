@@ -7,7 +7,7 @@ package tap_aggregator.v2_u256;
 import "uint256.proto";
 
 message Receipt {
-  bytes allocation_id = 1;
+  bytes collection_id = 1;
   uint64 timestamp_ns = 2;
   uint64 nonce = 3;
   grpc.uint256.Uint256 value = 4;
@@ -22,7 +22,7 @@ message SignedReceipt {
 }
 
 message ReceiptAggregateVoucher {
-  bytes allocation_id = 1;
+  bytes collection_id = 1;
   uint64 timestamp_ns = 2;
   grpc.uint256.Uint256 value_aggregate = 3;
   bytes payer = 4;

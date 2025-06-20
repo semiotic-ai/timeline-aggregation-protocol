@@ -13,7 +13,7 @@ use tap_receipt::{
     ReceiptWithState, WithValueAndTimestamp,
 };
 use thegraph_core::alloy::{
-    primitives::{Address, Bytes, FixedBytes},
+    primitives::{Address, Bytes, FixedBytes, U256},
     sol,
 };
 

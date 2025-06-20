@@ -13,7 +13,7 @@ use tap_aggregator::{
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{v2::Receipt as ReceiptV2, Receipt as ReceiptV1};
 use thegraph_core::alloy::{
-    primitives::{address, Address, FixedBytes},
+    primitives::{address, Address, FixedBytes, U256},
     signers::local::PrivateKeySigner,
 };
 use tonic::codec::CompressionEncoding;
@@ -92,8 +92,14 @@ async fn aggregation_test() {
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                ReceiptV2::new(collection_id, payer, data_service, service_provider, value)
-                    .unwrap(),
+                ReceiptV2::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(value),
+                )
+                .unwrap(),
                 &wallet,
             )
             .unwrap(),

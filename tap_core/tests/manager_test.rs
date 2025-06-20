@@ -25,7 +25,7 @@ use tap_eip712_message::MessageId;
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{address, Address, U256},
+    primitives::{address, fixed_bytes, Address, FixedBytes, U256},
     signers::local::PrivateKeySigner,
 };
 
@@ -39,12 +39,12 @@ fn signer() -> PrivateKeySigner {
 }
 
 #[fixture]
-fn allocation_ids() -> Vec<Address> {
+fn collection_ids() -> Vec<FixedBytes<32>> {
     vec![
-        address!("0xabababababababababababababababababababab"),
-        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
-        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
-        address!("0x1234567890abcdef1234567890abcdef12345678"),
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+        fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+        fixed_bytes!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+        fixed_bytes!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
     ]
 }
 
@@ -78,7 +78,7 @@ struct ContextFixture {
 #[fixture]
 fn context(
     _domain_separator: Eip712Domain,
-    _allocation_ids: Vec<Address>,
+    _collection_ids: Vec<FixedBytes<32>>,
     sender_ids: (PrivateKeySigner, Vec<Address>),
 ) -> ContextFixture {
     let (signer, _sender_ids) = sender_ids;
@@ -109,7 +109,7 @@ fn context(
 #[rstest]
 #[tokio::test]
 async fn manager_verify_and_store_varying_initial_checks(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -127,7 +127,7 @@ async fn manager_verify_and_store_varying_initial_checks(
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -153,7 +153,7 @@ async fn manager_verify_and_store_varying_initial_checks(
 #[rstest]
 #[tokio::test]
 async fn manager_create_rav_request_all_valid_receipts(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -177,7 +177,7 @@ async fn manager_create_rav_request_all_valid_receipts(
         let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(
-                allocation_ids[0],
+                collection_ids[0],
                 Address::ZERO,
                 Address::ZERO,
                 Address::ZERO,
@@ -229,7 +229,9 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
     let rav = ReceiptAggregateVoucher {
-        allocationId: address!("0xabababababababababababababababababababab"),
+        collectionId: fixed_bytes!(
+            "0xabababababababababababababababababababababababababababababababab"
+        ),
         timestampNs: 1232442,
         valueAggregate: U256::from(20u128),
         payer: Address::ZERO,
@@ -239,7 +241,9 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     };
 
     let rav_wrong_value = ReceiptAggregateVoucher {
-        allocationId: address!("0xabababababababababababababababababababab"),
+        collectionId: fixed_bytes!(
+            "0xabababababababababababababababababababababababababababababababab"
+        ),
         timestampNs: 1232442,
         valueAggregate: U256::from(10u128),
         payer: Address::ZERO,
@@ -260,7 +264,7 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -287,7 +291,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
         let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(
-                allocation_ids[0],
+                collection_ids[0],
                 Address::ZERO,
                 Address::ZERO,
                 Address::ZERO,
@@ -335,7 +339,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
 #[rstest]
 #[tokio::test]
 async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_timestamps(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     #[values(true, false)] remove_old_receipts: bool,
     context: ContextFixture,
@@ -362,7 +366,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     for query_id in 0..10 {
         let value = U256::from(20u128);
         let mut receipt = Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -417,7 +421,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     for query_id in 10..20 {
         let value = U256::from(20u128);
         let mut receipt = Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -480,7 +484,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 #[tokio::test]
 async fn manager_create_rav_and_ignore_invalid_receipts(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
 ) -> Result<()> {
     let timestamp_check = Arc::new(StatefulTimestampCheck::new(60));
 
@@ -504,7 +508,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     // Create valid receipts
     for _ in 0..9 {
         let receipt = Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -537,7 +541,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
 #[tokio::test]
 async fn test_retryable_checks(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
 ) -> Result<()> {
     let timestamp_check = Arc::new(StatefulTimestampCheck::new(60));
 
@@ -559,7 +563,7 @@ async fn test_retryable_checks(
     // Store receipts
     for _ in 0..10 {
         let receipt = Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,

@@ -19,7 +19,7 @@ use tap_core::{
 use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{address, Address, U256},
+    primitives::{address, fixed_bytes, Address, FixedBytes, U256},
     signers::local::PrivateKeySigner,
 };
 
@@ -29,12 +29,12 @@ fn signer() -> PrivateKeySigner {
 }
 
 #[fixture]
-fn allocation_ids() -> Vec<Address> {
+fn collection_ids() -> Vec<FixedBytes<32>> {
     vec![
-        address!("0xabababababababababababababababababababab"),
-        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
-        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
-        address!("0x1234567890abcdef1234567890abcdef12345678"),
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+        fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+        fixed_bytes!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+        fixed_bytes!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
     ]
 }
 
@@ -67,7 +67,7 @@ struct ContextFixture {
 #[fixture]
 fn context(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     sender_ids: (PrivateKeySigner, Vec<Address>),
 ) -> ContextFixture {
     let (signer, sender_ids) = sender_ids;
@@ -78,7 +78,7 @@ fn context(
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
-        Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
+        Arc::new(RwLock::new(collection_ids.iter().cloned().collect())),
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
@@ -95,7 +95,7 @@ fn context(
 #[tokio::test]
 async fn partial_then_full_check_valid_receipt(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     context: ContextFixture,
 ) {
     let ContextFixture {
@@ -110,7 +110,7 @@ async fn partial_then_full_check_valid_receipt(
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -145,7 +145,7 @@ async fn partial_then_full_check_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn partial_then_finalize_valid_receipt(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -161,7 +161,7 @@ async fn partial_then_finalize_valid_receipt(
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
@@ -198,7 +198,7 @@ async fn partial_then_finalize_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn standard_lifetime_valid_receipt(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -214,7 +214,7 @@ async fn standard_lifetime_valid_receipt(
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
-            allocation_ids[0],
+            collection_ids[0],
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,

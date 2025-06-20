@@ -16,7 +16,7 @@ use tap_core::{
 use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::{address, Address, U256},
+    primitives::{fixed_bytes, Address, U256},
     signers::local::PrivateKeySigner,
 };
 
@@ -45,7 +45,8 @@ fn context() -> InMemoryContext {
 async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = address!("0xabababababababababababababababababababab");
+    let allocation_id =
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab");
 
     // Create receipts
     let value = U256::from(100u128);
@@ -91,7 +92,8 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
 async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = address!("0xabababababababababababababababababababab");
+    let collection_id =
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab");
 
     // Create receipts
     let mut received_receipts = Vec::new();
@@ -100,7 +102,7 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context:
             Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt::new(
-                    allocation_id,
+                    collection_id,
                     Address::ZERO,
                     Address::ZERO,
                     Address::ZERO,
@@ -186,7 +188,9 @@ fn safe_truncate_receipts_test(
             Eip712SignedMessage::new(
                 &domain_separator,
                 Receipt {
-                    allocation_id: Address::ZERO,
+                    collection_id: fixed_bytes!(
+                        "0xabababababababababababababababababababababababababababababababab"
+                    ),
                     timestamp_ns: *timestamp,
                     nonce: 0,
                     value: U256::ZERO,

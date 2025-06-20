@@ -4,7 +4,7 @@ expression: signed_rav
 ---
 {
   "message": {
-    "allocationId": "0xabababababababababababababababababababab",
+    "collectionId": "0xabababababababababababababababababababababababababababababababab",
     "payer": "0x0000000000000000000000000000000000000000",
     "dataService": "0x0000000000000000000000000000000000000000",
     "serviceProvider": "0x0000000000000000000000000000000000000000",
@@ -13,8 +13,8 @@ expression: signed_rav
     "metadata": "0x"
   },
   "signature": {
-    "r": "0xe6f0127b91dfc3f1575dbeeff1f72f3c2957e99c303a1e022d09951fb643f7b0",
-    "s": "0x4416b255080104ee1f2a3b574724be0a2aee7319f6136ed1fa5f05cf9329fa29",
+    "r": "0x6536579e6d148e8eee763cb53570c2af72f885c7b59ac760f5e4721e9ee0a145",
+    "s": "0x6419933b3ac1996b4687a9138650b0f36f7639f317f08cc34018e286878c216b",
     "yParity": "0x1",
     "v": "0x1"
   }

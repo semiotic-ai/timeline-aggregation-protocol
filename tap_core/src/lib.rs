@@ -62,7 +62,7 @@ mod tap_tests {
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
-        primitives::{address, Address},
+        primitives::{address, fixed_bytes, Address, FixedBytes},
         signers::local::PrivateKeySigner,
     };
 
@@ -77,12 +77,12 @@ mod tap_tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
+    fn collection_ids() -> Vec<FixedBytes<32>> {
         vec![
-            address!("0xabababababababababababababababababababab"),
-            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
-            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
-            address!("0x1234567890abcdef1234567890abcdef12345678"),
+            fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+            fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            fixed_bytes!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            fixed_bytes!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
         ]
     }
 
@@ -112,7 +112,7 @@ mod tap_tests {
     #[test]
     fn signed_rav_is_valid_with_no_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<FixedBytes<32>>,
         domain_separator: Eip712Domain,
         payer: Address,
         data_service: Address,
@@ -128,7 +128,7 @@ mod tap_tests {
                 Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(
-                        allocation_ids[0],
+                        collection_ids[0],
                         payer,
                         data_service,
                         service_provider,
@@ -144,7 +144,7 @@ mod tap_tests {
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
 
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            collection_ids[0],
             payer,
             data_service,
             service_provider,
@@ -162,7 +162,7 @@ mod tap_tests {
     #[test]
     fn signed_rav_is_valid_with_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<FixedBytes<32>>,
         domain_separator: Eip712Domain,
         payer: Address,
         data_service: Address,
@@ -178,7 +178,7 @@ mod tap_tests {
                 Eip712SignedMessage::new(
                     &domain_separator,
                     Receipt::new(
-                        allocation_ids[0],
+                        collection_ids[0],
                         payer,
                         data_service,
                         service_provider,
@@ -193,7 +193,7 @@ mod tap_tests {
 
         // Create previous RAV from first half of receipts
         let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            collection_ids[0],
             payer,
             data_service,
             service_provider,
@@ -206,7 +206,7 @@ mod tap_tests {
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            collection_ids[0],
             payer,
             data_service,
             service_provider,
