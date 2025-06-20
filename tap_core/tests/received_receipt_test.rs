@@ -3,7 +3,6 @@
 
 use std::{
     collections::HashMap,
-    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -17,9 +16,11 @@ use tap_core::{
     signed_message::Eip712SignedMessage,
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, SignedReceipt};
+use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{address, fixed_bytes, Address, FixedBytes, U256},
+    signers::local::PrivateKeySigner,
 };
 
 #[fixture]
@@ -28,12 +29,12 @@ fn signer() -> PrivateKeySigner {
 }
 
 #[fixture]
-fn allocation_ids() -> Vec<Address> {
+fn collection_ids() -> Vec<FixedBytes<32>> {
     vec![
-        Address::from_str("0xabababababababababababababababababababab").unwrap(),
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-        Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+        fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+        fixed_bytes!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+        fixed_bytes!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
     ]
 }
 
@@ -43,9 +44,9 @@ fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
     (
         signer,
         vec![
-            Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-            Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-            Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+            address!("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb"),
+            address!("0xfafafafafafafafafafafafafafafafafafafafa"),
+            address!("0xadadadadadadadadadadadadadadadadadadadad"),
             address,
         ],
     )
@@ -66,7 +67,7 @@ struct ContextFixture {
 #[fixture]
 fn context(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     sender_ids: (PrivateKeySigner, Vec<Address>),
 ) -> ContextFixture {
     let (signer, sender_ids) = sender_ids;
@@ -77,7 +78,7 @@ fn context(
     let mut checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
-        Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
+        Arc::new(RwLock::new(collection_ids.iter().cloned().collect())),
         query_appraisals.clone(),
     );
     checks.push(timestamp_check);
@@ -94,7 +95,7 @@ fn context(
 #[tokio::test]
 async fn partial_then_full_check_valid_receipt(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     context: ContextFixture,
 ) {
     let ContextFixture {
@@ -105,10 +106,17 @@ async fn partial_then_full_check_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            collection_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
@@ -119,7 +127,7 @@ async fn partial_then_full_check_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()
@@ -137,7 +145,7 @@ async fn partial_then_full_check_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn partial_then_finalize_valid_receipt(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -149,10 +157,17 @@ async fn partial_then_finalize_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            collection_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
@@ -162,7 +177,7 @@ async fn partial_then_finalize_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()
@@ -183,7 +198,7 @@ async fn partial_then_finalize_valid_receipt(
 #[rstest]
 #[tokio::test]
 async fn standard_lifetime_valid_receipt(
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     context: ContextFixture,
 ) {
@@ -195,10 +210,17 @@ async fn standard_lifetime_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
-        Receipt::new(allocation_ids[0], query_value).unwrap(),
+        Receipt::new(
+            collection_ids[0],
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            query_value,
+        )
+        .unwrap(),
         &signer,
     )
     .unwrap();
@@ -209,7 +231,7 @@ async fn standard_lifetime_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()

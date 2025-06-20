@@ -46,7 +46,10 @@ use tap_receipt::{
     state::Checked,
     ReceiptWithState, WithValueAndTimestamp,
 };
-use thegraph_core::alloy::{primitives::Address, sol};
+use thegraph_core::alloy::{
+    primitives::{Address, U256},
+    sol,
+};
 
 use super::{Receipt, SignedReceipt};
 
@@ -66,7 +69,7 @@ sol! {
         uint64 timestampNs;
         /// Aggregated value from receipt batch and any previous RAV provided
         /// (truncate to lower bits)
-        uint128 valueAggregate;
+        uint256 valueAggregate;
     }
 }
 
@@ -87,7 +90,7 @@ impl ReceiptAggregateVoucher {
         // of every receipt is OK with all checks complete (relies on #28)
         // If there is a previous RAV get initialize values from it, otherwise get default values
         let mut timestamp_max = 0u64;
-        let mut value_aggregate = 0u128;
+        let mut value_aggregate = U256::ZERO;
 
         if let Some(prev_rav) = previous_rav {
             timestamp_max = prev_rav.message.timestampNs;
@@ -132,8 +135,8 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
 }
 
 impl WithValueAndTimestamp for ReceiptAggregateVoucher {
-    fn value(&self) -> u128 {
-        self.valueAggregate
+    fn value(&self) -> U256 {
+        U256::from(self.valueAggregate)
     }
 
     fn timestamp_ns(&self) -> u64 {

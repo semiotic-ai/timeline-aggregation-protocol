@@ -9,8 +9,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure().compile_protos(
         &[
             "proto/uint128.proto",
+            "proto/uint256.proto",
             "proto/tap_aggregator.proto",
+            "proto/tap_aggregator_u256.proto",
             "proto/v2.proto",
+            "proto/v2_u256.proto",
         ],
         &["proto"],
     )?;

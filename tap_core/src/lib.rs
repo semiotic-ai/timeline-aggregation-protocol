@@ -47,7 +47,7 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
 pub fn tap_eip712_domain(chain_id: u64, verifying_contract_address: Address) -> Eip712Domain {
     eip712_domain! {
         name: "TAP",
-        version: "1",
+        version: "2",
         chain_id: chain_id,
         verifying_contract: verifying_contract_address,
     }
@@ -55,12 +55,15 @@ pub fn tap_eip712_domain(chain_id: u64, verifying_contract_address: Address) -> 
 
 #[cfg(test)]
 mod tap_tests {
-    use std::str::FromStr;
-
     use rstest::*;
+    #[cfg(feature = "v2")]
+    use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
+    #[cfg(not(feature = "v2"))]
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+        dyn_abi::Eip712Domain,
+        primitives::{address, fixed_bytes, Address, FixedBytes},
+        signers::local::PrivateKeySigner,
     };
 
     use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain};
@@ -74,12 +77,12 @@ mod tap_tests {
     }
 
     #[fixture]
-    fn allocation_ids() -> Vec<Address> {
+    fn collection_ids() -> Vec<FixedBytes<32>> {
         vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+            fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+            fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            fixed_bytes!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            fixed_bytes!("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
         ]
     }
 
@@ -88,23 +91,50 @@ mod tap_tests {
         tap_eip712_domain(1, Address::from([0x11u8; 20]))
     }
 
+    #[fixture]
+    fn payer() -> Address {
+        address!("0xabababababababababababababababababababab")
+    }
+
+    #[fixture]
+    fn data_service() -> Address {
+        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+    }
+
+    #[fixture]
+    fn service_provider() -> Address {
+        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
+    }
+
     #[rstest]
     #[case::basic_rav_test (vec![45,56,34,23])]
     #[case::rav_from_zero_valued_receipts (vec![0,0,0,0])]
     #[test]
     fn signed_rav_is_valid_with_no_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<FixedBytes<32>>,
         domain_separator: Eip712Domain,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
+            use thegraph_core::alloy::primitives::U256;
+
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(
+                        collection_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
+                        U256::from(value),
+                    )
+                    .unwrap(),
                     &keys.0,
                 )
                 .unwrap(),
@@ -113,8 +143,15 @@ mod tap_tests {
 
         // Skipping receipts validation in this test, aggregate_receipts assumes receipts are valid.
 
-        let rav = ReceiptAggregateVoucher::aggregate_receipts(allocation_ids[0], &receipts, None)
-            .unwrap();
+        let rav = ReceiptAggregateVoucher::aggregate_receipts(
+            collection_ids[0],
+            payer,
+            data_service,
+            service_provider,
+            &receipts,
+            None,
+        )
+        .unwrap();
         let signed_rav = Eip712SignedMessage::new(&domain_separator, rav, &keys.0).unwrap();
         assert!(signed_rav.recover_signer(&domain_separator).unwrap() == keys.1);
     }
@@ -125,17 +162,29 @@ mod tap_tests {
     #[test]
     fn signed_rav_is_valid_with_previous_rav(
         keys: (PrivateKeySigner, Address),
-        allocation_ids: Vec<Address>,
+        collection_ids: Vec<FixedBytes<32>>,
         domain_separator: Eip712Domain,
+        payer: Address,
+        data_service: Address,
+        service_provider: Address,
         #[case] values: Vec<u128>,
     ) {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
+            use thegraph_core::alloy::primitives::U256;
+
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
-                    Receipt::new(allocation_ids[0], value).unwrap(),
+                    Receipt::new(
+                        collection_ids[0],
+                        payer,
+                        data_service,
+                        service_provider,
+                        U256::from(value),
+                    )
+                    .unwrap(),
                     &keys.0,
                 )
                 .unwrap(),
@@ -144,7 +193,10 @@ mod tap_tests {
 
         // Create previous RAV from first half of receipts
         let prev_rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            collection_ids[0],
+            payer,
+            data_service,
+            service_provider,
             &receipts[0..receipts.len() / 2],
             None,
         )
@@ -154,7 +206,10 @@ mod tap_tests {
 
         // Create new RAV from last half of receipts and prev_rav
         let rav = ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_ids[0],
+            collection_ids[0],
+            payer,
+            data_service,
+            service_provider,
             &receipts[receipts.len() / 2..receipts.len()],
             Some(signed_prev_rav),
         )

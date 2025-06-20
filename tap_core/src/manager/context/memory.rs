@@ -13,8 +13,11 @@ use std::{
 };
 
 use async_trait::async_trait;
+#[cfg(feature = "v2")]
+use tap_graph::v2::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
+#[cfg(not(feature = "v2"))]
 use tap_graph::{ReceiptAggregateVoucher, SignedRav, SignedReceipt};
-use thegraph_core::alloy::primitives::Address;
+use thegraph_core::alloy::primitives::{Address, U256};
 
 use crate::{
     manager::adapters::*,
@@ -22,8 +25,8 @@ use crate::{
     signed_message::MessageId,
 };
 
-pub type EscrowStorage = Arc<RwLock<HashMap<Address, u128>>>;
-pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, u128>>>;
+pub type EscrowStorage = Arc<RwLock<HashMap<Address, U256>>>;
+pub type QueryAppraisals = Arc<RwLock<HashMap<MessageId, U256>>>;
 pub type ReceiptStorage = Arc<RwLock<HashMap<u64, ReceiptWithState<Checking, SignedReceipt>>>>;
 pub type RAVStorage = Arc<RwLock<Option<SignedRav>>>;
 
@@ -203,7 +206,7 @@ impl ReceiptRead<SignedReceipt> for InMemoryContext {
 }
 
 impl InMemoryContext {
-    pub fn escrow(&self, sender_id: Address) -> Result<u128, InMemoryError> {
+    pub fn escrow(&self, sender_id: Address) -> Result<U256, InMemoryError> {
         let sender_escrow_storage = self.sender_escrow_storage.read().unwrap();
         if let Some(escrow) = sender_escrow_storage.get(&sender_id) {
             return Ok(*escrow);
@@ -213,7 +216,7 @@ impl InMemoryContext {
         })
     }
 
-    pub fn increase_escrow(&mut self, sender_id: Address, value: u128) {
+    pub fn increase_escrow(&mut self, sender_id: Address, value: U256) {
         let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
@@ -224,7 +227,7 @@ impl InMemoryContext {
         }
     }
 
-    pub fn reduce_escrow(&self, sender_id: Address, value: u128) -> Result<(), InMemoryError> {
+    pub fn reduce_escrow(&self, sender_id: Address, value: U256) -> Result<(), InMemoryError> {
         let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
         if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
@@ -258,8 +261,11 @@ pub mod checks {
         sync::{Arc, RwLock},
     };
 
-    use tap_graph::SignedReceipt;
-    use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address};
+    use tap_graph::v2::SignedReceipt;
+    use thegraph_core::alloy::{
+        dyn_abi::Eip712Domain,
+        primitives::{Address, FixedBytes, U256},
+    };
 
     use crate::{
         receipt::{
@@ -273,13 +279,13 @@ pub mod checks {
     pub fn get_full_list_of_checks(
         domain_separator: Eip712Domain,
         valid_signers: HashSet<Address>,
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
-        _query_appraisals: Arc<RwLock<HashMap<MessageId, u128>>>,
+        collection_ids: Arc<RwLock<HashSet<FixedBytes<32>>>>,
+        _query_appraisals: Arc<RwLock<HashMap<MessageId, U256>>>,
     ) -> Vec<ReceiptCheck<SignedReceipt>> {
         vec![
             // Arc::new(UniqueCheck ),
             // Arc::new(ValueCheck { query_appraisals }),
-            Arc::new(AllocationIdCheck { allocation_ids }),
+            Arc::new(CollectionIdCheck { collection_ids }),
             Arc::new(SignatureCheck {
                 domain_separator,
                 valid_signers,
@@ -287,29 +293,29 @@ pub mod checks {
         ]
     }
 
-    struct AllocationIdCheck {
-        allocation_ids: Arc<RwLock<HashSet<Address>>>,
+    struct CollectionIdCheck {
+        collection_ids: Arc<RwLock<HashSet<FixedBytes<32>>>>,
     }
 
     #[async_trait::async_trait]
-    impl Check<SignedReceipt> for AllocationIdCheck {
+    impl Check<SignedReceipt> for CollectionIdCheck {
         async fn check(
             &self,
             _: &Context,
             receipt: &ReceiptWithState<Checking, SignedReceipt>,
         ) -> CheckResult {
-            let received_allocation_id = receipt.signed_receipt().message.allocation_id;
+            let received_collection_id = receipt.signed_receipt().message.collection_id;
             if self
-                .allocation_ids
+                .collection_ids
                 .read()
                 .unwrap()
-                .contains(&received_allocation_id)
+                .contains(&received_collection_id)
             {
                 Ok(())
             } else {
                 Err(CheckError::Failed(
-                    ReceiptError::InvalidAllocationID {
-                        received_allocation_id,
+                    ReceiptError::InvalidCollectionID {
+                        received_collection_id,
                     }
                     .into(),
                 ))

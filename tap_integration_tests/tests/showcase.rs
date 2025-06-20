@@ -8,7 +8,6 @@ use std::{
     collections::{HashMap, HashSet},
     convert::TryInto,
     net::{SocketAddr, TcpListener},
-    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -25,10 +24,10 @@ use tap_core::{
     signed_message::{Eip712SignedMessage, MessageId},
     tap_eip712_domain,
 };
-use tap_graph::{Receipt, SignedRav, SignedReceipt};
+use tap_graph::v2::{Receipt, SignedRav, SignedReceipt};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain,
-    primitives::Address,
+    primitives::{address, fixed_bytes, Address, FixedBytes, U256},
     signers::local::{coins_bip39::English, MnemonicBuilder, PrivateKeySigner},
 };
 use tokio::task::JoinHandle;
@@ -101,21 +100,36 @@ fn wrong_keys_sender() -> PrivateKeySigner {
 
 // Allocation IDs are used to ensure receipts cannot be double-counted
 #[fixture]
-fn allocation_ids() -> Vec<Address> {
+fn collection_ids() -> Vec<FixedBytes<32>> {
     vec![
-        Address::from_str("0xabababababababababababababababababababab").unwrap(),
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
+        fixed_bytes!("0xabababababababababababababababababababababababababababababababab"),
+        fixed_bytes!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
     ]
 }
 
 #[fixture]
 fn sender_ids() -> Vec<Address> {
     vec![
-        Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-        Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-        Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+        address!("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb"),
+        address!("0xfafafafafafafafafafafafafafafafafafafafa"),
+        address!("0xadadadadadadadadadadadadadadadadadadadad"),
         keys_sender().address(),
     ]
+}
+
+#[fixture]
+fn payer() -> Address {
+    address!("0xabababababababababababababababababababab")
+}
+
+#[fixture]
+fn data_service() -> Address {
+    address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead")
+}
+
+#[fixture]
+fn service_provider() -> Address {
+    address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
 }
 
 // Domain separator is used to sign receipts/RAVs according to EIP-712
@@ -127,25 +141,25 @@ fn domain_separator() -> Eip712Domain {
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.
 #[fixture]
 #[once]
-fn query_price() -> &'static [u128] {
+fn query_price() -> &'static [U256] {
     let seed: Vec<u8> = (0..32u8).collect(); // A seed of your choice
     let mut rng: StdRng = SeedableRng::from_seed(seed.try_into().unwrap());
     let mut v = Vec::new();
 
     for _ in 0..num_queries() {
-        v.push(rng.random::<u128>() % 100);
+        v.push(U256::from(rng.random::<u128>() % 100));
     }
     Box::leak(v.into_boxed_slice())
 }
 
 // Available escrow is set by a Sender. It's assumed the Indexer has way of knowing this value.
 #[fixture]
-fn available_escrow(query_price: &[u128], num_batches: u64) -> u128 {
-    (num_batches as u128) * query_price.iter().sum::<u128>()
+fn available_escrow(query_price: &[U256], num_batches: u64) -> U256 {
+    U256::from(num_batches as u128) * query_price.iter().sum::<U256>()
 }
 
 #[fixture]
-fn query_appraisals(query_price: &[u128]) -> QueryAppraisals {
+fn query_appraisals(query_price: &[U256]) -> QueryAppraisals {
     Arc::new(RwLock::new(
         query_price
             .iter()
@@ -164,7 +178,7 @@ struct ContextFixture {
 #[fixture]
 fn context(
     domain_separator: Eip712Domain,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     sender_ids: Vec<Address>,
     query_appraisals: QueryAppraisals,
 ) -> ContextFixture {
@@ -181,7 +195,7 @@ fn context(
     let checks = get_full_list_of_checks(
         domain_separator,
         sender_ids.iter().cloned().collect(),
-        Arc::new(RwLock::new(allocation_ids.iter().cloned().collect())),
+        Arc::new(RwLock::new(collection_ids.iter().cloned().collect())),
         query_appraisals,
     );
 
@@ -205,9 +219,9 @@ fn indexer_2_context(context: ContextFixture) -> ContextFixture {
 #[fixture]
 fn requests_1(
     keys_sender: PrivateKeySigner,
-    query_price: &[u128],
+    query_price: &[U256],
     num_batches: u64,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
@@ -215,17 +229,20 @@ fn requests_1(
         query_price,
         num_batches,
         &keys_sender,
-        allocation_ids[0],
+        collection_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
 #[fixture]
 fn requests_2(
     keys_sender: PrivateKeySigner,
-    query_price: &[u128],
+    query_price: &[U256],
     num_batches: u64,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
     // Create your Receipt here
@@ -233,16 +250,19 @@ fn requests_2(
         query_price,
         num_batches,
         &keys_sender,
-        allocation_ids[1],
+        collection_ids[1],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
 #[fixture]
 fn repeated_timestamp_request(
     keys_sender: PrivateKeySigner,
-    query_price: &[u128],
-    allocation_ids: Vec<Address>,
+    query_price: &[U256],
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
@@ -252,8 +272,11 @@ fn repeated_timestamp_request(
         query_price,
         num_batches,
         &keys_sender,
-        allocation_ids[0],
+        collection_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     );
 
     // Create a new receipt with the timestamp equal to the latest receipt in the first RAV request batch
@@ -262,10 +285,13 @@ fn repeated_timestamp_request(
         .timestamp_ns;
     let target_receipt = &requests[receipt_threshold_1 as usize].message;
     let repeat_receipt = Receipt {
-        allocation_id: target_receipt.allocation_id,
+        collection_id: target_receipt.collection_id,
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
     };
 
     // Sign the new receipt and insert it in the second batch
@@ -277,8 +303,8 @@ fn repeated_timestamp_request(
 #[fixture]
 fn repeated_timestamp_incremented_by_one_request(
     keys_sender: PrivateKeySigner,
-    query_price: &[u128],
-    allocation_ids: Vec<Address>,
+    query_price: &[U256],
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
     num_batches: u64,
     receipt_threshold_1: u64,
@@ -288,8 +314,11 @@ fn repeated_timestamp_incremented_by_one_request(
         query_price,
         num_batches,
         &keys_sender,
-        allocation_ids[0],
+        collection_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     );
 
     // Create a new receipt with the timestamp equal to the latest receipt timestamp+1 in the first RAV request batch
@@ -299,10 +328,13 @@ fn repeated_timestamp_incremented_by_one_request(
         + 1;
     let target_receipt = &requests[receipt_threshold_1 as usize].message;
     let repeat_receipt = Receipt {
-        allocation_id: target_receipt.allocation_id,
+        collection_id: target_receipt.collection_id,
         timestamp_ns: repeat_timestamp,
         nonce: target_receipt.nonce,
         value: target_receipt.value,
+        payer: target_receipt.payer,
+        data_service: target_receipt.data_service,
+        service_provider: target_receipt.service_provider,
     };
 
     // Sign the new receipt and insert it in the second batch
@@ -315,19 +347,21 @@ fn repeated_timestamp_incremented_by_one_request(
 #[fixture]
 fn wrong_requests(
     wrong_keys_sender: PrivateKeySigner,
-    query_price: &[u128],
+    query_price: &[U256],
     num_batches: u64,
-    allocation_ids: Vec<Address>,
+    collection_ids: Vec<FixedBytes<32>>,
     domain_separator: Eip712Domain,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
-    // Create your Receipt here
     // Create your Receipt here
     generate_requests(
         query_price,
         num_batches,
         &wrong_keys_sender,
-        allocation_ids[0],
+        collection_ids[0],
         &domain_separator,
+        payer(),
+        data_service(),
+        service_provider(),
     )
 }
 
@@ -340,7 +374,7 @@ async fn single_indexer_test_server(
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
     indexer_1_context: ContextFixture,
-    available_escrow: u128,
+    available_escrow: U256,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr)> {
     let sender_id = keys_sender.address();
@@ -380,7 +414,7 @@ async fn two_indexers_test_servers(
     http_max_concurrent_connections: u32,
     indexer_1_context: ContextFixture,
     indexer_2_context: ContextFixture,
-    available_escrow: u128,
+    available_escrow: U256,
     receipt_threshold_1: u64,
 ) -> Result<(
     ServerHandle,
@@ -449,7 +483,7 @@ async fn single_indexer_wrong_sender_test_server(
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
     indexer_1_context: ContextFixture,
-    available_escrow: u128,
+    available_escrow: U256,
     receipt_threshold_1: u64,
 ) -> Result<(ServerHandle, SocketAddr, JoinHandle<()>, SocketAddr)> {
     let sender_id = wrong_keys_sender.address();
@@ -673,7 +707,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
         counter += 1;
     }
 
-    server_handle_1.stop()?;
+    server_handle_1.stop().unwrap();
 
     // Here the timestamp first receipt in the second batch is equal to timestamp + 1 of the last receipt in the first batch.
     // No errors are expected.
@@ -756,7 +790,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         client.request("aggregate_receipts", params).await?;
 
     // Compute the expected aggregate value and check that it matches the latest RAV.
-    let mut expected_value = 0;
+    let mut expected_value = U256::ZERO;
     for receipt in first_batch.iter().chain(second_batch.iter()) {
         expected_value += receipt.message.value;
     }
@@ -767,11 +801,14 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
 }
 
 fn generate_requests(
-    query_price: &[u128],
+    query_price: &[U256],
     num_batches: u64,
     sender_key: &PrivateKeySigner,
-    allocation_id: Address,
+    collection_id: FixedBytes<32>,
     domain_separator: &Eip712Domain,
+    payer: Address,
+    data_service: Address,
+    service_provider: Address,
 ) -> Vec<Eip712SignedMessage<Receipt>> {
     let mut requests: Vec<Eip712SignedMessage<Receipt>> = Vec::new();
 
@@ -780,7 +817,8 @@ fn generate_requests(
             requests.push(
                 Eip712SignedMessage::new(
                     domain_separator,
-                    Receipt::new(allocation_id, *value).unwrap(),
+                    Receipt::new(collection_id, payer, data_service, service_provider, *value)
+                        .unwrap(),
                     sender_key,
                 )
                 .unwrap(),
@@ -796,7 +834,7 @@ async fn start_indexer_server(
     domain_separator: Eip712Domain,
     mut context: InMemoryContext,
     sender_id: Address,
-    available_escrow: u128,
+    available_escrow: U256,
     required_checks: CheckList<SignedReceipt>,
     receipt_threshold: u64,
     agg_server_addr: SocketAddr,

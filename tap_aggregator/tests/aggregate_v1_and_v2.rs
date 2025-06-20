@@ -13,7 +13,7 @@ use tap_aggregator::{
 use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
 use tap_graph::{v2::Receipt as ReceiptV2, Receipt as ReceiptV1};
 use thegraph_core::alloy::{
-    primitives::{address, Address, FixedBytes},
+    primitives::{address, Address, FixedBytes, U256},
     signers::local::PrivateKeySigner,
 };
 use tonic::codec::CompressionEncoding;
@@ -62,7 +62,7 @@ async fn aggregation_test() {
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                ReceiptV1::new(allocation_id, value).unwrap(),
+                ReceiptV1::new(allocation_id, U256::from(value)).unwrap(),
                 &wallet,
             )
             .unwrap(),
@@ -72,6 +72,9 @@ async fn aggregation_test() {
     let rav_request = ReqV1::new(receipts.clone(), None);
     let res = client.aggregate_receipts(rav_request).await;
 
+    if res.is_err() {
+        println!("V1 gRPC Error: {:?}", res.as_ref().err());
+    }
     assert!(res.is_ok());
 
     let mut client = ClientV2::connect(endpoint.clone())
@@ -89,8 +92,14 @@ async fn aggregation_test() {
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                ReceiptV2::new(collection_id, payer, data_service, service_provider, value)
-                    .unwrap(),
+                ReceiptV2::new(
+                    collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    U256::from(value),
+                )
+                .unwrap(),
                 &wallet,
             )
             .unwrap(),

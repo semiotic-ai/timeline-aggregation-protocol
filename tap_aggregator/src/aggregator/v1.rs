@@ -130,14 +130,12 @@ fn check_receipt_timestamps(
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use rstest::*;
     use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
-        primitives::{Address, U256},
+        primitives::{address, Address, U256},
         signers::{local::PrivateKeySigner, Signature},
     };
 
@@ -153,10 +151,10 @@ mod tests {
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
         vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+            address!("0xabababababababababababababababababababab"),
+            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            address!("0x1234567890abcdef1234567890abcdef12345678"),
         ]
     }
 
@@ -175,7 +173,7 @@ mod tests {
         // Create a test receipt
         let receipt = Eip712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(allocation_ids[0], U256::from(42)).unwrap(),
             &keys.0,
         )
         .unwrap();
@@ -236,7 +234,7 @@ mod tests {
         let mut receipts = Vec::new();
         let receipt = Eip712SignedMessage::new(
             &domain_separator,
-            Receipt::new(allocation_ids[0], 42).unwrap(),
+            Receipt::new(allocation_ids[0], U256::from(42)).unwrap(),
             &keys.0,
         )
         .unwrap();
@@ -258,13 +256,13 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(42)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(43)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
@@ -293,7 +291,7 @@ mod tests {
                         allocation_id: allocation_ids[0],
                         timestamp_ns: i,
                         nonce: 0,
-                        value: 42,
+                        value: U256::from(42),
                     },
                     &keys.0,
                 )
@@ -307,7 +305,7 @@ mod tests {
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().min().unwrap() - 1,
-                valueAggregate: 42,
+                valueAggregate: U256::from(42),
             },
             &keys.0,
         )
@@ -321,7 +319,7 @@ mod tests {
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().min().unwrap(),
-                valueAggregate: 42,
+                valueAggregate: U256::from(42),
             },
             &keys.0,
         )
@@ -335,7 +333,7 @@ mod tests {
             ReceiptAggregateVoucher {
                 allocationId: allocation_ids[0],
                 timestampNs: receipt_timestamp_range.clone().max().unwrap() + 1,
-                valueAggregate: 42,
+                valueAggregate: U256::from(42),
             },
             &keys.0,
         )
@@ -355,19 +353,19 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(42)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(43)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[1], 44).unwrap(),
+                Receipt::new(allocation_ids[1], U256::from(44)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
@@ -389,19 +387,19 @@ mod tests {
         let receipts = vec![
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 42).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(42)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 43).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(43)).unwrap(),
                 &keys.0,
             )
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(allocation_ids[0], 44).unwrap(),
+                Receipt::new(allocation_ids[0], U256::from(44)).unwrap(),
                 &keys.0,
             )
             .unwrap(),

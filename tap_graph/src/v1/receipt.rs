@@ -14,7 +14,10 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
-use thegraph_core::alloy::{primitives::Address, sol};
+use thegraph_core::alloy::{
+    primitives::{Address, U256},
+    sol,
+};
 
 /// A Receipt wrapped in an Eip712SignedMessage
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;
@@ -30,7 +33,7 @@ sol! {
         /// Random value used to avoid collisions from multiple receipts with one timestamp
         uint64 nonce;
         /// GRT value for transaction (truncate to lower bits)
-        uint128 value;
+        uint256 value;
     }
 }
 
@@ -40,7 +43,7 @@ fn get_current_timestamp_u64_ns() -> Result<u64, SystemTimeError> {
 
 impl Receipt {
     /// Returns a receipt with provided values
-    pub fn new(allocation_id: Address, value: u128) -> Result<Self, SystemTimeError> {
+    pub fn new(allocation_id: Address, value: U256) -> Result<Self, SystemTimeError> {
         let timestamp_ns = get_current_timestamp_u64_ns()?;
         let nonce = rng().random::<u64>();
         Ok(Self {
@@ -53,8 +56,8 @@ impl Receipt {
 }
 
 impl WithValueAndTimestamp for Receipt {
-    fn value(&self) -> u128 {
-        self.value
+    fn value(&self) -> U256 {
+        U256::from(self.value)
     }
 
     fn timestamp_ns(&self) -> u64 {
@@ -64,28 +67,26 @@ impl WithValueAndTimestamp for Receipt {
 
 #[cfg(test)]
 mod receipt_unit_test {
-    use std::{
-        str::FromStr,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use rstest::*;
+    use thegraph_core::alloy::primitives::address;
 
     use super::*;
 
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
         vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+            address!("0xabababababababababababababababababababab"),
+            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            address!("0x1234567890abcdef1234567890abcdef12345678"),
         ]
     }
 
     #[rstest]
     fn test_new_receipt(allocation_ids: Vec<Address>) {
-        let value = 1234;
+        let value = U256::from(1234);
 
         let receipt = Receipt::new(allocation_ids[0], value).unwrap();
 
@@ -103,7 +104,7 @@ mod receipt_unit_test {
 
     #[rstest]
     fn test_unique_nonce_and_timestamp(allocation_ids: Vec<Address>) {
-        let value = 1234;
+        let value = U256::from(1234);
 
         let receipt1 = Receipt::new(allocation_ids[0], value).unwrap();
         let receipt2 = Receipt::new(allocation_ids[0], value).unwrap();

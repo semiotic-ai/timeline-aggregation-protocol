@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
 use thegraph_core::alloy::{
-    primitives::{Address, FixedBytes},
+    primitives::{Address, FixedBytes, U256},
     sol,
 };
 
@@ -35,8 +35,8 @@ sol! {
         uint64 timestamp_ns;
         /// Random value used to avoid collisions from multiple receipts with one timestamp
         uint64 nonce;
-        /// GRT value for transaction (truncate to lower bits)
-        uint128 value;
+        /// GRT value for transaction
+        uint256 value;
     }
 }
 
@@ -50,7 +50,7 @@ impl Receipt {
         payer: Address,
         data_service: Address,
         service_provider: Address,
-        value: u128,
+        value: U256,
     ) -> Result<Self, SystemTimeError> {
         let timestamp_ns = get_current_timestamp_u64_ns()?;
         let nonce = rng().random::<u64>();
@@ -67,7 +67,7 @@ impl Receipt {
 }
 
 impl WithValueAndTimestamp for Receipt {
-    fn value(&self) -> u128 {
+    fn value(&self) -> U256 {
         self.value
     }
 
@@ -81,7 +81,7 @@ mod receipt_unit_test {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use rstest::*;
-    use thegraph_core::alloy::primitives::{address, fixed_bytes};
+    use thegraph_core::alloy::primitives::{address, fixed_bytes, U256};
 
     use super::*;
 
@@ -106,8 +106,8 @@ mod receipt_unit_test {
     }
 
     #[fixture]
-    fn value() -> u128 {
-        1234
+    fn value() -> U256 {
+        U256::from(1234)
     }
 
     #[fixture]
@@ -116,13 +116,13 @@ mod receipt_unit_test {
         payer: Address,
         data_service: Address,
         service_provider: Address,
-        value: u128,
+        value: U256,
     ) -> Receipt {
         Receipt::new(collection_id, payer, data_service, service_provider, value).unwrap()
     }
 
     #[rstest]
-    fn test_new_receipt(collection_id: FixedBytes<32>, value: u128, receipt: Receipt) {
+    fn test_new_receipt(collection_id: FixedBytes<32>, value: U256, receipt: Receipt) {
         assert_eq!(receipt.collection_id, collection_id);
         assert_eq!(receipt.value, value);
 

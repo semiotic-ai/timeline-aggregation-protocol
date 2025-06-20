@@ -1,145 +1,174 @@
 ---
 source: tap_core/tests/rav_test.rs
 expression: receipts
-snapshot_kind: text
 ---
 [
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 50,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000050,
       "nonce": 50,
-      "value": 50
+      "value": "0x32"
     },
     "signature": {
-      "r": "0x5257bab234e33525cd999db4defc805c2d3b4e51cde3697f43e37ce39473720f",
-      "s": "0x6c3af14c3d400dfd047fd2da90eb9e8cee863e77cc52742ebcbf080b8d6ec2",
+      "r": "0x619f502cec28169657f5610157199f061d3bc0f87c80da3b70801591d1f36ddc",
+      "s": "0x19c38f9deb81d49d04c0ed44cebbb7eaab23260ec8f3a7b32947b7b7fa275798",
       "yParity": "0x1",
       "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 51,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000051,
       "nonce": 51,
-      "value": 51
+      "value": "0x33"
     },
     "signature": {
-      "r": "0x1596dd0d380ede7aa5dec5ed09ea7d1fa8e4bc8dfdb43a4e965bb4f16906e321",
-      "s": "0x788b69625a031fbd2e769928b63505387df16e7c51f19ff67c782bfec101a387",
-      "yParity": "0x0",
-      "v": "0x0"
+      "r": "0xb43fdf6009a2c695c3c0996b93ae7d5003c2cc25c81d04b5fceb746f959c2596",
+      "s": "0x1c1c7f5d2bde27664be138742efdda1212364b03c704aff4bb40e2f7cb81d031",
+      "yParity": "0x1",
+      "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 52,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000052,
       "nonce": 52,
-      "value": 52
+      "value": "0x34"
     },
     "signature": {
-      "r": "0xb3b8e2c1249fc14183024e28b14f7749ef852c898906c2442f380a26bf07a625",
-      "s": "0x6925e7dce01d539a658d552e43cfd92d9d204d6997604f8f613977251b964db3",
+      "r": "0x6e1a4302ae455e7c05a4b4b3f5c383c2004f4a2395f0bbfb68bff461267ea5f8",
+      "s": "0x4ab34740037e6c3cfdbfb995d26767279d11ea8b6eb50d91a675b70326e1b8c1",
       "yParity": "0x1",
       "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 53,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000053,
       "nonce": 53,
-      "value": 53
+      "value": "0x35"
     },
     "signature": {
-      "r": "0x3b4d08db319497c2cc0d515d25057e28ce44b194a23e84b9d35682f97027c7e3",
-      "s": "0x232e02eb4b52d302d620867a4c10829e5a307404ea1bcbbd2ee33e8422a18a16",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0x274ec859adde3daa6890b338ecd67c48f5d90bfc582de1ee0d7f22271f9fa9d8",
+      "s": "0xb923401cbaf8ac95f3d6efd8c67c6136db491ba9408157e056fe6b451a66bde",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 54,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000054,
       "nonce": 54,
-      "value": 54
+      "value": "0x36"
     },
     "signature": {
-      "r": "0x619d84f659ea3941cdb0656100b2ea8a3d2f5658dbd67f796ebfb8840156530b",
-      "s": "0x163b236f88207b89452255da8ce196997d8f2f0880081659c780f2093797f75e",
-      "yParity": "0x1",
-      "v": "0x1"
+      "r": "0x55b82352d08b75e20eda1538d49fe0b4d8f27c23675cd12a76333b6d3a3546b8",
+      "s": "0x51d56b2d17f2e590d9368f62b63e04fd275357ba01350a09a908452bc10fe603",
+      "yParity": "0x0",
+      "v": "0x0"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 55,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000055,
       "nonce": 55,
-      "value": 55
+      "value": "0x37"
     },
     "signature": {
-      "r": "0x48e1e0e31eaf40eabbcbc3c6d125b7656c0796d51188f89d27194e22f2c5d6bb",
-      "s": "0xd26efc0ae8cc3646993a20b5aabac1125ecb149ad91d733c702ac9f03222b66",
+      "r": "0xc9cd6b764e6d48cb8e52bf85bed3d8aaba0240077eef82ca9cedc339b79bf30c",
+      "s": "0x6450db042aedf2c213ec1a24b62262c9784a31a0ca7857fb7a3e8d33310e09a1",
+      "yParity": "0x0",
+      "v": "0x0"
+    }
+  },
+  {
+    "message": {
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000056,
+      "nonce": 56,
+      "value": "0x38"
+    },
+    "signature": {
+      "r": "0xe17fbbe0528359496cc1d726ea5d4299e686607f34a8f63c149831a518c806ad",
+      "s": "0x6775a1dbd557f27cd8215e783bc1a3259df1fbcd1793d857e924b1e6c501260b",
+      "yParity": "0x0",
+      "v": "0x0"
+    }
+  },
+  {
+    "message": {
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000057,
+      "nonce": 57,
+      "value": "0x39"
+    },
+    "signature": {
+      "r": "0x4f35be0d31bb65953da2c7d176f5cc12641b67cf8e8258e19bff3aa217c963cf",
+      "s": "0x3d3ac3a077aa5acb308a08fc7581abac980a25cda148192649a7868aa23cd1dd",
+      "yParity": "0x0",
+      "v": "0x0"
+    }
+  },
+  {
+    "message": {
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000058,
+      "nonce": 58,
+      "value": "0x3a"
+    },
+    "signature": {
+      "r": "0x8abd2fdda50d0c601403b10c9c2f41ad4a0e8aaebd1bf143a5acd5bb4b73df04",
+      "s": "0x73bcbf3214a911a52f81fb067eee0b6302aa0edf7ac6ba173acd8352ba84ceaa",
       "yParity": "0x1",
       "v": "0x1"
     }
   },
   {
     "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 56,
-      "nonce": 56,
-      "value": 56
-    },
-    "signature": {
-      "r": "0xc3adb8be5db130f563d3a18fc9e742fca84f69a903413e04dc567b9c3aca8626",
-      "s": "0x564dd73bdd33897c7a085e4eb1bc0ce002b1d65c6006781ab54cd670846fe358",
-      "yParity": "0x0",
-      "v": "0x0"
-    }
-  },
-  {
-    "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 57,
-      "nonce": 57,
-      "value": 57
-    },
-    "signature": {
-      "r": "0xa0fe51e1b7253daed14f99c9320d0a539ef18b6ead6552947e5c93dde6f40dea",
-      "s": "0x4277d66d3a8c9f67cddc8d96a71ef8437e47e34a5b5789d7843eb691c3b9864",
-      "yParity": "0x0",
-      "v": "0x0"
-    }
-  },
-  {
-    "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 58,
-      "nonce": 58,
-      "value": 58
-    },
-    "signature": {
-      "r": "0x26f1657e4b8759867820be12c25e982e15ff9d70aa99fe1fd2587cbb644829de",
-      "s": "0x5cabbd965f93e544b07e5956c2831148dbf7960b4e2edadfa6ecbf1209dacda4",
-      "yParity": "0x0",
-      "v": "0x0"
-    }
-  },
-  {
-    "message": {
-      "allocation_id": "0xabababababababababababababababababababab",
-      "timestamp_ns": 59,
+      "collection_id": "0xabababababababababababababababababababababababababababababababab",
+      "payer": "0x0000000000000000000000000000000000000000",
+      "data_service": "0x0000000000000000000000000000000000000000",
+      "service_provider": "0x0000000000000000000000000000000000000000",
+      "timestamp_ns": 1000000059,
       "nonce": 59,
-      "value": 59
+      "value": "0x3b"
     },
     "signature": {
-      "r": "0x90ce08049b9ce9fa38077ebeed0e24558442d8ae001aeff6b9f4b06f4f553c69",
-      "s": "0x7a873491448ae696555f9d1314b4e78a7cc98a19a6b0c26aad562053dc26a202",
+      "r": "0x88ebe1cd56d806e50437821026a956ad81681817b9765ee7b720dba6ec7665a1",
+      "s": "0x3c30837f605ab66b92afc338f1da590e50495b39fb33abaeb7f42156dda73d90",
       "yParity": "0x1",
       "v": "0x1"
     }

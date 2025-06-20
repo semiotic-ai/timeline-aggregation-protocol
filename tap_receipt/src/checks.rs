@@ -209,7 +209,10 @@ mod tests {
 
     use tap_eip712_message::Eip712SignedMessage;
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner, sol,
+        dyn_abi::Eip712Domain,
+        primitives::{Address, U256},
+        signers::local::PrivateKeySigner,
+        sol,
         sol_types::eip712_domain,
     };
 
@@ -223,8 +226,8 @@ mod tests {
     }
 
     impl WithValueAndTimestamp for MyReceipt {
-        fn value(&self) -> u128 {
-            self.value
+        fn value(&self) -> U256 {
+            U256::from(self.value)
         }
 
         fn timestamp_ns(&self) -> u64 {

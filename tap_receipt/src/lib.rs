@@ -28,7 +28,7 @@ pub mod state;
 pub use error::ReceiptError;
 pub use received_receipt::ReceiptWithState;
 use tap_eip712_message::{Eip712SignedMessage, SignatureBytes, SignatureBytesExt};
-use thegraph_core::alloy::sol_types::SolStruct;
+use thegraph_core::alloy::{primitives::U256, sol_types::SolStruct};
 
 /// Result type for receipt
 pub type ReceiptResult<T> = Result<T, ReceiptError>;
@@ -38,7 +38,7 @@ pub type Context = anymap3::Map<dyn std::any::Any + Send + Sync>;
 
 /// Extension that allows TAP Aggregation for any SolStruct receipt
 pub trait WithValueAndTimestamp {
-    fn value(&self) -> u128;
+    fn value(&self) -> U256;
     fn timestamp_ns(&self) -> u64;
 }
 
@@ -52,7 +52,7 @@ impl<T> WithValueAndTimestamp for Eip712SignedMessage<T>
 where
     T: SolStruct + WithValueAndTimestamp,
 {
-    fn value(&self) -> u128 {
+    fn value(&self) -> U256 {
         self.message.value()
     }
 

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use thegraph_core::alloy::primitives::Address;
+use thegraph_core::alloy::primitives::FixedBytes;
 
 /// Error type for receipts
 #[derive(thiserror::Error, Debug, Clone, Serialize, Deserialize)]
 pub enum ReceiptError {
-    #[error("invalid allocation ID: {received_allocation_id}")]
-    InvalidAllocationID { received_allocation_id: Address },
+    #[error("invalid collection ID: {received_collection_id}")]
+    InvalidCollectionID {
+        received_collection_id: FixedBytes<32>,
+    },
     #[error("Signature check failed:\n{source_error_message}")]
     InvalidSignature { source_error_message: String },
     #[error("invalid timestamp: {received_timestamp} (expected min {timestamp_min})")]
