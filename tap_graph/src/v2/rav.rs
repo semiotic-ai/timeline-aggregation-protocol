@@ -13,7 +13,7 @@ use tap_receipt::{
     ReceiptWithState, WithValueAndTimestamp,
 };
 use thegraph_core::alloy::{
-    primitives::{Address, Bytes},
+    primitives::{Address, Bytes, FixedBytes},
     sol,
 };
 
@@ -28,8 +28,8 @@ sol! {
     /// We use camelCase for field names to match the Ethereum ABI encoding
     #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
     struct ReceiptAggregateVoucher {
-        /// Unique allocation id this RAV belongs to
-        address allocationId;
+        /// Unique collection id this RAV belongs to
+        bytes32 collectionId;
         // The address of the payer the RAV was issued by
         address payer;
         // The address of the data service the RAV was issued to
@@ -55,7 +55,7 @@ impl ReceiptAggregateVoucher {
     /// Returns [`Error::AggregateOverflow`] if any receipt value causes aggregate
     /// value to overflow
     pub fn aggregate_receipts(
-        allocation_id: Address,
+        collection_id: FixedBytes<32>,
         payer: Address,
         data_service: Address,
         service_provider: Address,
@@ -82,7 +82,7 @@ impl ReceiptAggregateVoucher {
         }
 
         Ok(Self {
-            allocationId: allocation_id,
+            collectionId: collection_id,
             timestampNs: timestamp_max,
             valueAggregate: value_aggregate,
             payer,
@@ -101,7 +101,7 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
         if receipts.is_empty() {
             return Err(AggregationError::NoValidReceiptsForRavRequest);
         }
-        let allocation_id = receipts[0].signed_receipt().message.allocation_id;
+        let collection_id = receipts[0].signed_receipt().message.collection_id;
         let payer = receipts[0].signed_receipt().message.payer;
         let data_service = receipts[0].signed_receipt().message.data_service;
         let service_provider = receipts[0].signed_receipt().message.service_provider;
@@ -110,7 +110,7 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
             .map(|rx_receipt| rx_receipt.signed_receipt().clone())
             .collect::<Vec<_>>();
         ReceiptAggregateVoucher::aggregate_receipts(
-            allocation_id,
+            collection_id,
             payer,
             data_service,
             service_provider,
