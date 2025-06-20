@@ -40,7 +40,7 @@ sol! {
         uint64 timestampNs;
         // Total amount owed to the service provider since the beginning of the
         // payer-service provider relationship, including all debt that is already paid for.
-        uint128 valueAggregate;
+        uint256 valueAggregate;
         // Arbitrary metadata to extend functionality if a data service requires it
         bytes metadata;
     }
@@ -66,7 +66,7 @@ impl ReceiptAggregateVoucher {
         // of every receipt is OK with all checks complete (relies on #28)
         // If there is a previous RAV get initialize values from it, otherwise get default values
         let mut timestamp_max = 0u64;
-        let mut value_aggregate = 0u128;
+        let mut value_aggregate = U256::ZERO;
 
         if let Some(prev_rav) = previous_rav {
             timestamp_max = prev_rav.message.timestampNs;
@@ -122,7 +122,7 @@ impl Aggregate<SignedReceipt> for ReceiptAggregateVoucher {
 
 impl WithValueAndTimestamp for ReceiptAggregateVoucher {
     fn value(&self) -> U256 {
-        U256::from(self.valueAggregate)
+        self.valueAggregate
     }
 
     fn timestamp_ns(&self) -> u64 {

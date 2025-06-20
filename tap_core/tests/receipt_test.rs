@@ -3,7 +3,6 @@
 
 use std::{
     collections::HashMap,
-    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -16,7 +15,9 @@ use tap_core::{
 };
 use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{address, Address, U256},
+    signers::local::PrivateKeySigner,
 };
 
 #[fixture]
@@ -44,10 +45,10 @@ fn context() -> InMemoryContext {
 async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let allocation_id = address!("0xabababababababababababababababababababab");
 
     // Create receipts
-    let value = 100u128;
+    let value = U256::from(100u128);
     let received_receipt = ReceiptWithState::new(
         Eip712SignedMessage::new(
             &domain_separator,
@@ -90,7 +91,7 @@ async fn receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMem
 async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let allocation_id = address!("0xabababababababababababababababababababab");
 
     // Create receipts
     let mut received_receipts = Vec::new();
@@ -103,7 +104,7 @@ async fn multi_receipt_adapter_test(domain_separator: Eip712Domain, mut context:
                     Address::ZERO,
                     Address::ZERO,
                     Address::ZERO,
-                    value,
+                    U256::from(value),
                 )
                 .unwrap(),
                 &wallet,
@@ -188,7 +189,7 @@ fn safe_truncate_receipts_test(
                     allocation_id: Address::ZERO,
                     timestamp_ns: *timestamp,
                     nonce: 0,
-                    value: 0,
+                    value: U256::ZERO,
                     payer: Address::ZERO,
                     data_service: Address::ZERO,
                     service_provider: Address::ZERO,

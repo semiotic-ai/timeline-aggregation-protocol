@@ -55,15 +55,15 @@ pub fn tap_eip712_domain(chain_id: u64, verifying_contract_address: Address) -> 
 
 #[cfg(test)]
 mod tap_tests {
-    use std::str::FromStr;
-
     use rstest::*;
     #[cfg(feature = "v2")]
     use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
     #[cfg(not(feature = "v2"))]
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+        dyn_abi::Eip712Domain,
+        primitives::{address, Address},
+        signers::local::PrivateKeySigner,
     };
 
     use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain};
@@ -79,10 +79,10 @@ mod tap_tests {
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
         vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+            address!("0xabababababababababababababababababababab"),
+            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            address!("0x1234567890abcdef1234567890abcdef12345678"),
         ]
     }
 
@@ -93,17 +93,17 @@ mod tap_tests {
 
     #[fixture]
     fn payer() -> Address {
-        Address::from_str("0xabababababababababababababababababababab").unwrap()
+        address!("0xabababababababababababababababababababab")
     }
 
     #[fixture]
     fn data_service() -> Address {
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap()
+        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead")
     }
 
     #[fixture]
     fn service_provider() -> Address {
-        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap()
+        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
     }
 
     #[rstest]
@@ -122,6 +122,8 @@ mod tap_tests {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
+            use thegraph_core::alloy::primitives::U256;
+
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
@@ -130,7 +132,7 @@ mod tap_tests {
                         payer,
                         data_service,
                         service_provider,
-                        value,
+                        U256::from(value),
                     )
                     .unwrap(),
                     &keys.0,
@@ -170,6 +172,8 @@ mod tap_tests {
         // Create receipts
         let mut receipts = Vec::new();
         for value in values {
+            use thegraph_core::alloy::primitives::U256;
+
             receipts.push(
                 Eip712SignedMessage::new(
                     &domain_separator,
@@ -178,7 +182,7 @@ mod tap_tests {
                         payer,
                         data_service,
                         service_provider,
-                        value,
+                        U256::from(value),
                     )
                     .unwrap(),
                     &keys.0,

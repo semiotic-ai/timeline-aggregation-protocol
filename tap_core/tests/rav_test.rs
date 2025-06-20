@@ -3,7 +3,6 @@
 
 use std::{
     collections::HashMap,
-    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -20,7 +19,11 @@ use tap_core::{
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 #[allow(deprecated)]
 use thegraph_core::alloy::primitives::{Address, Signature};
-use thegraph_core::alloy::{dyn_abi::Eip712Domain, signers::local::PrivateKeySigner};
+use thegraph_core::alloy::{
+    dyn_abi::Eip712Domain,
+    primitives::{address, U256},
+    signers::local::PrivateKeySigner,
+};
 
 #[fixture]
 fn domain_separator() -> Eip712Domain {
@@ -44,7 +47,7 @@ fn context() -> InMemoryContext {
 
 #[rstest]
 fn check_for_rav_serialization(domain_separator: Eip712Domain) {
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let allocation_id = address!("0xabababababababababababababababababababab");
     let wallet = PrivateKeySigner::from_slice(&[1u8; 32]).unwrap();
     let mut receipts = Vec::new();
 
@@ -54,7 +57,7 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
             Address::ZERO,
             Address::ZERO,
             Address::ZERO,
-            value,
+            U256::from(value),
         )
         .unwrap();
 
@@ -98,7 +101,7 @@ fn check_for_rav_serialization(domain_separator: Eip712Domain) {
 async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMemoryContext) {
     let wallet = PrivateKeySigner::random();
 
-    let allocation_id = Address::from_str("0xabababababababababababababababababababab").unwrap();
+    let allocation_id = address!("0xabababababababababababababababababababab");
 
     // Create receipts
     let mut receipts = Vec::new();
@@ -111,7 +114,7 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
                     Address::ZERO,
                     Address::ZERO,
                     Address::ZERO,
-                    value,
+                    U256::from(value),
                 )
                 .unwrap(),
                 &wallet,
@@ -154,7 +157,7 @@ async fn rav_storage_adapter_test(domain_separator: Eip712Domain, context: InMem
                     Address::ZERO,
                     Address::ZERO,
                     Address::ZERO,
-                    value,
+                    U256::from(value),
                 )
                 .unwrap(),
                 &wallet,

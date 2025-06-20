@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::{
     collections::HashMap,
-    str::FromStr,
     sync::{Arc, RwLock},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -25,7 +24,9 @@ use tap_core::{
 use tap_eip712_message::MessageId;
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{address, Address, U256},
+    signers::local::PrivateKeySigner,
 };
 
 fn get_current_timestamp_u64_ns() -> anyhow::Result<u64> {
@@ -40,10 +41,10 @@ fn signer() -> PrivateKeySigner {
 #[fixture]
 fn allocation_ids() -> Vec<Address> {
     vec![
-        Address::from_str("0xabababababababababababababababababababab").unwrap(),
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-        Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+        address!("0xabababababababababababababababababababab"),
+        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+        address!("0x1234567890abcdef1234567890abcdef12345678"),
     ]
 }
 
@@ -53,9 +54,9 @@ fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
     (
         signer,
         vec![
-            Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-            Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-            Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+            address!("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb"),
+            address!("0xfafafafafafafafafafafafafafafafafafafafa"),
+            address!("0xadadadadadadadadadadadadadadadadadadadad"),
             address,
         ],
     )
@@ -122,7 +123,7 @@ async fn manager_verify_and_store_varying_initial_checks(
     } = context;
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
-    let value = 20u128;
+    let value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
@@ -141,7 +142,7 @@ async fn manager_verify_and_store_varying_initial_checks(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), 999999);
+        .insert(signer.address(), U256::from(999999));
 
     assert!(manager
         .verify_and_store_receipt(&Context::new(), signed_receipt)
@@ -168,11 +169,11 @@ async fn manager_create_rav_request_all_valid_receipts(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), 999999);
+        .insert(signer.address(), U256::from(999999));
 
     let mut stored_signed_receipts = Vec::new();
     for _ in 0..10 {
-        let value = 20u128;
+        let value = U256::from(20u128);
         let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(
@@ -228,9 +229,9 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     let manager = Manager::new(domain_separator.clone(), context, checks);
 
     let rav = ReceiptAggregateVoucher {
-        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        allocationId: address!("0xabababababababababababababababababababab"),
         timestampNs: 1232442,
-        valueAggregate: 20u128,
+        valueAggregate: U256::from(20u128),
         payer: Address::ZERO,
         dataService: Address::ZERO,
         serviceProvider: Address::ZERO,
@@ -238,9 +239,9 @@ async fn deny_rav_due_to_wrong_value(domain_separator: Eip712Domain, context: Co
     };
 
     let rav_wrong_value = ReceiptAggregateVoucher {
-        allocationId: Address::from_str("0xabababababababababababababababababababab").unwrap(),
+        allocationId: address!("0xabababababababababababababababababababab"),
         timestampNs: 1232442,
-        valueAggregate: 10u128,
+        valueAggregate: U256::from(10u128),
         payer: Address::ZERO,
         dataService: Address::ZERO,
         serviceProvider: Address::ZERO,
@@ -277,12 +278,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), 999999);
+        .insert(signer.address(), U256::from(999999));
 
     let mut stored_signed_receipts = Vec::new();
-    let mut expected_accumulated_value = 0;
+    let mut expected_accumulated_value = U256::ZERO;
     for _ in 0..10 {
-        let value = 20u128;
+        let value = U256::from(20u128);
         let signed_receipt = Eip712SignedMessage::new(
             &domain_separator,
             Receipt::new(
@@ -354,12 +355,12 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), 999999);
+        .insert(signer.address(), U256::from(999999));
 
     let mut stored_signed_receipts = Vec::new();
-    let mut expected_accumulated_value = 0;
+    let mut expected_accumulated_value = U256::ZERO;
     for query_id in 0..10 {
-        let value = 20u128;
+        let value = U256::from(20u128);
         let mut receipt = Receipt::new(
             allocation_ids[0],
             Address::ZERO,
@@ -414,7 +415,7 @@ async fn manager_create_multiple_rav_requests_all_valid_receipts_consecutive_tim
 
     stored_signed_receipts.clear();
     for query_id in 10..20 {
-        let value = 20u128;
+        let value = U256::from(20u128);
         let mut receipt = Receipt::new(
             allocation_ids[0],
             Address::ZERO,
@@ -485,7 +486,7 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
 
     // Create context with proper parameters
     let escrow_storage = Arc::new(RwLock::new(HashMap::new()));
-    let query_appraisals = Arc::new(RwLock::new(HashMap::<MessageId, u128>::new()));
+    let query_appraisals = Arc::new(RwLock::new(HashMap::<MessageId, U256>::new()));
     let receipt_storage = Arc::new(RwLock::new(HashMap::new()));
 
     let context = InMemoryContext::new(
@@ -504,17 +505,20 @@ async fn manager_create_rav_and_ignore_invalid_receipts(
     for _ in 0..9 {
         let receipt = Receipt::new(
             allocation_ids[0],
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            20u128,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            U256::from(20u128),
         )
         .unwrap();
 
         let wallet = PrivateKeySigner::random();
         let signed_receipt = Eip712SignedMessage::new(&domain_separator, receipt, &wallet).unwrap();
         let query_id = signed_receipt.unique_hash();
-        query_appraisals.write().unwrap().insert(query_id, 20u128);
+        query_appraisals
+            .write()
+            .unwrap()
+            .insert(query_id, U256::from(20u128));
         manager
             .verify_and_store_receipt(&context_for_calls, signed_receipt)
             .await?;
@@ -556,10 +560,10 @@ async fn test_retryable_checks(
     for _ in 0..10 {
         let receipt = Receipt::new(
             allocation_ids[0],
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            20u128,
+            Address::ZERO,
+            Address::ZERO,
+            Address::ZERO,
+            U256::from(20u128),
         )
         .unwrap();
 

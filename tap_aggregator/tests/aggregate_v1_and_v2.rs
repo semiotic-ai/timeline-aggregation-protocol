@@ -62,7 +62,7 @@ async fn aggregation_test() {
         receipts.push(
             Eip712SignedMessage::new(
                 &domain_separator,
-                ReceiptV1::new(allocation_id, value).unwrap(),
+                ReceiptV1::new(allocation_id, U256::from(value)).unwrap(),
                 &wallet,
             )
             .unwrap(),

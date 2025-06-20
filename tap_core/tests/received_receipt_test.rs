@@ -3,7 +3,6 @@
 
 use std::{
     collections::HashMap,
-    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -19,7 +18,9 @@ use tap_core::{
 };
 use tap_graph::v2::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{address, Address, U256},
+    signers::local::PrivateKeySigner,
 };
 
 #[fixture]
@@ -30,10 +31,10 @@ fn signer() -> PrivateKeySigner {
 #[fixture]
 fn allocation_ids() -> Vec<Address> {
     vec![
-        Address::from_str("0xabababababababababababababababababababab").unwrap(),
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-        Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+        address!("0xabababababababababababababababababababab"),
+        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+        address!("0x1234567890abcdef1234567890abcdef12345678"),
     ]
 }
 
@@ -43,9 +44,9 @@ fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
     (
         signer,
         vec![
-            Address::from_str("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb").unwrap(),
-            Address::from_str("0xfafafafafafafafafafafafafafafafafafafafa").unwrap(),
-            Address::from_str("0xadadadadadadadadadadadadadadadadadadadad").unwrap(),
+            address!("0xfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb"),
+            address!("0xfafafafafafafafafafafafafafafafafafafafa"),
+            address!("0xadadadadadadadadadadadadadadadadadadadad"),
             address,
         ],
     )
@@ -105,7 +106,7 @@ async fn partial_then_full_check_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
@@ -126,7 +127,7 @@ async fn partial_then_full_check_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()
@@ -156,7 +157,7 @@ async fn partial_then_finalize_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
@@ -176,7 +177,7 @@ async fn partial_then_finalize_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()
@@ -209,7 +210,7 @@ async fn standard_lifetime_valid_receipt(
         ..
     } = context;
 
-    let query_value = 20u128;
+    let query_value = U256::from(20u128);
     let signed_receipt = Eip712SignedMessage::new(
         &domain_separator,
         Receipt::new(
@@ -230,7 +231,7 @@ async fn standard_lifetime_valid_receipt(
     escrow_storage
         .write()
         .unwrap()
-        .insert(signer.address(), query_value + 500);
+        .insert(signer.address(), query_value + U256::from(500u128));
     // appraise query
     query_appraisals
         .write()

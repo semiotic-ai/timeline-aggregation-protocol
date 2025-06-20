@@ -9,13 +9,13 @@ expression: signed_rav
     "dataService": "0x0000000000000000000000000000000000000000",
     "serviceProvider": "0x0000000000000000000000000000000000000000",
     "timestampNs": 1000000059,
-    "valueAggregate": 545,
+    "valueAggregate": "0x221",
     "metadata": "0x"
   },
   "signature": {
-    "r": "0x120e7ef0a86d08ad3f7d1c30ebc3fb8525a65b9563ca1bc54cf0e745b71a7f56",
-    "s": "0x1289b1e4982711120aafcb69f20d2678ce9b9e3fa409c2964c84bf8bb598d876",
-    "yParity": "0x0",
-    "v": "0x0"
+    "r": "0xe6f0127b91dfc3f1575dbeeff1f72f3c2957e99c303a1e022d09951fb643f7b0",
+    "s": "0x4416b255080104ee1f2a3b574724be0a2aee7319f6136ed1fa5f05cf9329fa29",
+    "yParity": "0x1",
+    "v": "0x1"
   }
 }

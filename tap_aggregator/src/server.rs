@@ -19,7 +19,9 @@ use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 #[cfg(not(feature = "v2"))]
 use tap_graph::{Receipt, ReceiptAggregateVoucher, SignedReceipt};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{Address, U256},
+    signers::local::PrivateKeySigner,
 };
 use tokio::{net::TcpListener, signal, task::JoinHandle};
 use tonic::{codec::CompressionEncoding, service::Routes, Request, Response, Status};
@@ -218,7 +220,7 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
             .transpose()
             .map_err(|_| Status::invalid_argument("Error while getting previous rav"))?;
 
-        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_grt = receipts.iter().map(|r| r.message.value).sum::<U256>();
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregator::v1::check_and_aggregate_receipts(
@@ -229,7 +231,7 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
             &self.accepted_addresses,
         ) {
             Ok(res) => {
-                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt.into());
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
                 if let Some(kafka) = &self.kafka {
@@ -274,7 +276,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
             .transpose()
             .map_err(|_| Status::invalid_argument("Error while getting previous rav"))?;
 
-        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_grt: U256 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregator::v2::check_and_aggregate_receipts(
@@ -285,7 +287,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
             &self.accepted_addresses,
         ) {
             Ok(res) => {
-                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt.into());
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
                 if let Some(kafka) = &self.kafka {
@@ -326,7 +328,7 @@ impl RpcServer for RpcImpl {
         previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>> {
         // Values for Prometheus metrics
-        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_grt: U256 = receipts.iter().map(|r| r.message.value).sum();
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregate_receipts_(
@@ -338,7 +340,7 @@ impl RpcServer for RpcImpl {
             previous_rav,
         ) {
             Ok(res) => {
-                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt.into());
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
                 if let Some(kafka) = &self.kafka {
@@ -520,7 +522,7 @@ fn produce_kafka_records<K: Debug>(
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod tests {
-    use std::{collections::HashSet, str::FromStr};
+    use std::collections::HashSet;
 
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
@@ -529,8 +531,12 @@ mod tests {
     use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
     #[cfg(not(feature = "v2"))]
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
+    #[cfg(feature = "v2")]
+    use thegraph_core::alloy::primitives::U256;
     use thegraph_core::alloy::{
-        dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
+        dyn_abi::Eip712Domain,
+        primitives::{address, Address},
+        signers::local::PrivateKeySigner,
     };
 
     use crate::server;
@@ -550,26 +556,26 @@ mod tests {
     #[fixture]
     fn allocation_ids() -> Vec<Address> {
         vec![
-            Address::from_str("0xabababababababababababababababababababab").unwrap(),
-            Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap(),
-            Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap(),
-            Address::from_str("0x1234567890abcdef1234567890abcdef12345678").unwrap(),
+            address!("0xabababababababababababababababababababab"),
+            address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead"),
+            address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef"),
+            address!("0x1234567890abcdef1234567890abcdef12345678"),
         ]
     }
 
     #[fixture]
     fn payer() -> Address {
-        Address::from_str("0xabababababababababababababababababababab").unwrap()
+        address!("0xabababababababababababababababababababab")
     }
 
     #[fixture]
     fn data_service() -> Address {
-        Address::from_str("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead").unwrap()
+        address!("0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead")
     }
 
     #[fixture]
     fn service_provider() -> Address {
-        Address::from_str("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef").unwrap()
+        address!("0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef")
     }
 
     #[fixture]
@@ -689,7 +695,7 @@ mod tests {
                         payer,
                         data_service,
                         service_provider,
-                        value,
+                        super::U256::from(value),
                     )
                     .unwrap(),
                     #[cfg(not(feature = "v2"))]
@@ -801,7 +807,7 @@ mod tests {
                         payer,
                         data_service,
                         service_provider,
-                        value,
+                        super::U256::from(value),
                     )
                     .unwrap(),
                     #[cfg(not(feature = "v2"))]
@@ -901,7 +907,14 @@ mod tests {
         let receipts = vec![Eip712SignedMessage::new(
             &domain_separator,
             #[cfg(feature = "v2")]
-            Receipt::new(allocation_ids[0], payer, data_service, service_provider, 42).unwrap(),
+            Receipt::new(
+                allocation_ids[0],
+                payer,
+                data_service,
+                service_provider,
+                super::U256::from(42),
+            )
+            .unwrap(),
             #[cfg(not(feature = "v2"))]
             Receipt::new(allocation_ids[0], 42).unwrap(),
             &keys_main.wallet,
@@ -1011,7 +1024,7 @@ mod tests {
                         payer,
                         data_service,
                         service_provider,
-                        u128::MAX / 1000,
+                        U256::from(u128::MAX / 1000),
                     )
                     .unwrap(),
                     #[cfg(not(feature = "v2"))]
