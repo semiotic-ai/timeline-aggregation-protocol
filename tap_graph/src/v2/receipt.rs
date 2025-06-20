@@ -81,8 +81,7 @@ mod receipt_unit_test {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use rstest::*;
-    use thegraph_core::alloy::primitives::address;
-    use thegraph_core::alloy::primitives::fixed_bytes;
+    use thegraph_core::alloy::primitives::{address, fixed_bytes};
 
     use super::*;
 
