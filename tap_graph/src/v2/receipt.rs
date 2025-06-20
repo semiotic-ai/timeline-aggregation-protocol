@@ -9,7 +9,10 @@ use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 use tap_eip712_message::Eip712SignedMessage;
 use tap_receipt::WithValueAndTimestamp;
-use thegraph_core::alloy::{primitives::{Address, FixedBytes}, sol};
+use thegraph_core::alloy::{
+    primitives::{Address, FixedBytes},
+    sol,
+};
 
 /// A signed receipt message
 pub type SignedReceipt = Eip712SignedMessage<Receipt>;

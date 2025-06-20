@@ -8,7 +8,9 @@ use rayon::prelude::*;
 use tap_core::{receipt::WithUniqueId, signed_message::Eip712SignedMessage};
 use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
 use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::{Address, FixedBytes}, signers::local::PrivateKeySigner,
+    dyn_abi::Eip712Domain,
+    primitives::{Address, FixedBytes},
+    signers::local::PrivateKeySigner,
     sol_types::SolStruct,
 };
 
@@ -400,7 +402,14 @@ mod tests {
             .unwrap(),
             Eip712SignedMessage::new(
                 &domain_separator,
-                Receipt::new(other_collection_id, payer, data_service, service_provider, 44).unwrap(),
+                Receipt::new(
+                    other_collection_id,
+                    payer,
+                    data_service,
+                    service_provider,
+                    44,
+                )
+                .unwrap(),
                 &keys.0,
             )
             .unwrap(),
