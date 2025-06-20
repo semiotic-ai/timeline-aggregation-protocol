@@ -6,6 +6,8 @@
 
 
 
+
+
 ## [4.1.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v4.1.1...tap_core-v4.1.2) (2025-05-19)
 
 

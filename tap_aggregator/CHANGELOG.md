@@ -27,6 +27,13 @@
 
 
 
+## [0.5.6](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.5...tap_aggregator-v0.5.6) (2025-06-20)
+
+
+### Bug Fixes
+
+* update RAV and receipt structs for horizon to latest version ([58afaef](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/58afaef396c635828d214e8bc325b6c5328b5b1b))
+
 ## [0.5.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.3...tap_aggregator-v0.5.4) (2025-05-21)
 
 
