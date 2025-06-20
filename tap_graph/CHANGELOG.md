@@ -11,6 +11,13 @@
 
 
 
+## [0.3.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.3.3...tap_graph-v0.3.4) (2025-06-20)
+
+
+### Bug Fixes
+
+* update RAV and receipt structs for horizon to latest version ([58afaef](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/58afaef396c635828d214e8bc325b6c5328b5b1b))
+
 ## [0.3.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.3.1...tap_graph-v0.3.2) (2025-05-19)
 
 
