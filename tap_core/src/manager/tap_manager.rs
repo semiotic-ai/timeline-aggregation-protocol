@@ -85,7 +85,7 @@ impl<E, Rcpt> Manager<E, Rcpt> {
         if signed_rav.message != expected_rav {
             return Err(Error::InvalidReceivedRav {
                 received_rav: format!("{:?}", signed_rav.message),
-                expected_rav: format!("{:?}", expected_rav),
+                expected_rav: format!("{expected_rav:?}"),
             });
         }
 

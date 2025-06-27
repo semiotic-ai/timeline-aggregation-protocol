@@ -166,10 +166,10 @@ where
     let server_config = ServerConfig::builder().http_only().build();
     let server = ServerBuilder::new()
         .set_config(server_config)
-        .build(format!("127.0.0.1:{}", port))
+        .build(format!("127.0.0.1:{port}"))
         .await?;
     let addr = server.local_addr()?;
-    println!("Listening on: {}", addr);
+    println!("Listening on: {addr}");
     let rpc_manager = RpcManager::new(
         domain_separator,
         context,
@@ -232,5 +232,5 @@ where
 }
 
 fn to_rpc_error(e: Box<dyn std::error::Error>, msg: &str) -> jsonrpsee::types::ErrorObjectOwned {
-    jsonrpsee::types::ErrorObject::owned(-32000, format!("{} - {}", e, msg), None::<()>)
+    jsonrpsee::types::ErrorObject::owned(-32000, format!("{e} - {msg}"), None::<()>)
 }

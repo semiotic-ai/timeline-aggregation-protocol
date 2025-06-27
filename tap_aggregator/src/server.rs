@@ -110,7 +110,7 @@ fn parse_api_version(api_version: &str) -> Result<TapRpcApiVersion, JsonRpcError
     TapRpcApiVersion::from_str(api_version).map_err(|_| {
         jsonrpsee::types::ErrorObject::owned(
             JsonRpcErrorCode::InvalidVersion as i32,
-            format!("Unsupported API version: \"{}\".", api_version),
+            format!("Unsupported API version: \"{api_version}\"."),
             Some(tap_rpc_api_versions_info()),
         )
     })
@@ -123,9 +123,8 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
         Some(JsonRpcWarning::new(
             JsonRpcWarningCode::DeprecatedVersion as i32,
             format!(
-                "The API version {} will be deprecated. \
-                Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information.",
-                api_version
+                "The API version {api_version} will be deprecated. \
+                Please check https://github.com/semiotic-ai/timeline_aggregation_protocol for more information."
             ),
             Some(tap_rpc_api_versions_info()),
         ))
@@ -405,7 +404,7 @@ pub async fn run_server(
     );
 
     // Create a `TcpListener` using tokio.
-    let listener = TcpListener::bind(&format!("0.0.0.0:{}", port))
+    let listener = TcpListener::bind(&format!("0.0.0.0:{port}"))
         .await
         .expect("Failed to bind to tap-aggregator port");
 

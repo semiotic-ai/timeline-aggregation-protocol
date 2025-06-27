@@ -20,7 +20,7 @@ async fn handler_metrics() -> (StatusCode, String) {
             error!("Error encoding metrics: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Error encoding metrics: {}", e),
+                format!("Error encoding metrics: {e}"),
             )
         }
     }
@@ -41,14 +41,14 @@ async fn _run_server(port: u16) {
 
     let server = serve(listener, app.into_make_service());
 
-    info!("Metrics server listening on {}", addr);
+    info!("Metrics server listening on {addr}");
 
     let res = server.await;
 
     debug!("Metrics server stopped");
 
     if let Err(err) = res {
-        panic!("Metrics server error: {:#?}", err);
+        panic!("Metrics server error: {err:#?}");
     };
 }
 
