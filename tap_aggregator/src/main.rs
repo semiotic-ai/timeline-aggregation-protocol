@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let args = Args::parse();
-    debug!("Settings: {:?}", args);
+    debug!("Settings: {args:?}");
 
     // Start the metrics server.
     // We just let it gracelessly get killed at the end of main()

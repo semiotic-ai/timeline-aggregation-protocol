@@ -503,7 +503,7 @@ async fn test_manager_one_indexer(
 
         match result {
             Ok(()) => {}
-            Err(e) => panic!("Error making receipt request: {:?}", e),
+            Err(e) => panic!("Error making receipt request: {e:?}"),
         }
     }
 
@@ -546,7 +546,7 @@ async fn test_manager_two_indexers(
         let future_2 = client_2.request("request", (receipt_2,));
         match tokio::try_join!(future_1, future_2) {
             Ok(((), ())) => {}
-            Err(e) => panic!("Error making receipt request: {:?}", e),
+            Err(e) => panic!("Error making receipt request: {e:?}"),
         }
     }
     Ok(())
@@ -681,7 +681,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
         let result = client_2.request("request", (receipt_1,)).await;
         match result {
             Ok(()) => {}
-            Err(e) => panic!("Error making receipt request: {:?}", e),
+            Err(e) => panic!("Error making receipt request: {e:?}"),
         }
     }
     Ok(())
@@ -708,7 +708,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
         http_max_concurrent_connections,
     )
     .await?;
-    let client = HttpClientBuilder::default().build(format!("http://{}", sender_addr))?;
+    let client = HttpClientBuilder::default().build(format!("http://{sender_addr}"))?;
 
     // This is the first part of the test, two batches of receipts are sent to the aggregator.
     // The second batch has one receipt with the same timestamp as the latest receipt in the first batch.
