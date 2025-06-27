@@ -13,4 +13,4 @@ thiserror.workspace = true
 
 
 [dev-dependencies]
-msg = { path = "../tap_graph", package = "tap_graph" }
+tap_graph.workspace = true
