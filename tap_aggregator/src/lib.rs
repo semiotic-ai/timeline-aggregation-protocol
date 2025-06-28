@@ -7,4 +7,6 @@ pub mod error_codes;
 pub mod grpc;
 pub mod jsonrpsee_helpers;
 pub mod metrics;
+pub mod protocol_mode;
+pub mod receipt_classifier;
 pub mod server;
