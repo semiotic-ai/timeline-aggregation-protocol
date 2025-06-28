@@ -50,7 +50,7 @@ tap_eip712_message = { version = "0.2.1", path = "tap_eip712_message" }
 tap_core = { version = "4.1.2", path = "tap_core" }
 tap_graph = { version = "0.3.2", path = "tap_graph", features = ["v2"] }
 tap_receipt = { version = "1.1.2", path = "tap_receipt" }
-thegraph-core = "0.15.0"
+thegraph-core = "0.15.1"
 thiserror = "2.0.12"
 tokio = { version = "1.44.2", features = ["macros", "signal"] }
 tonic = { version = "0.13.0", features = ["transport", "zstd"] }

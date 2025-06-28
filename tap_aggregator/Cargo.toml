@@ -7,6 +7,10 @@ repository.workspace = true
 readme = "README.md"
 description = "A JSON-RPC service for the Timeline Aggregation Protocol that lets clients request an aggregate receipt from a list of individual receipts."
 
+[features]
+default = ["v2"]
+v2 = ["tap_graph/v2"]
+
 [[bin]]
 name = "tap_aggregator"
 path = "src/main.rs"
