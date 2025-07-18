@@ -27,6 +27,13 @@
 
 
 
+## [0.5.7](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.6...tap_aggregator-v0.5.7) (2025-07-18)
+
+
+### Features
+
+* **tap-aggregator:** add v2 endpoint ([e7713c4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/e7713c408a732ec5590e39cfc62ae89f8d31aac7))
+
 ## [0.5.6](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.5...tap_aggregator-v0.5.6) (2025-06-20)
 
 
