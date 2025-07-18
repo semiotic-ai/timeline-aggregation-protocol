@@ -94,6 +94,17 @@ pub trait Rpc {
         receipts: Vec<Eip712SignedMessage<Receipt>>,
         previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
     ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>>;
+
+    /// Aggregates the given v2 receipts into a v2 receipt aggregate voucher.
+    /// Uses the Horizon protocol for collection-based aggregation.
+    #[cfg(feature = "v2")]
+    #[method(name = "aggregate_receipts_v2")]
+    fn aggregate_receipts_v2(
+        &self,
+        api_version: String,
+        receipts: Vec<Eip712SignedMessage<tap_graph::v2::Receipt>>,
+        previous_rav: Option<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>,
+    ) -> JsonRpcResult<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>;
 }
 
 #[derive(Clone)]
@@ -141,6 +152,8 @@ fn aggregate_receipts_(
     receipts: Vec<Eip712SignedMessage<Receipt>>,
     previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
 ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>> {
+    use crate::receipt_classifier::validate_v1_receipt_batch;
+
     // Return an error if the API version is not supported.
     let api_version = match parse_api_version(api_version.as_str()) {
         Ok(v) => v,
@@ -157,15 +170,84 @@ fn aggregate_receipts_(
         DEPRECATION_WARNING_COUNT.inc();
     }
 
-    let res = match api_version {
-        TapRpcApiVersion::V0_0 => aggregator::v1::check_and_aggregate_receipts(
-            domain_separator,
-            &receipts,
-            previous_rav,
-            wallet,
-            accepted_addresses,
-        ),
+    // This endpoint handles v1 receipts for legacy aggregation
+    // V2 receipts are handled through the aggregate_receipts_v2 endpoint
+    if let Err(e) = validate_v1_receipt_batch(&receipts) {
+        return Err(jsonrpsee::types::ErrorObject::owned(
+            JsonRpcErrorCode::Aggregation as i32,
+            e.to_string(),
+            None::<()>,
+        ));
+    }
+
+    log::debug!("Processing V1 receipts");
+
+    // Execute v1 aggregation
+    let res = aggregator::v1::check_and_aggregate_receipts(
+        domain_separator,
+        &receipts,
+        previous_rav,
+        wallet,
+        accepted_addresses,
+    );
+
+    // Handle aggregation error
+    match res {
+        Ok(res) => Ok(JsonRpcResponse::warn(res, warnings)),
+        Err(e) => Err(jsonrpsee::types::ErrorObject::owned(
+            JsonRpcErrorCode::Aggregation as i32,
+            e.to_string(),
+            None::<()>,
+        )),
+    }
+}
+
+#[cfg(feature = "v2")]
+fn aggregate_receipts_v2_(
+    api_version: String,
+    wallet: &PrivateKeySigner,
+    accepted_addresses: &HashSet<Address>,
+    domain_separator: &Eip712Domain,
+    receipts: Vec<Eip712SignedMessage<tap_graph::v2::Receipt>>,
+    previous_rav: Option<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>,
+) -> JsonRpcResult<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>> {
+    use crate::receipt_classifier::validate_v2_receipt_batch;
+
+    // Return an error if the API version is not supported.
+    let api_version = match parse_api_version(api_version.as_str()) {
+        Ok(v) => v,
+        Err(e) => {
+            VERSION_ERROR_COUNT.inc();
+            return Err(e);
+        }
     };
+
+    // Add a warning if the API version is to be deprecated.
+    let mut warnings: Vec<JsonRpcWarning> = Vec::new();
+    if let Some(w) = check_api_version_deprecation(&api_version) {
+        warnings.push(w);
+        DEPRECATION_WARNING_COUNT.inc();
+    }
+
+    // Validate v2 receipt batch for horizon processing
+    if let Err(e) = validate_v2_receipt_batch(&receipts) {
+        return Err(jsonrpsee::types::ErrorObject::owned(
+            JsonRpcErrorCode::Aggregation as i32,
+            e.to_string(),
+            None::<()>,
+        ));
+    }
+
+    log::debug!("Processing V2 receipts with Horizon protocol");
+
+    // Execute v2 aggregation
+    let res = aggregator::v2::check_and_aggregate_receipts(
+        domain_separator,
+        &receipts,
+        previous_rav,
+        wallet,
+        accepted_addresses,
+    );
 
     // Handle aggregation error
     match res {
@@ -326,6 +408,47 @@ impl RpcServer for RpcImpl {
                         kafka,
                         &self.wallet.address(),
                         &res.data.message.allocationId,
+                        res.data.message.valueAggregate,
+                    );
+                }
+                Ok(res)
+            }
+            Err(e) => {
+                AGGREGATION_FAILURE_COUNTER.inc();
+                Err(e)
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn aggregate_receipts_v2(
+        &self,
+        api_version: String,
+        receipts: Vec<Eip712SignedMessage<tap_graph::v2::Receipt>>,
+        previous_rav: Option<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>,
+    ) -> JsonRpcResult<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>> {
+        // Values for Prometheus metrics
+        let receipts_grt: u128 = receipts.iter().map(|r| r.message.value).sum();
+        let receipts_count: u64 = receipts.len() as u64;
+
+        match aggregate_receipts_v2_(
+            api_version,
+            &self.wallet,
+            &self.accepted_addresses,
+            &self.domain_separator,
+            receipts,
+            previous_rav,
+        ) {
+            Ok(res) => {
+                TOTAL_GRT_AGGREGATED.inc_by(receipts_grt as f64);
+                TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
+                AGGREGATION_SUCCESS_COUNTER.inc();
+                if let Some(kafka) = &self.kafka {
+                    // V2 RAVs use collectionId instead of allocationId
+                    produce_kafka_records(
+                        kafka,
+                        &self.wallet.address(),
+                        &res.data.message.collectionId,
                         res.data.message.valueAggregate,
                     );
                 }

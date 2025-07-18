@@ -2,6 +2,8 @@
 
 A stateless JSON-RPC service that lets clients request an aggregate receipt from a list of individual receipts.
 
+Supports both V1 (allocation-based) and V2 (collection-based) aggregation protocols for seamless migration to the Horizon protocol.
+
 TAP Aggregator is run by [gateway](https://github.com/edgeandnode/gateway/blob/main/README.md)
 operators.
 
@@ -189,6 +191,11 @@ In addition to the official spec, we define a few special errors:
 
 ### Methods
 
+This aggregator supports both V1 (legacy) and V2 (Horizon) protocols:
+
+- **V1 Endpoints**: `aggregate_receipts` - allocation-based aggregation
+- **V2 Endpoints**: `aggregate_receipts_v2` - collection-based aggregation with enhanced fields
+
 #### `api_versions()`
 
 [source](server::RpcServer::api_versions)
@@ -318,3 +325,170 @@ Example:
   }
 }
 ```
+
+#### `aggregate_receipts_v2(api_version, receipts, previous_rav)`
+
+Aggregates the given V2 receipts into a V2 receipt aggregate voucher using the Horizon protocol.
+This method supports collection-based aggregation with enhanced fields for payer, data service, and service provider tracking.
+
+**V2 Receipt Structure:**
+
+- `collection_id`: 32-byte identifier for the collection (replaces `allocation_id`)
+- `payer`: Address of the payer
+- `data_service`: Address of the data service
+- `service_provider`: Address of the service provider
+- `timestamp_ns`: Timestamp in nanoseconds
+- `nonce`: Unique nonce
+- `value`: Receipt value
+
+**V2 RAV Structure:**
+
+- `collectionId`: Collection identifier (replaces `allocation_id`)
+- `payer`: Payer address
+- `dataService`: Data service address
+- `serviceProvider`: Service provider address
+- `timestampNs`: Latest timestamp
+- `valueAggregate`: Total aggregated value
+- `metadata`: Additional metadata (bytes)
+
+Example:
+
+*Request*:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 0,
+  "method": "aggregate_receipts_v2",
+  "params": [
+    "1.0.0",
+    [
+      {
+        "message": {
+          "collection_id": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+          "payer": "0xabababababababababababababababababababab",
+          "data_service": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+          "service_provider": "0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef",
+          "timestamp_ns": 1685670449225087255,
+          "nonce": 11835827017881841442,
+          "value": 34
+        },
+        "signature": {
+          "r": "0xa9fa1acf3cc3be503612f75602e68cc22286592db1f4f944c78397cbe529353b",
+          "s": "0x566cfeb7e80a393021a443d5846c0734d25bcf54ed90d97effe93b1c8aef0911",
+          "v": 27
+        }
+      },
+      {
+        "message": {
+          "collection_id": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+          "payer": "0xabababababababababababababababababababab",
+          "data_service": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+          "service_provider": "0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef",
+          "timestamp_ns": 1685670449225830106,
+          "nonce": 17711980309995246801,
+          "value": 23
+        },
+        "signature": {
+          "r": "0x51ca5a2b839558654326d3a3f544a97d94effb9a7dd9cac7492007bc974e91f0",
+          "s": "0x3d9d398ea6b0dd9fac97726f51c0840b8b314821fb4534cb40383850c431fd9e",
+          "v": 28
+        }
+      }
+    ],
+    {
+      "message": {
+        "collectionId": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+        "payer": "0xabababababababababababababababababababab",
+        "dataService": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+        "serviceProvider": "0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef",
+        "timestampNs": 1685670449224324338,
+        "valueAggregate": 101,
+        "metadata": "0x"
+      },
+      "signature": {
+        "r": "0x601a1f399cf6223d1414a89b7bbc90ee13eeeec006bd59e0c96042266c6ad7dc",
+        "s": "0x3172e795bd190865afac82e3a8be5f4ccd4b65958529986c779833625875f0b2",
+        "v": 28
+      }
+    }
+  ]
+}
+```
+
+*Response*:
+
+```json
+{
+  "id": 0,
+  "jsonrpc": "2.0",
+  "result": {
+    "data": {
+      "message": {
+        "collectionId": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+        "payer": "0xabababababababababababababababababababab",
+        "dataService": "0xdeaddeaddeaddeaddeaddeaddeaddeaddeaddead",
+        "serviceProvider": "0xbeefbeefbeefbeefbeefbeefbeefbeefbeefbeef",
+        "timestampNs": 1685670449225830106,
+        "valueAggregate": 158,
+        "metadata": "0x"
+      },
+      "signature": {
+        "r": "0x60eb38374119bbabf1ac6960f532124ba2a9c5990d9fb50875b512e611847eb5",
+        "s": "0x1b9a330cc9e2ecbda340a4757afaee8f55b6dbf278428f8cf49dd5ad8438f83d",
+        "v": 27
+      }
+    }
+  }
+}
+```
+
+## Feature Flags
+
+### V2 Protocol Support
+
+The aggregator supports both V1 and V2 protocols:
+
+- **V2 is enabled by default** via the `v2` feature flag in `tap_aggregator/Cargo.toml`
+- To disable V2: `cargo build --no-default-features`
+- Both protocols can run simultaneously for gradual migration
+- V1 endpoints remain unchanged and fully functional
+
+### Feature Flag Usage
+
+```bash
+# Build with V2 support (default)
+cargo build --release
+
+# Build without V2 support (V1 only)
+cargo build --release --no-default-features
+
+# Explicitly enable V2 feature
+cargo build --release --features v2
+```
+
+## Migration Guide
+
+### V1 to V2 Migration
+
+The V2 protocol introduces collection-based aggregation with enhanced tracking. Here's how to migrate:
+
+#### Key Changes
+
+1. **Receipt Structure**: `allocation_id` → `collection_id` + additional fields
+2. **RAV Structure**: `allocation_id` → `collectionId` + additional fields
+3. **New Fields**: `payer`, `data_service`/`dataService`, `service_provider`/`serviceProvider`
+4. **Metadata**: V2 RAVs include optional `metadata` field
+
+#### Migration Steps
+
+1. **Phase 1**: Deploy aggregator with V2 support (both endpoints available)
+2. **Phase 2**: Update clients to use V2 receipt structure
+3. **Phase 3**: Switch clients to `aggregate_receipts_v2` endpoint
+4. **Phase 4**: V1 endpoints remain for backward compatibility
+
+#### Backward Compatibility
+
+- **V1 endpoints**: Unchanged and fully functional
+- **gRPC support**: Both V1 and V2 with automatic conversion
+- **No breaking changes**: Existing V1 clients continue to work
