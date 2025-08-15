@@ -36,11 +36,13 @@ tap_graph.workspace = true
 thegraph-core = { workspace = true, features = ["alloy-eip712"] }
 tokio.workspace = true
 tonic.workspace = true
+tonic-prost = "0.14.1"
 tower = { workspace = true, features = ["util", "steer", "limit"] }
 tracing-subscriber.workspace = true
 
 [build-dependencies]
 tonic-build.workspace = true
+tonic-prost-build.workspace = true
 
 [dev-dependencies]
 rand.workspace = true
