@@ -11,6 +11,5 @@ serde.workspace = true
 thegraph-core.workspace = true
 thiserror.workspace = true
 
-
 [dev-dependencies]
 tap_graph.workspace = true
