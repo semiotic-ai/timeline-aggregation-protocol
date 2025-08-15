@@ -6,14 +6,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set by Cargo");
     println!("OUT_DIR: {out_dir}"); // This should print the output directory
 
-    tonic_build::configure().compile_protos(
-        &[
-            "proto/uint128.proto",
-            "proto/tap_aggregator.proto",
-            "proto/v2.proto",
-        ],
-        &["proto"],
-    )?;
+    tonic_prost_build::configure()
+        .build_server(true)
+        .compile_protos(
+            &[
+                "proto/uint128.proto",
+                "proto/tap_aggregator.proto",
+                "proto/v2.proto",
+            ],
+            &["proto"],
+        )?;
 
     Ok(())
 }

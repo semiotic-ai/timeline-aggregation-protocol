@@ -37,7 +37,7 @@ jsonrpsee-core = "0.25.1"
 lazy_static = "1.5.0"
 log = "0.4.27"
 prometheus = "0.14.0"
-prost = "0.13.5"
+prost = "0.14.1"
 rand = "0.9.1"
 rayon = "1.10.0"
 rdkafka = { version = "0.37.0", features = ["tokio", "sasl"] }
@@ -53,7 +53,8 @@ tap_receipt = { version = "1.1.2", path = "tap_receipt" }
 thegraph-core = "0.15.1"
 thiserror = "2.0.12"
 tokio = { version = "1.44.2", features = ["macros", "signal"] }
-tonic = { version = "0.13.0", features = ["transport", "zstd"] }
-tonic-build = "0.13.0"
+tonic = { version = "0.14.1", features = ["transport", "zstd"] }
+tonic-build = "0.14.1"
+tonic-prost-build = "0.14.1"
 tower = { version = "0.5.2", features = ["util", "steer"] }
 tracing-subscriber = "0.3.19"
