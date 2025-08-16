@@ -9,10 +9,7 @@ use anyhow::Result;
 use clap::Parser;
 use log::{debug, info};
 use tap_aggregator::{metrics, server};
-use tap_core::tap_eip712_domain;
-use thegraph_core::alloy::{
-    dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
-};
+use thegraph_core::alloy::{primitives::Address, signers::local::PrivateKeySigner};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -66,9 +63,15 @@ struct Args {
     #[arg(long, env = "TAP_DOMAIN_CHAIN_ID")]
     domain_chain_id: Option<String>,
 
-    /// Domain verifying contract to be used for the EIP-712 domain separator.
-    #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT")]
-    domain_verifying_contract: Option<Address>,
+    /// Domain verifying contract for V1 receipts (TAPVerifier).
+    /// Default: 0xC9a43158891282A2B1475592D5719c001986Aaec
+    #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT_V1")]
+    domain_verifying_contract_v1: Option<Address>,
+
+    /// Domain verifying contract for V2 receipts (GraphTallyCollector).
+    /// Default: 0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07
+    #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT_V2")]
+    domain_verifying_contract_v2: Option<Address>,
 
     /// Domain salt to be used for the EIP-712 domain separator.
     #[arg(long, env = "TAP_DOMAIN_SALT")]
@@ -99,8 +102,8 @@ async fn main() -> Result<()> {
 
     info!("Wallet address: {:#40x}", wallet.address());
 
-    // Create the EIP-712 domain separator.
-    let domain_separator = create_eip712_domain(&args)?;
+    // Create the domain configuration
+    let domain_config = create_domain_config(&args)?;
 
     // Create HashSet of *all* allowed signers
     let mut accepted_addresses: HashSet<Address> = std::collections::HashSet::new();
@@ -126,7 +129,7 @@ async fn main() -> Result<()> {
         args.port,
         wallet,
         accepted_addresses,
-        domain_separator,
+        domain_config,
         args.max_request_body_size,
         args.max_response_body_size,
         args.max_connections,
@@ -142,30 +145,31 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
-    // Transform the args into the types expected by Eip712Domain::new().
-
-    // Transform optional strings into optional Cow<str>.
-    // Transform optional strings into optional U256.
-    if args.domain_chain_id.is_some() {
-        debug!("Parsing domain chain ID...");
-    }
+fn create_domain_config(args: &Args) -> Result<server::DomainConfig> {
     let chain_id: Option<u64> = args
         .domain_chain_id
         .as_ref()
         .map(|s| s.parse())
         .transpose()?;
 
-    if args.domain_salt.is_some() {
-        debug!("Parsing domain salt...");
+    let chain_id = chain_id.unwrap_or(1);
+
+    // Use custom addresses if provided, otherwise use defaults
+    if args.domain_verifying_contract_v1.is_some() || args.domain_verifying_contract_v2.is_some() {
+        let v1_contract = args.domain_verifying_contract_v1.unwrap_or_else(|| {
+            Address::from_str("0xC9a43158891282A2B1475592D5719c001986Aaec").unwrap()
+        });
+        let v2_contract = args.domain_verifying_contract_v2.unwrap_or_else(|| {
+            Address::from_str("0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07").unwrap()
+        });
+
+        Ok(server::DomainConfig::custom(
+            chain_id,
+            v1_contract,
+            v2_contract,
+        ))
+    } else {
+        server::DomainConfig::new(chain_id)
+            .map_err(|e| anyhow::anyhow!("Failed to create domain config: {}", e))
     }
-
-    // Transform optional strings into optional Address.
-    let verifying_contract: Option<Address> = args.domain_verifying_contract;
-
-    // Create the EIP-712 domain separator.
-    Ok(tap_eip712_domain(
-        chain_id.unwrap_or(1),
-        verifying_contract.unwrap_or_default(),
-    ))
 }

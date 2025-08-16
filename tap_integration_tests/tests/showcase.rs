@@ -838,11 +838,17 @@ async fn start_sender_aggregator(
 
     let accepted_addresses = HashSet::from([keys.address()]);
 
+    let domain_config = agg_server::DomainConfig::custom(
+        1,
+        domain_separator.verifying_contract.unwrap_or_default(),
+        domain_separator.verifying_contract.unwrap_or_default(),
+    );
+
     let (server_handle, socket_addr) = agg_server::run_server(
         http_port,
         keys,
         accepted_addresses,
-        domain_separator,
+        domain_config,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,

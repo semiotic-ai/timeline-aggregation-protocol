@@ -26,11 +26,13 @@ async fn aggregation_test() {
 
     let accepted_addresses = HashSet::from([wallet.address()]);
 
+    let domain_config = server::DomainConfig::custom(1, Address::ZERO, Address::ZERO);
+
     let (join_handle, local_addr) = server::run_server(
         0,
         wallet.clone(),
         accepted_addresses,
-        domain_separator.clone(),
+        domain_config,
         max_request_body_size,
         max_response_body_size,
         max_concurrent_connections,
