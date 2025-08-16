@@ -107,11 +107,46 @@ pub trait Rpc {
     ) -> JsonRpcResult<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>;
 }
 
+/// Configuration for domain separators based on protocol version
+#[derive(Clone)]
+pub struct DomainConfig {
+    pub v1: Eip712Domain,
+    pub v2: Eip712Domain,
+}
+
+impl DomainConfig {
+    /// Create a new DomainConfig with default contract addresses
+    pub fn new(chain_id: u64) -> Result<Self, Box<dyn std::error::Error>> {
+        use std::str::FromStr;
+
+        use tap_core::tap_eip712_domain;
+
+        // Default contract addresses
+        let tapverifier_address = Address::from_str("0xC9a43158891282A2B1475592D5719c001986Aaec")?;
+        let graphtally_address = Address::from_str("0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07")?;
+
+        Ok(DomainConfig {
+            v1: tap_eip712_domain(chain_id, tapverifier_address),
+            v2: tap_eip712_domain(chain_id, graphtally_address),
+        })
+    }
+
+    /// Create a custom DomainConfig with specific contract addresses
+    pub fn custom(chain_id: u64, v1_contract: Address, v2_contract: Address) -> Self {
+        use tap_core::tap_eip712_domain;
+
+        DomainConfig {
+            v1: tap_eip712_domain(chain_id, v1_contract),
+            v2: tap_eip712_domain(chain_id, v2_contract),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct RpcImpl {
     wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
-    domain_separator: Eip712Domain,
+    domain_config: DomainConfig,
     kafka: Option<rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>>,
 }
 
@@ -148,7 +183,7 @@ fn aggregate_receipts_(
     api_version: String,
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
-    domain_separator: &Eip712Domain,
+    domain_config: &DomainConfig,
     receipts: Vec<Eip712SignedMessage<Receipt>>,
     previous_rav: Option<Eip712SignedMessage<ReceiptAggregateVoucher>>,
 ) -> JsonRpcResult<Eip712SignedMessage<ReceiptAggregateVoucher>> {
@@ -184,7 +219,7 @@ fn aggregate_receipts_(
 
     // Execute v1 aggregation
     let res = aggregator::v1::check_and_aggregate_receipts(
-        domain_separator,
+        &domain_config.v1,
         &receipts,
         previous_rav,
         wallet,
@@ -207,7 +242,7 @@ fn aggregate_receipts_v2_(
     api_version: String,
     wallet: &PrivateKeySigner,
     accepted_addresses: &HashSet<Address>,
-    domain_separator: &Eip712Domain,
+    domain_config: &DomainConfig,
     receipts: Vec<Eip712SignedMessage<tap_graph::v2::Receipt>>,
     previous_rav: Option<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>>,
 ) -> JsonRpcResult<Eip712SignedMessage<tap_graph::v2::ReceiptAggregateVoucher>> {
@@ -242,7 +277,7 @@ fn aggregate_receipts_v2_(
 
     // Execute v2 aggregation
     let res = aggregator::v2::check_and_aggregate_receipts(
-        domain_separator,
+        &domain_config.v2,
         &receipts,
         previous_rav,
         wallet,
@@ -284,7 +319,7 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregator::v1::check_and_aggregate_receipts(
-            &self.domain_separator,
+            &self.domain_config.v1,
             receipts.as_slice(),
             previous_rav,
             &self.wallet,
@@ -340,7 +375,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregator::v2::check_and_aggregate_receipts(
-            &self.domain_separator,
+            &self.domain_config.v2,
             receipts.as_slice(),
             previous_rav,
             &self.wallet,
@@ -378,7 +413,9 @@ impl RpcServer for RpcImpl {
     }
 
     fn eip712_domain_info(&self) -> JsonRpcResult<Eip712Domain> {
-        Ok(JsonRpcResponse::ok(self.domain_separator.clone()))
+        // For backward compatibility, return the V1 domain separator
+        // Clients can determine V2 domain separator from the contract addresses
+        Ok(JsonRpcResponse::ok(self.domain_config.v1.clone()))
     }
 
     fn aggregate_receipts(
@@ -395,7 +432,7 @@ impl RpcServer for RpcImpl {
             api_version,
             &self.wallet,
             &self.accepted_addresses,
-            &self.domain_separator,
+            &self.domain_config,
             receipts,
             previous_rav,
         ) {
@@ -435,7 +472,7 @@ impl RpcServer for RpcImpl {
             api_version,
             &self.wallet,
             &self.accepted_addresses,
-            &self.domain_separator,
+            &self.domain_config,
             receipts,
             previous_rav,
         ) {
@@ -467,7 +504,7 @@ pub async fn run_server(
     port: u16,
     wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
-    domain_separator: Eip712Domain,
+    domain_config: DomainConfig,
     max_request_body_size: u32,
     max_response_body_size: u32,
     max_concurrent_connections: u32,
@@ -477,7 +514,7 @@ pub async fn run_server(
     let rpc_impl = RpcImpl {
         wallet,
         accepted_addresses,
-        domain_separator,
+        domain_config,
         kafka,
     };
     let (json_rpc_service, _) = create_json_rpc_service(
@@ -633,6 +670,7 @@ mod tests {
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
     };
 
+    use super::DomainConfig;
     use crate::server;
 
     #[derive(Clone)]
@@ -680,7 +718,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn protocol_version(
-        domain_separator: Eip712Domain,
+        _domain_separator: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -693,7 +731,7 @@ mod tests {
             0,
             keys_main.wallet,
             HashSet::from([keys_main.address]),
-            domain_separator,
+            DomainConfig::custom(1, Address::from([0x11u8; 20]), Address::from([0x11u8; 20])),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -745,7 +783,7 @@ mod tests {
             0,
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
-            domain_separator.clone(),
+            DomainConfig::custom(1, Address::from([0x11u8; 20]), Address::from([0x11u8; 20])),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -828,7 +866,7 @@ mod tests {
             0,
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
-            domain_separator.clone(),
+            DomainConfig::custom(1, Address::from([0x11u8; 20]), Address::from([0x11u8; 20])),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -906,7 +944,7 @@ mod tests {
             0,
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address]),
-            domain_separator.clone(),
+            DomainConfig::custom(1, Address::from([0x11u8; 20]), Address::from([0x11u8; 20])),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -998,7 +1036,7 @@ mod tests {
             0,
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address]),
-            domain_separator.clone(),
+            DomainConfig::custom(1, Address::from([0x11u8; 20]), Address::from([0x11u8; 20])),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
