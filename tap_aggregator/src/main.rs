@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::Parser;
 use log::{debug, info};
 use tap_aggregator::{metrics, server};
-use tap_core::tap_eip712_domain;
+use tap_core::{tap_eip712_domain, TapVersion};
 use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
 };
@@ -163,9 +163,16 @@ fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     // Transform optional strings into optional Address.
     let verifying_contract: Option<Address> = args.domain_verifying_contract;
 
+    // Determine TAP version from domain_version argument
+    let version = match args.domain_version.as_deref() {
+        Some("2") => TapVersion::V2,
+        _ => TapVersion::V1, // Default to V1
+    };
+
     // Create the EIP-712 domain separator.
     Ok(tap_eip712_domain(
         chain_id.unwrap_or(1),
         verifying_contract.unwrap_or_default(),
+        version,
     ))
 }

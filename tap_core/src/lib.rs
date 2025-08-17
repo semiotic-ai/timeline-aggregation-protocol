@@ -39,15 +39,35 @@ fn get_current_timestamp_u64_ns() -> Result<u64> {
 /// You can take a look on deployed [TAPVerfiers](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/4dc87fc616680c924b99dbaf285bdd449c777261/src/TAPVerifier.sol)
 /// contracts [here](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/4dc87fc616680c924b99dbaf285bdd449c777261/addresses.json)
 ///
+/// TAP protocol version for EIP-712 domain separator
+#[derive(Debug, Clone, Copy)]
+pub enum TapVersion {
+    V1,
+    V2,
+}
+
+impl TapVersion {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TapVersion::V1 => "1",
+            TapVersion::V2 => "2",
+        }
+    }
+}
+
 /// The domain separator is defined as:
 /// - `name`: "TAP"
-/// - `version`: "1"
+/// - `version`: "1" or "2" depending on protocol version
 /// - `chain_id`: The chain ID of the chain where the domain separator is deployed.
 /// - `verifying_contract`: The address of the contract that is verifying the signature.
-pub fn tap_eip712_domain(chain_id: u64, verifying_contract_address: Address) -> Eip712Domain {
+pub fn tap_eip712_domain(
+    chain_id: u64,
+    verifying_contract_address: Address,
+    version: TapVersion,
+) -> Eip712Domain {
     eip712_domain! {
         name: "TAP",
-        version: "1",
+        version: version.as_str(),
         chain_id: chain_id,
         verifying_contract: verifying_contract_address,
     }
@@ -63,7 +83,7 @@ mod tap_tests {
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
     };
 
-    use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+    use crate::{signed_message::Eip712SignedMessage, tap_eip712_domain, TapVersion};
 
     #[fixture]
     fn keys() -> (PrivateKeySigner, Address) {
@@ -85,7 +105,7 @@ mod tap_tests {
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        tap_eip712_domain(1, Address::from([0x11u8; 20]))
+        tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
     }
 
     #[rstest]

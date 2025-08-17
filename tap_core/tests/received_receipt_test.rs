@@ -15,7 +15,7 @@ use tap_core::{
         Context, ReceiptWithState,
     },
     signed_message::Eip712SignedMessage,
-    tap_eip712_domain,
+    tap_eip712_domain, TapVersion,
 };
 use tap_graph::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
@@ -53,7 +53,7 @@ fn sender_ids(signer: PrivateKeySigner) -> (PrivateKeySigner, Vec<Address>) {
 
 #[fixture]
 fn domain_separator() -> Eip712Domain {
-    tap_eip712_domain(1, Address::from([0x11u8; 20]))
+    tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
 }
 
 struct ContextFixture {

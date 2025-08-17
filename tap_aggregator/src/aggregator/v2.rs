@@ -188,7 +188,7 @@ fn check_receipt_timestamps(
 #[cfg(test)]
 mod tests {
     use rstest::*;
-    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain, TapVersion};
     use tap_graph::v2::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain,
@@ -229,7 +229,7 @@ mod tests {
     }
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        tap_eip712_domain(1, Address::from([0x11u8; 20]))
+        tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V2)
     }
 
     #[rstest]

@@ -1,6 +1,6 @@
 [package]
 name = "tap_aggregator"
-version = "0.5.8"
+version = "0.5.9"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -36,7 +36,7 @@ tap_graph.workspace = true
 thegraph-core = { workspace = true, features = ["alloy-eip712"] }
 tokio.workspace = true
 tonic.workspace = true
-tonic-prost = "0.14.1"
+tonic-prost.workspace = true
 tower = { workspace = true, features = ["util", "steer", "limit"] }
 tracing-subscriber.workspace = true
 

@@ -10,7 +10,7 @@ use tap_aggregator::{
     },
     server,
 };
-use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain, TapVersion};
 use tap_graph::{v2::Receipt as ReceiptV2, Receipt as ReceiptV1};
 use thegraph_core::alloy::{
     primitives::{address, Address, FixedBytes},
@@ -20,7 +20,7 @@ use tonic::codec::CompressionEncoding;
 
 #[tokio::test]
 async fn aggregation_test() {
-    let domain_separator = tap_eip712_domain(1, Address::ZERO);
+    let domain_separator = tap_eip712_domain(1, Address::ZERO, TapVersion::V2);
 
     let wallet = PrivateKeySigner::random();
 

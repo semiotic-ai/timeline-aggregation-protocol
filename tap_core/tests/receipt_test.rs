@@ -12,7 +12,7 @@ use tap_core::{
     manager::{adapters::ReceiptStore, context::memory::InMemoryContext},
     receipt::{checks::StatefulTimestampCheck, state::Checking, ReceiptWithState},
     signed_message::Eip712SignedMessage,
-    tap_eip712_domain,
+    tap_eip712_domain, TapVersion,
 };
 use tap_graph::{Receipt, SignedReceipt};
 use thegraph_core::alloy::{
@@ -21,7 +21,7 @@ use thegraph_core::alloy::{
 
 #[fixture]
 fn domain_separator() -> Eip712Domain {
-    tap_eip712_domain(1, Address::from([0x11u8; 20]))
+    tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
 }
 
 #[fixture]
