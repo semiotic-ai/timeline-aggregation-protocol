@@ -627,7 +627,7 @@ mod tests {
 
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
-    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain};
+    use tap_core::{signed_message::Eip712SignedMessage, tap_eip712_domain, TapVersion};
     use tap_graph::{Receipt, ReceiptAggregateVoucher};
     use thegraph_core::alloy::{
         dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
@@ -659,7 +659,7 @@ mod tests {
 
     #[fixture]
     fn domain_separator() -> Eip712Domain {
-        tap_eip712_domain(1, Address::from([0x11u8; 20]))
+        tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
     }
 
     #[fixture]
