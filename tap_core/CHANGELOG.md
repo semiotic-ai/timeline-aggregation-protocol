@@ -8,6 +8,19 @@
 
 
 
+## [4.2.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v4.1.4...tap_core-v4.2.0) (2025-08-19)
+
+
+### Features
+
+* make domain version injectable ([73bb550](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/73bb550f60d3f0d8aebc3e26aaf5862df092a98e))
+
+
+### Bug Fixes
+
+* apply proper version ([8d168a2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/8d168a287a384b4548e83f6558d9604b8ad796bf))
+* use GraphTally as EIP712 domain for TAP v2 ([98aaf57](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/98aaf57cb32097b54fb901e611c7c7cd50735784))
+
 ## [4.1.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v4.1.1...tap_core-v4.1.2) (2025-05-19)
 
 

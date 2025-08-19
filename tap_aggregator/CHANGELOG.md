@@ -27,6 +27,13 @@
 
 
 
+## [0.5.8](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.7...tap_aggregator-v0.5.8) (2025-08-19)
+
+
+### Features
+
+* make domain version injectable ([73bb550](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/73bb550f60d3f0d8aebc3e26aaf5862df092a98e))
+
 ## [0.5.7](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.6...tap_aggregator-v0.5.7) (2025-07-18)
 
 
