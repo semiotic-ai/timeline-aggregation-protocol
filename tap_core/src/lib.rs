@@ -56,8 +56,8 @@ impl TapVersion {
 }
 
 /// The domain separator is defined as:
-/// - `name`: "TAP"
-/// - `version`: "1" or "2" depending on protocol version
+/// - `name`: "TAP" for V1, "GraphTally" for V2 - This could be a fn argument but we don't want to change the function signature.
+/// - `version`: always set to "1", what changes is the domain name.
 /// - `chain_id`: The chain ID of the chain where the domain separator is deployed.
 /// - `verifying_contract`: The address of the contract that is verifying the signature.
 pub fn tap_eip712_domain(
@@ -65,9 +65,14 @@ pub fn tap_eip712_domain(
     verifying_contract_address: Address,
     version: TapVersion,
 ) -> Eip712Domain {
+    let name = match version {
+        TapVersion::V1 => "TAP",
+        TapVersion::V2 => "GraphTally",
+    };
+
     eip712_domain! {
-        name: "TAP",
-        version: version.as_str(),
+        name: name,
+        version: "1",
         chain_id: chain_id,
         verifying_contract: verifying_contract_address,
     }
