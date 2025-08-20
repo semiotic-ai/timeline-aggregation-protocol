@@ -27,6 +27,82 @@
 
 
 
+## [0.6.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.9...tap_aggregator-v0.6.0) (2025-08-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* aggregate v2 receipts into v2 rav ([#274](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/274))
+* rename EIP712SignedMessage to Eip712SignedMessage
+* create tap_eip712_message, tap_receipts and tap_graph ([#268](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/268))
+* make manager generic over rav ([#267](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/267))
+* manager generic over receipt ([#266](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/266))
+* update project structure
+* update rav attributes to camel case
+* replace aggregator mnemonic with private key ([#201](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/201))
+* rename "gateway" to "sender" everywhere
+* **aggregator:** Warn list in JSON RPC response
+
+### Features
+
+* accept grpc requests in tap-aggregator ([#253](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/253)) ([3c56018](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3c56018a321736ff19103ea69015160c3647364b))
+* Added lib ([57c9ca2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/57c9ca29d7c111e41fd1f5c7c776684aeeb03c26))
+* Added lib ([feaa54b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/feaa54b082f308abbf9f34060b14e2d535293885))
+* added lib for tap_aggregator modules ([ba5840d](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/ba5840d85bc567c4dcc01201bf8107b9936cbcd3))
+* aggregate v2 receipts into v2 rav ([#274](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/274)) ([df70b82](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/df70b82f9c1b39698817c164e177aca1a5c0df84))
+* aggregator: add kafka producer support ([de27ec2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/de27ec218f2d4f282a85e1f587a36bda40bb64fc))
+* **aggregator:** add basic logging ([117b2f2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/117b2f245f3d967cdc518c9435822a3f1fefdbd6)), closes [#145](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/145)
+* **aggregator:** add prometheus metrics ([054f5bb](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/054f5bb415ad44501ebb3afe8ea31492ed88a130))
+* **aggregator:** Add support for multiple signers in input ([#211](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/211)) ([b16f23d](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/b16f23d5481de65658b08544c083e2849821370e)), closes [#205](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/205)
+* **aggregator:** basic API version mgmt ([68e4f35](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/68e4f352a98fcc8bd9da8b31944a6d8f73433b54))
+* **aggregator:** HTTP limit settings ([8e81485](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/8e814854a9f45096c30e130d39304ad7ded49c65))
+* **aggregator:** Supported versions in deprecation warning ([d067c66](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/d067c66d0d51f4539333f98ae19632317d497f58))
+* **aggregator:** Warn list in JSON RPC response ([1ea269b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1ea269b49fe106363a222204994c5e23f065d19e))
+* bump for release ([#287](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/287)) ([3ba2620](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3ba262076754e504d45e421ac3b46f4a517a774f))
+* **core:** Supply EIP712 domain sep with prefilled version and name ([#210](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/210)) ([2ed564b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2ed564b9581c4eff2364fdc490f0f8d0022a6982))
+* eip712domain_info API Endpoint ([5f0bcce](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/5f0bcce9d77b0e25c31032eb820e4fc4ab467cc6))
+* make domain version injectable ([73bb550](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/73bb550f60d3f0d8aebc3e26aaf5862df092a98e))
+* replace aggregator mnemonic with private key ([#201](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/201)) ([24583b4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/24583b468a08527f7add79c71da0c5d56ab760c9))
+* TAP Showcase: Added integration tests for `tap_manager` and `tap_aggregator`. ([975b3c7](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/975b3c746b91c0cfe7a0dfc8a3361401bc70db28))
+* TAP Showcase: Added integration tests for `tap_manager` and `tap_aggregator`. ([bcb6d82](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/bcb6d820a0f257c61ad83cf739726c2646885ce9))
+* **tap-aggregator:** add default for key derive path arg ([3737f51](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3737f51d5235981c868995e4d5b6798917341123))
+* **tap-aggregator:** add v2 endpoint ([e7713c4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/e7713c408a732ec5590e39cfc62ae89f8d31aac7))
+* **tap-aggregator:** allow argument for key derive path to be used with mnemonic ([aec0a66](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/aec0a6628fff813e017c2e30d25530f81038dcd7))
+* **tap-aggregator:** update to work with alloy changes ([9e94403](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/9e9440354ae73cd3491e72552ebc1877c3313509))
+
+
+### Bug Fixes
+
+* add layer to set concurrent limits for gRPC ([d539df4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/d539df466ae3a99bee53a392ff6f078b8d8edcc6))
+* **aggregator:** RAV and receipt timestamp checks ([faa3a8b](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/faa3a8b62aea95947a39b5c8a6799199fd8f88e8))
+* **aggregator:** revert default port change ([2f76f95](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/2f76f959e7576f32c4052dca94bf6e21a2f7f9eb))
+* **aggregator:** short args removed ([47c7183](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/47c7183d922198b84e09e669cf5a86ed4f3581e2))
+* **aggregator:** timestamp was based in millis, but should be nanoseconds ([354557f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/354557ff9633f3ba0af34dc7a004f52f7e49862c))
+* **aggregator:** warning codes ([67e8ff2](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/67e8ff2b797e1efcf5d03d1452d055855b784d50))
+* better organize dependencies ([6d7f470](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/6d7f4700a58721db839330a23d082c68c6aec2a4))
+* **core:** Update alloy to v0.3.2 ([1ea0e7a](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1ea0e7a7617ec9c9b65c2a1ea0813cb2c2042882))
+* listen on 0.0.0.0 instead of localhost ([#203](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/203)) ([5099ad1](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/5099ad166dda203cb9938c1fa417cf86d2215667))
+* listen on 0.0.0.0 instead of localhost ([#204](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/204)) ([95d8ea6](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/95d8ea6bcd0e22e15dc8a2fee29c9b64abda978b))
+* rebase main ([0c7bc1c](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0c7bc1c9cebbb8dfad1c83067a1457380009925f))
+* **receipt:** update check for unique receipts in v1 and v2 ([cc8e00f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/cc8e00f005dc8640f8db0ab230d9f3f5fd19a69c))
+* update RAV and receipt structs for horizon to latest version ([58afaef](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/58afaef396c635828d214e8bc325b6c5328b5b1b))
+* update rav attributes to camel case ([1b232e4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1b232e4de230dc4922937fea2b489c7409ca2408))
+
+
+### Performance Improvements
+
+* add rayon to verify signatures process ([#255](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/255)) ([cfa4a06](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/cfa4a0610e901f90ff7397fcaf1ba4ac633e774b))
+
+
+### Code Refactoring
+
+* create tap_eip712_message, tap_receipts and tap_graph ([#268](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/268)) ([3d35cac](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/3d35cac73159a89125051b5148a88efc63eb2193))
+* make manager generic over rav ([#267](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/267)) ([1fc51a3](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/1fc51a3ff9ce74027b47a0e6d026a5bedd9ca00c))
+* manager generic over receipt ([#266](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/266)) ([25a3316](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/25a3316abd8596c3d5081d6b8f0507034c60d2a4))
+* rename "gateway" to "sender" everywhere ([309f41f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/309f41f879b51a1f2840ef0ed2552d7faa338b86)), closes [#188](https://github.com/semiotic-ai/timeline-aggregation-protocol/issues/188)
+* rename EIP712SignedMessage to Eip712SignedMessage ([0b0b59e](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/0b0b59e380c9e2f04da2b28c26ccd0202f15a4a8))
+* update project structure ([70ee2c6](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/70ee2c67125653c25f479ee5f11e7c7e555078b7))
+
 ## [0.5.7](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.6...tap_aggregator-v0.5.7) (2025-07-18)
 
 
