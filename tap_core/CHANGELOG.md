@@ -8,6 +8,13 @@
 
 
 
+## [6.0.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v6.0.0...tap_core-v6.0.1) (2025-08-21)
+
+
+### Bug Fixes
+
+* use correct TAP v2 domain name ([f41c32e](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/f41c32e8c4350b2a0bbf036e5a03eafe2ca31c33))
+
 ## [6.0.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v5.0.0...tap_core-v6.0.0) (2025-08-20)
 
 
