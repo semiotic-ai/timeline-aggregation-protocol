@@ -54,23 +54,19 @@ struct Args {
     #[arg(long, default_value_t = 5000, env = "TAP_METRICS_PORT")]
     metrics_port: u16,
 
-    /// Domain name to be used for the EIP-712 domain separator.
-    #[arg(long, env = "TAP_DOMAIN_NAME")]
-    domain_name: Option<String>,
-
-    /// Domain version to be used for the EIP-712 domain separator.
-    #[arg(long, env = "TAP_DOMAIN_VERSION")]
-    domain_version: Option<String>,
-
     /// Domain chain ID to be used for the EIP-712 domain separator.
     #[arg(long, env = "TAP_DOMAIN_CHAIN_ID")]
     domain_chain_id: Option<String>,
 
-    /// Domain verifying contract to be used for the EIP-712 domain separator.
+    /// [TAP v1] Domain verifying contract to be used for the EIP-712 domain separator.
     #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT")]
     domain_verifying_contract: Option<Address>,
 
-    /// Domain salt to be used for the EIP-712 domain separator.
+    /// [TAP v2] Domain verifying contract to be used for the EIP-712 domain separator.
+    #[arg(long, env = "TAP_DOMAIN_VERIFYING_CONTRACT_V2")]
+    domain_verifying_contract_v2: Option<Address>,
+
+    /// [Shared] Domain salt to be used for the EIP-712 domain separator.
     #[arg(long, env = "TAP_DOMAIN_SALT")]
     domain_salt: Option<String>,
 
@@ -100,7 +96,8 @@ async fn main() -> Result<()> {
     info!("Wallet address: {:#40x}", wallet.address());
 
     // Create the EIP-712 domain separator.
-    let domain_separator = create_eip712_domain(&args)?;
+    let domain_separator = create_eip712_domain(&args, TapVersion::V1)?;
+    let domain_separator_v2 = create_eip712_domain(&args, TapVersion::V2)?;
 
     // Create HashSet of *all* allowed signers
     let mut accepted_addresses: HashSet<Address> = std::collections::HashSet::new();
@@ -127,6 +124,7 @@ async fn main() -> Result<()> {
         wallet,
         accepted_addresses,
         domain_separator,
+        domain_separator_v2,
         args.max_request_body_size,
         args.max_response_body_size,
         args.max_connections,
@@ -142,9 +140,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
+/// Creates the TAP EIP-712 domain separator based on the provided arguments and TAP version
+fn create_eip712_domain(args: &Args, version: TapVersion) -> Result<Eip712Domain> {
     // Transform the args into the types expected by Eip712Domain::new().
-
     // Transform optional strings into optional Cow<str>.
     // Transform optional strings into optional U256.
     if args.domain_chain_id.is_some() {
@@ -161,12 +159,9 @@ fn create_eip712_domain(args: &Args) -> Result<Eip712Domain> {
     }
 
     // Transform optional strings into optional Address.
-    let verifying_contract: Option<Address> = args.domain_verifying_contract;
-
-    // Determine TAP version from domain_version argument
-    let version = match args.domain_version.as_deref() {
-        Some("2") => TapVersion::V2,
-        _ => TapVersion::V1, // Default to V1
+    let verifying_contract: Option<Address> = match version {
+        TapVersion::V1 => args.domain_verifying_contract,
+        TapVersion::V2 => args.domain_verifying_contract_v2,
     };
 
     // Create the EIP-712 domain separator.

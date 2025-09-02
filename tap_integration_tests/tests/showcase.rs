@@ -124,6 +124,11 @@ fn domain_separator() -> Eip712Domain {
     tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
 }
 
+#[fixture]
+fn domain_separator_v2() -> Eip712Domain {
+    tap_eip712_domain(1, Address::from([0x22u8; 20]), TapVersion::V2)
+}
+
 // Query price will typically be set by the Indexer. It's assumed to be part of the Indexer service.
 #[fixture]
 #[once]
@@ -336,6 +341,7 @@ fn wrong_requests(
 async fn single_indexer_test_server(
     keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -347,6 +353,7 @@ async fn single_indexer_test_server(
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         keys_sender,
         domain_separator.clone(),
+        domain_separator_v2.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -375,6 +382,7 @@ async fn single_indexer_test_server(
 async fn two_indexers_test_servers(
     keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -394,6 +402,7 @@ async fn two_indexers_test_servers(
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         keys_sender,
         domain_separator.clone(),
+        domain_separator_v2.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -445,6 +454,7 @@ async fn two_indexers_test_servers(
 async fn single_indexer_wrong_sender_test_server(
     wrong_keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -456,6 +466,7 @@ async fn single_indexer_wrong_sender_test_server(
     let (sender_aggregator_handle, sender_aggregator_addr) = start_sender_aggregator(
         wrong_keys_sender,
         domain_separator.clone(),
+        domain_separator_v2.clone(),
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -692,6 +703,7 @@ async fn test_tap_manager_rav_timestamp_cuttoff(
 async fn test_tap_aggregator_rav_timestamp_cuttoff(
     keys_sender: PrivateKeySigner,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -703,6 +715,7 @@ async fn test_tap_aggregator_rav_timestamp_cuttoff(
     let (sender_handle, sender_addr) = start_sender_aggregator(
         keys_sender,
         domain_separator,
+        domain_separator_v2,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
@@ -827,6 +840,7 @@ async fn start_indexer_server(
 async fn start_sender_aggregator(
     keys: PrivateKeySigner,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     http_request_size_limit: u32,
     http_response_size_limit: u32,
     http_max_concurrent_connections: u32,
@@ -843,6 +857,7 @@ async fn start_sender_aggregator(
         keys,
         accepted_addresses,
         domain_separator,
+        domain_separator_v2,
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,

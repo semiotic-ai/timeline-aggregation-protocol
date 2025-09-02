@@ -21,6 +21,7 @@ use tonic::codec::CompressionEncoding;
 #[tokio::test]
 async fn aggregation_test() {
     let domain_separator = tap_eip712_domain(1, Address::ZERO, TapVersion::V2);
+    let domain_separator_v2 = tap_eip712_domain(1, Address::ZERO, TapVersion::V2);
 
     let wallet = PrivateKeySigner::random();
 
@@ -35,6 +36,7 @@ async fn aggregation_test() {
         wallet.clone(),
         accepted_addresses,
         domain_separator.clone(),
+        domain_separator_v2.clone(),
         max_request_body_size,
         max_response_body_size,
         max_concurrent_connections,

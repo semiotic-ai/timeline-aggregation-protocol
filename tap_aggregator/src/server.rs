@@ -85,6 +85,12 @@ pub trait Rpc {
     #[method(name = "eip712domain_info")]
     fn eip712_domain_info(&self) -> JsonRpcResult<Eip712Domain>;
 
+    /// Returns the v2 EIP-712 domain separator information used by this server.
+    /// The client is able to verify the signatures of the receipts and receipt aggregate vouchers.
+    #[cfg(feature = "v2")]
+    #[method(name = "eip712domain_info_v2")]
+    fn eip712_domain_info_v2(&self) -> JsonRpcResult<Eip712Domain>;
+
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
     #[method(name = "aggregate_receipts")]
@@ -112,6 +118,8 @@ struct RpcImpl {
     wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
+    #[cfg(feature = "v2")]
+    domain_separator_v2: Eip712Domain,
     kafka: Option<rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>>,
 }
 
@@ -340,7 +348,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
         let receipts_count: u64 = receipts.len() as u64;
 
         match aggregator::v2::check_and_aggregate_receipts(
-            &self.domain_separator,
+            &self.domain_separator_v2,
             receipts.as_slice(),
             previous_rav,
             &self.wallet,
@@ -379,6 +387,11 @@ impl RpcServer for RpcImpl {
 
     fn eip712_domain_info(&self) -> JsonRpcResult<Eip712Domain> {
         Ok(JsonRpcResponse::ok(self.domain_separator.clone()))
+    }
+
+    #[cfg(feature = "v2")]
+    fn eip712_domain_info_v2(&self) -> JsonRpcResult<Eip712Domain> {
+        Ok(JsonRpcResponse::ok(self.domain_separator_v2.clone()))
     }
 
     fn aggregate_receipts(
@@ -435,7 +448,7 @@ impl RpcServer for RpcImpl {
             api_version,
             &self.wallet,
             &self.accepted_addresses,
-            &self.domain_separator,
+            &self.domain_separator_v2,
             receipts,
             previous_rav,
         ) {
@@ -468,6 +481,7 @@ pub async fn run_server(
     wallet: PrivateKeySigner,
     accepted_addresses: HashSet<Address>,
     domain_separator: Eip712Domain,
+    domain_separator_v2: Eip712Domain,
     max_request_body_size: u32,
     max_response_body_size: u32,
     max_concurrent_connections: u32,
@@ -478,6 +492,7 @@ pub async fn run_server(
         wallet,
         accepted_addresses,
         domain_separator,
+        domain_separator_v2,
         kafka,
     };
     let (json_rpc_service, _) = create_json_rpc_service(
@@ -661,6 +676,10 @@ mod tests {
     fn domain_separator() -> Eip712Domain {
         tap_eip712_domain(1, Address::from([0x11u8; 20]), TapVersion::V1)
     }
+    #[fixture]
+    fn domain_separator_v2() -> Eip712Domain {
+        tap_eip712_domain(1, Address::from([0x22u8; 20]), TapVersion::V2)
+    }
 
     #[fixture]
     fn http_request_size_limit() -> u32 {
@@ -681,6 +700,7 @@ mod tests {
     #[tokio::test]
     async fn protocol_version(
         domain_separator: Eip712Domain,
+        domain_separator_v2: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -694,6 +714,7 @@ mod tests {
             keys_main.wallet,
             HashSet::from([keys_main.address]),
             domain_separator,
+            domain_separator_v2,
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -720,6 +741,7 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_no_previous_rav(
         domain_separator: Eip712Domain,
+        domain_separator_v2: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -746,6 +768,7 @@ mod tests {
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
             domain_separator.clone(),
+            domain_separator_v2.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -803,6 +826,7 @@ mod tests {
     #[tokio::test]
     async fn signed_rav_is_valid_with_previous_rav(
         domain_separator: Eip712Domain,
+        domain_separator_v2: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -829,6 +853,7 @@ mod tests {
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address, keys_0.address, keys_1.address]),
             domain_separator.clone(),
+            domain_separator_v2.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -893,6 +918,7 @@ mod tests {
     #[tokio::test]
     async fn invalid_api_version(
         domain_separator: Eip712Domain,
+        domain_separator_v2: Eip712Domain,
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
@@ -907,6 +933,7 @@ mod tests {
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address]),
             domain_separator.clone(),
+            domain_separator_v2.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
@@ -976,6 +1003,7 @@ mod tests {
     #[tokio::test]
     async fn request_size_limit(
         domain_separator: Eip712Domain,
+        domain_separator_v2: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
         allocation_ids: Vec<Address>,
@@ -999,6 +1027,7 @@ mod tests {
             keys_main.wallet.clone(),
             HashSet::from([keys_main.address]),
             domain_separator.clone(),
+            domain_separator_v2.clone(),
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
