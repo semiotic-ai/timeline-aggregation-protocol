@@ -29,6 +29,13 @@
 
 
 
+## [0.6.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.6.1...tap_aggregator-v0.6.2) (2025-09-02)
+
+
+### Bug Fixes
+
+* **aggregator:** use split EIP712 domains for TAP v1 and v2 aggregator ([a4fffbc](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/a4fffbc847cb8a9a1600123474393077cb2a219c))
+
 ## [0.6.0](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.5.9...tap_aggregator-v0.6.0) (2025-08-20)
 
 
