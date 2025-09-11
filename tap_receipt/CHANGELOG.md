@@ -1,5 +1,7 @@
 # Changelog
 
+
+
 ## [1.1.3](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_receipt-v1.1.2...tap_receipt-v1.1.3) (2025-05-27)
 
 

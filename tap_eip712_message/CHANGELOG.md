@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.2.2...tap_eip712_message-v0.2.3) (2025-09-11)
+
+
+### Bug Fixes
+
+* **tap-eip712:** break circular dependency with tap-graph for releases ([22388fa](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/22388faab3a1c7d0dd3841c90e69cc784ba39f7d))
+
 ## [0.2.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_eip712_message-v0.2.1...tap_eip712_message-v0.2.2) (2025-05-27)
 
 

@@ -11,6 +11,13 @@
 
 
 
+## [0.3.5](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.3.4...tap_graph-v0.3.5) (2025-09-11)
+
+
+### Bug Fixes
+
+* **tap-graph:** reorder ReceiptAggregateVoucher fields to match contract ([f6da5e4](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/f6da5e45f3f3b325e3a43b7090a676b20b88a71f))
+
 ## [0.3.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_graph-v0.3.3...tap_graph-v0.3.4) (2025-06-20)
 
 
