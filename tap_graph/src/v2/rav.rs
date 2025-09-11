@@ -32,10 +32,10 @@ sol! {
         bytes32 collectionId;
         // The address of the payer the RAV was issued by
         address payer;
-        // The address of the data service the RAV was issued to
-        address dataService;
         // The address of the service provider the RAV was issued to
         address serviceProvider;
+        // The address of the data service the RAV was issued to
+        address dataService;
         // The RAV timestamp, indicating the latest TAP Receipt in the RAV
         uint64 timestampNs;
         // Total amount owed to the service provider since the beginning of the
