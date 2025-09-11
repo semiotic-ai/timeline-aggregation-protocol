@@ -7,7 +7,7 @@
 //! using EIP712 standard.
 //!
 //! # Example
-//! ```rust
+//! ```rust,no_run
 //! # use thegraph_core::alloy::{dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner};
 //! # let domain_separator = Eip712Domain::default();
 //! use tap_eip712_message::Eip712SignedMessage;

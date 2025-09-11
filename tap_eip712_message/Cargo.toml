@@ -12,4 +12,3 @@ thegraph-core.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-tap_graph.workspace = true
