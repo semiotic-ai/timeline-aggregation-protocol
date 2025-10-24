@@ -93,6 +93,7 @@ pub trait Rpc {
 
     /// Aggregates the given receipts into a receipt aggregate voucher.
     /// Returns an error if the user expected API version is not supported.
+    // AUDIT_SCOPE: V1_LEGACY - V1 JSON-RPC endpoint (out of scope)
     #[method(name = "aggregate_receipts")]
     fn aggregate_receipts(
         &self,
@@ -152,6 +153,7 @@ fn check_api_version_deprecation(api_version: &TapRpcApiVersion) -> Option<JsonR
     }
 }
 
+// AUDIT_SCOPE: V1_LEGACY - V1 aggregation helper (out of scope)
 fn aggregate_receipts_(
     api_version: String,
     wallet: &PrivateKeySigner,
@@ -268,6 +270,7 @@ fn aggregate_receipts_v2_(
     }
 }
 
+// AUDIT_SCOPE: V1_LEGACY - V1 gRPC implementation (out of scope)
 #[tonic::async_trait]
 impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
     async fn aggregate_receipts(
@@ -394,6 +397,7 @@ impl RpcServer for RpcImpl {
         Ok(JsonRpcResponse::ok(self.domain_separator_v2.clone()))
     }
 
+    // AUDIT_SCOPE: V1_LEGACY - V1 JSON-RPC handler (out of scope)
     fn aggregate_receipts(
         &self,
         api_version: String,

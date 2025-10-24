@@ -17,6 +17,7 @@ use anyhow::Result;
 use crate::protocol_mode::ProtocolMode;
 
 /// Validate that a batch of v1 receipts is valid for legacy processing
+// AUDIT_SCOPE: V1_LEGACY - V1 receipt validation (out of scope)
 pub fn validate_v1_receipt_batch<T>(receipts: &[T]) -> Result<ProtocolMode> {
     if receipts.is_empty() {
         return Err(anyhow::anyhow!("Cannot aggregate empty receipt batch"));

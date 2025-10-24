@@ -1,5 +1,6 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
+// AUDIT_SCOPE: V1_LEGACY - Out of scope for V2 Horizon audit
 
 //! # Receipt Aggregate Voucher
 //!

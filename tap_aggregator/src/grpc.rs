@@ -19,6 +19,7 @@ pub mod uint128 {
     }
 }
 
+// AUDIT_SCOPE: V1_LEGACY - V1 gRPC protocol conversions (out of scope)
 pub mod v1 {
     use anyhow::anyhow;
     use tap_core::signed_message::Eip712SignedMessage;
