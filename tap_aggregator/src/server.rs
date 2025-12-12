@@ -305,6 +305,7 @@ impl v1::tap_aggregator_server::TapAggregator for RpcImpl {
                 if let Some(kafka) = &self.kafka {
                     produce_kafka_records(
                         kafka,
+                        "gateway_ravs",
                         &self.wallet.address(),
                         &res.message.allocationId,
                         res.message.valueAggregate,
@@ -361,6 +362,7 @@ impl v2::tap_aggregator_server::TapAggregator for RpcImpl {
                 if let Some(kafka) = &self.kafka {
                     produce_kafka_records(
                         kafka,
+                        "gateway_ravs_v2",
                         &res.message.payer,
                         &res.message.collectionId,
                         res.message.valueAggregate,
@@ -419,6 +421,7 @@ impl RpcServer for RpcImpl {
                 if let Some(kafka) = &self.kafka {
                     produce_kafka_records(
                         kafka,
+                        "gateway_ravs",
                         &self.wallet.address(),
                         &res.data.message.allocationId,
                         res.data.message.valueAggregate,
@@ -457,9 +460,9 @@ impl RpcServer for RpcImpl {
                 TOTAL_AGGREGATED_RECEIPTS.inc_by(receipts_count);
                 AGGREGATION_SUCCESS_COUNTER.inc();
                 if let Some(kafka) = &self.kafka {
-                    // V2 RAVs use collectionId instead of allocationId
                     produce_kafka_records(
                         kafka,
+                        "gateway_ravs_v2",
                         &self.wallet.address(),
                         &res.data.message.collectionId,
                         res.data.message.valueAggregate,
@@ -618,11 +621,11 @@ fn create_json_rpc_service(
 
 fn produce_kafka_records<K: Debug>(
     kafka: &rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>,
+    topic: &str,
     sender: &Address,
     key_fragment: &K,
     aggregated_value: u128,
 ) {
-    let topic = "gateway_ravs";
     let key = format!("{sender:?}:{key_fragment:?}");
     let payload = aggregated_value.to_string();
     let result = kafka.send(
