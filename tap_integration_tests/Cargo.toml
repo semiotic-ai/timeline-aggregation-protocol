@@ -2,6 +2,7 @@
 name = "tap_integration_tests"
 version = "0.1.26"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 autotests = false

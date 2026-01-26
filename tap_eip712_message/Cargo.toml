@@ -2,6 +2,7 @@
 name = "tap_eip712_message"
 version = "0.2.3"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "EIP712 singed messages used by TAP"

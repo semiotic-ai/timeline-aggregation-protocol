@@ -2,6 +2,7 @@
 name = "tap_receipt"
 version = "1.1.4"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "TAP Receipt states and checks"
