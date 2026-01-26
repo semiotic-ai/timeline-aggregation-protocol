@@ -216,12 +216,8 @@ impl InMemoryContext {
     pub fn increase_escrow(&mut self, sender_id: Address, value: u128) {
         let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
 
-        if let Some(current_value) = sender_escrow_storage.get(&sender_id) {
-            let mut sender_escrow_storage = self.sender_escrow_storage.write().unwrap();
-            sender_escrow_storage.insert(sender_id, current_value + value);
-        } else {
-            sender_escrow_storage.insert(sender_id, value);
-        }
+        let new_value = sender_escrow_storage.get(&sender_id).copied().unwrap_or(0) + value;
+        sender_escrow_storage.insert(sender_id, new_value);
     }
 
     pub fn reduce_escrow(&self, sender_id: Address, value: u128) -> Result<(), InMemoryError> {
