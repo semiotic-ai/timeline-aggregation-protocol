@@ -14,7 +14,7 @@ use thegraph_core::alloy::{
     dyn_abi::Eip712Domain, primitives::Address, signers::local::PrivateKeySigner,
 };
 
-#[derive(Parser, Debug)]
+#[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on for JSON-RPC requests.
@@ -79,6 +79,29 @@ struct Args {
 
     #[arg(long, env = "TAP_KAFKA_CONFIG")]
     kafka_config: Option<String>,
+}
+
+impl std::fmt::Debug for Args {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Args")
+            .field("port", &self.port)
+            .field("public_keys", &self.public_keys)
+            .field("private_key", &"[REDACTED]")
+            .field("max_request_body_size", &self.max_request_body_size)
+            .field("max_response_body_size", &self.max_response_body_size)
+            .field("max_connections", &self.max_connections)
+            .field("request_timeout_secs", &self.request_timeout_secs)
+            .field("metrics_port", &self.metrics_port)
+            .field("domain_chain_id", &self.domain_chain_id)
+            .field("domain_verifying_contract", &self.domain_verifying_contract)
+            .field(
+                "domain_verifying_contract_v2",
+                &self.domain_verifying_contract_v2,
+            )
+            .field("domain_salt", &self.domain_salt)
+            .field("kafka_config", &self.kafka_config)
+            .finish()
+    }
 }
 
 #[tokio::main]
