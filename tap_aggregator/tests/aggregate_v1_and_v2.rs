@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use tap_aggregator::{
     grpc::{
@@ -40,6 +40,7 @@ async fn aggregation_test() {
         max_request_body_size,
         max_response_body_size,
         max_concurrent_connections,
+        Duration::from_secs(60),
         None,
     )
     .await

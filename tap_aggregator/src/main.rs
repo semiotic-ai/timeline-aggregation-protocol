@@ -3,7 +3,7 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, str::FromStr, time::Duration};
 
 use anyhow::Result;
 use clap::Parser;
@@ -48,6 +48,13 @@ struct Args {
     /// Defaults to 32.
     #[arg(long, default_value_t = 32, env = "TAP_MAX_CONNECTIONS")]
     max_connections: u32,
+
+    /// Maximum time in seconds allowed for processing a request.
+    /// This timeout protects against Slowloris-style DoS attacks by ensuring
+    /// that connections cannot be held open indefinitely.
+    /// Defaults to 60 seconds.
+    #[arg(long, default_value_t = 60, env = "TAP_REQUEST_TIMEOUT_SECS")]
+    request_timeout_secs: u64,
 
     /// Metrics server port.
     /// Defaults to 5000.
@@ -128,6 +135,7 @@ async fn main() -> Result<()> {
         args.max_request_body_size,
         args.max_response_body_size,
         args.max_connections,
+        Duration::from_secs(args.request_timeout_secs),
         kafka,
     )
     .await?;

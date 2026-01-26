@@ -1,7 +1,7 @@
 // Copyright 2023-, Semiotic AI, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, fmt::Debug, str::FromStr};
+use std::{collections::HashSet, fmt::Debug, str::FromStr, time::Duration};
 
 use anyhow::Result;
 use axum::{error_handling::HandleError, routing::post_service, BoxError, Router};
@@ -21,6 +21,7 @@ use thegraph_core::alloy::{
 use tokio::{net::TcpListener, signal, task::JoinHandle};
 use tonic::{codec::CompressionEncoding, service::Routes, Request, Response, Status};
 use tower::{layer::util::Identity, make::Shared};
+use tower_http::timeout::TimeoutLayer;
 
 use crate::{
     aggregator,
@@ -485,6 +486,7 @@ pub async fn run_server(
     max_request_body_size: u32,
     max_response_body_size: u32,
     max_concurrent_connections: u32,
+    request_timeout: Duration,
     kafka: Option<rdkafka::producer::ThreadedProducer<rdkafka::producer::DefaultProducerContext>>,
 ) -> Result<(JoinHandle<()>, std::net::SocketAddr)> {
     // Setting up the JSON RPC server
@@ -508,16 +510,25 @@ pub async fn run_server(
             format!("Something went wrong: {err}"),
         )
     }
-    let json_rpc_router = Router::new().route_service(
-        "/",
-        HandleError::new(post_service(json_rpc_service), handle_anyhow_error),
-    );
+    let json_rpc_router = Router::new()
+        .route_service(
+            "/",
+            HandleError::new(post_service(json_rpc_service), handle_anyhow_error),
+        )
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            request_timeout,
+        ));
 
     let grpc_service = create_grpc_service(rpc_impl)?;
 
     let grpc_router = Router::new()
         .layer(tower::limit::ConcurrencyLimitLayer::new(
             max_concurrent_connections as usize,
+        ))
+        .layer(TimeoutLayer::with_status_code(
+            StatusCode::REQUEST_TIMEOUT,
+            request_timeout,
         ))
         .merge(grpc_service.into_axum_router());
 
@@ -638,7 +649,7 @@ fn produce_kafka_records<K: Debug>(
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 mod tests {
-    use std::{collections::HashSet, str::FromStr};
+    use std::{collections::HashSet, str::FromStr, time::Duration};
 
     use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
     use rstest::*;
@@ -696,6 +707,11 @@ mod tests {
         1
     }
 
+    #[fixture]
+    fn request_timeout() -> Duration {
+        Duration::from_secs(60)
+    }
+
     #[rstest]
     #[tokio::test]
     async fn protocol_version(
@@ -704,6 +720,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
+        request_timeout: Duration,
     ) {
         // The keys that will be used to sign the new RAVs
         let keys_main = keys();
@@ -718,6 +735,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            request_timeout,
             None,
         )
         .await
@@ -745,6 +763,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
+        request_timeout: Duration,
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
@@ -758,7 +777,7 @@ mod tests {
         let keys_0 = keys();
         let keys_1 = keys();
         // Vector of all wallets to make it easier to select one randomly
-        let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
+        let all_wallets = [keys_main.clone(), keys_0.clone(), keys_1.clone()];
         // PRNG for selecting a random wallet
         let mut rng = StdRng::seed_from_u64(random_seed);
 
@@ -772,6 +791,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            request_timeout,
             None,
         )
         .await
@@ -830,6 +850,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
+        request_timeout: Duration,
         allocation_ids: Vec<Address>,
         #[case] values: Vec<u128>,
         #[values("0.0")] api_version: &str,
@@ -843,7 +864,7 @@ mod tests {
         let keys_0 = keys();
         let keys_1 = keys();
         // Vector of all wallets to make it easier to select one randomly
-        let all_wallets = vec![keys_main.clone(), keys_0.clone(), keys_1.clone()];
+        let all_wallets = [keys_main.clone(), keys_0.clone(), keys_1.clone()];
         // PRNG for selecting a random wallet
         let mut rng = StdRng::seed_from_u64(random_seed);
 
@@ -857,6 +878,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            request_timeout,
             None,
         )
         .await
@@ -922,6 +944,7 @@ mod tests {
         http_request_size_limit: u32,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
+        request_timeout: Duration,
         allocation_ids: Vec<Address>,
     ) {
         // The keys that will be used to sign the new RAVs
@@ -937,6 +960,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            request_timeout,
             None,
         )
         .await
@@ -1006,6 +1030,7 @@ mod tests {
         domain_separator_v2: Eip712Domain,
         http_response_size_limit: u32,
         http_max_concurrent_connections: u32,
+        request_timeout: Duration,
         allocation_ids: Vec<Address>,
         #[values("0.0")] api_version: &str,
     ) {
@@ -1031,6 +1056,7 @@ mod tests {
             http_request_size_limit,
             http_response_size_limit,
             http_max_concurrent_connections,
+            request_timeout,
             None,
         )
         .await

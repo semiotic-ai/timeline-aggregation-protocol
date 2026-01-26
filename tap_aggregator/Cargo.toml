@@ -37,7 +37,8 @@ thegraph-core = { workspace = true, features = ["alloy-eip712"] }
 tokio.workspace = true
 tonic.workspace = true
 tonic-prost.workspace = true
-tower = { workspace = true, features = ["util", "steer", "limit"] }
+tower = { workspace = true, features = ["util", "steer", "limit", "timeout"] }
+tower-http = { workspace = true, features = ["timeout"] }
 tracing-subscriber.workspace = true
 
 [build-dependencies]

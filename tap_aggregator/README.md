@@ -38,6 +38,10 @@ Options:
           Maximum response body size in bytes. Defaults to 100kB [env: TAP_MAX_RESPONSE_BODY_SIZE=] [default: 102400]
       --max-connections <MAX_CONNECTIONS>
           Maximum number of concurrent connections. Defaults to 32 [env: TAP_MAX_CONNECTIONS=] [default: 32]
+      --request-timeout-secs <REQUEST_TIMEOUT_SECS>
+          Maximum time in seconds allowed for processing a request. This timeout protects against
+          Slowloris-style DoS attacks by ensuring that connections cannot be held open indefinitely.
+          Defaults to 60 seconds [env: TAP_REQUEST_TIMEOUT_SECS=] [default: 60]
   -h, --help
           Print help
   -V, --version

@@ -10,6 +10,7 @@ use std::{
     net::{SocketAddr, TcpListener},
     str::FromStr,
     sync::{Arc, RwLock},
+    time::Duration,
 };
 
 use anyhow::{Error, Result};
@@ -861,6 +862,7 @@ async fn start_sender_aggregator(
         http_request_size_limit,
         http_response_size_limit,
         http_max_concurrent_connections,
+        Duration::from_secs(60),
         None,
     )
     .await?;
