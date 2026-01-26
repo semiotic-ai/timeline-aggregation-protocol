@@ -67,6 +67,16 @@ lazy_static! {
         "Total successfully aggregated GRT value (wei)."
     )
     .unwrap();
+    static ref KAFKA_PUBLISH_SUCCESS_COUNTER: IntCounter = register_int_counter!(
+        "kafka_publish_success_total",
+        "Number of successful Kafka publish attempts for RAV records."
+    )
+    .unwrap();
+    static ref KAFKA_PUBLISH_FAILURE_COUNTER: IntCounter = register_int_counter!(
+        "kafka_publish_failure_total",
+        "Number of failed Kafka publish attempts for RAV records."
+    )
+    .unwrap();
 }
 
 /// Generates the `RpcServer` trait that is used to define the JSON-RPC API.
@@ -641,8 +651,17 @@ fn produce_kafka_records<K: Debug>(
             .key(&key)
             .payload(&payload),
     );
-    if let Err((err, _)) = result {
-        error!("error producing to {topic}: {err}");
+    match result {
+        Ok(_) => {
+            KAFKA_PUBLISH_SUCCESS_COUNTER.inc();
+        }
+        Err((err, _)) => {
+            KAFKA_PUBLISH_FAILURE_COUNTER.inc();
+            error!(
+                "Failed to publish RAV to Kafka topic {topic}: {err}. \
+                 RAV was still returned to client - escrow tracking may drift."
+            );
+        }
     }
 }
 

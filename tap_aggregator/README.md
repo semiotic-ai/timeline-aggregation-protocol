@@ -447,6 +447,28 @@ Example:
 }
 ```
 
+## Metrics
+
+The aggregator exposes Prometheus metrics for monitoring. Key metrics include:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `aggregation_success_count` | Counter | Number of successful receipt aggregation requests |
+| `aggregation_failure_count` | Counter | Number of failed receipt aggregation requests |
+| `total_aggregated_receipts` | Counter | Total number of receipts successfully aggregated |
+| `total_aggregated_grt` | Counter | Total successfully aggregated GRT value (wei) |
+| `kafka_publish_success_total` | Counter | Number of successful Kafka publish attempts for RAV records |
+| `kafka_publish_failure_total` | Counter | Number of failed Kafka publish attempts for RAV records |
+
+### Kafka Failure Handling
+
+When Kafka publishing fails, the aggregator:
+- Increments `kafka_publish_failure_total`
+- Logs an error with context about potential escrow tracking drift
+- **Still returns the RAV to the client** (availability over consistency)
+
+Operators should alert on `kafka_publish_failure_total > 0` to detect Kafka connectivity issues. If Kafka messages are lost, `tap-escrow-manager` may underestimate debt—see the `debts` config override in tap-escrow-manager for manual recovery.
+
 ## Feature Flags
 
 ### V2 Protocol Support
