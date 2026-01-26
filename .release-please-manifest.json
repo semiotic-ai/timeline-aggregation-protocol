@@ -1,8 +1,8 @@
 {
   ".": "0.0.0",
-  "tap_aggregator": "0.6.3",
-  "tap_core": "6.0.2",
-  "tap_integration_tests": "0.1.26",
+  "tap_aggregator": "0.6.4",
+  "tap_core": "6.0.3",
+  "tap_integration_tests": "0.1.27",
   "tap_eip712_message": "0.2.3",
   "tap_graph": "0.3.5",
   "tap_receipt": "1.1.4"

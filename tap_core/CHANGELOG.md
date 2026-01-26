@@ -10,6 +10,13 @@
 
 
 
+## [6.0.3](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v6.0.2...tap_core-v6.0.3) (2026-01-26)
+
+
+### Bug Fixes
+
+* **tap_core:** remove deadlock in increase_escrow (TRST-L-7) ([a6fe651](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/a6fe651874225ef7af8ba307c18b42b875210cde))
+
 ## [6.0.1](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_core-v6.0.0...tap_core-v6.0.1) (2025-08-21)
 
 

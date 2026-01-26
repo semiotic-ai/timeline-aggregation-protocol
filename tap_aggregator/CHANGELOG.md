@@ -31,6 +31,19 @@
 
 
 
+## [0.6.4](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.6.3...tap_aggregator-v0.6.4) (2026-01-26)
+
+
+### Features
+
+* **tap_aggregator:** add request timeout to prevent Slowloris DoS attacks (TRST-M-4) ([f22f864](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/f22f864a3a598579e66ca6d9f29e00c8666fb0d2))
+
+
+### Bug Fixes
+
+* **tap_aggregator:** add metrics for Kafka RAV publish outcomes (TRST-L-6) ([a22a14f](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/a22a14f60fc307130e12ffb8aae9e009e887866a))
+* Use custom Debug derive to avoid leakage of private keys ([59b6c71](https://github.com/semiotic-ai/timeline-aggregation-protocol/commit/59b6c71ad987c44efd9ca96b0d0c23fe7ce5a806))
+
 ## [0.6.2](https://github.com/semiotic-ai/timeline-aggregation-protocol/compare/tap_aggregator-v0.6.1...tap_aggregator-v0.6.2) (2025-09-02)
 
 
